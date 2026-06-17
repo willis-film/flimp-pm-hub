@@ -1,0 +1,146 @@
+<!--
+  strip.html — Flight Progress Strip markup template.
+
+  This is the externalized, human-readable version of the per-project strip that
+  render() (js/render.js) currently builds as a JS template string. It is kept
+  here as the single source of truth for the strip's structure so the markup can
+  be edited without hunting through render() — and as the migration target for a
+  future move to <template>-based or Alpine x-html rendering.
+
+  Placeholders use {{ }} for values render() injects per project row:
+    {{id}}          row id (e.g. "r1")
+    {{name}}        esc(project name)
+    {{status}}      status key: kickoff | production | limbo | done | closed
+    {{ioClass}}     "" or " io-checked" on the tab; strip gets " io-unchecked" when !io
+    {{ioOn}}        " on" when project.io is true (checkbox)
+    {{brandingOn}}  " on" when project.branding is true
+    {{gmailLabelTags}}   pre-rendered label pills (gmailLabelTags(project))
+    {{statusOptions}}    <option> list for the status <select>
+    {{tagsHtml}}         rendered tag chips or em-dash
+    {{commentPreview}}   latest comment text (sliced) or placeholder
+    {{nextActivityLabel}}/{{nextActivityClass}}  formatted next-activity + past/today/soon class
+    {{daysStr}}     days-left value (overdue-wrapped when negative)
+    {{dueLabel}}/{{oeLabel}}  formatted dates or em-dash
+    {{amOptions}}        <option> list for AM <select>
+    {{zohoField}}/{{estimateField}}/{{dropboxField}}  link cell (link+edit or input)
+
+  NOTE: render() is the live implementation. If you change this file, mirror the
+  change into the strip.innerHTML template in js/render.js (or wire render() to
+  fetch/parse this file) — they are not auto-synced yet.
+-->
+<div class="fps {{ioUncheckedClass}}" id="fps-{{id}}">
+  <div class="fps-tab fps-tab-{{status}}{{ioClass}}"></div>
+  <div class="fps-body">
+
+    <!-- TOP ROW: name + labels + status -->
+    <div class="fps-top">
+      <span class="fps-name" onclick="openDetail('{{id}}')">{{name}}</span>
+      {{gmailLabelTags}}
+      <div class="fps-status-wrap" style="position:relative;flex-shrink:0">
+        <select class="fps-status fps-status-{{status}}"
+                onchange="setStatus('{{id}}',this.value)"
+                style="cursor:pointer;padding-right:4px">
+          {{statusOptions}}
+        </select>
+      </div>
+    </div>
+
+    <!-- BOTTOM ROW: field slots -->
+    <div class="fps-fields">
+      <div class="fps-field" style="width:36px">
+        <div class="fps-field-label">I/O</div>
+        <div class="fps-field-val">
+          <div class="fps-cb{{ioOn}}" onclick="toggleField('{{id}}','io')"></div>
+        </div>
+      </div>
+
+      <div class="fps-field" style="width:144px;flex-shrink:0">
+        <div class="fps-field-label">Tags</div>
+        <div class="fps-field-val"><div class="fps-tags">{{tagsHtml}}</div></div>
+      </div>
+
+      <div class="fps-field" style="width:440px;flex-shrink:1;min-width:150px">
+        <div class="fps-field-label">Latest Comment</div>
+        <div class="fps-field-val">
+          <div class="fps-comment-wrap" id="fc-{{id}}">
+            <div class="fps-comment-preview" onclick="openStripComment('{{id}}')"
+                 title="Click to add comment" style="cursor:pointer">{{commentPreview}}</div>
+            <div class="fps-comment-composer" id="fcc-{{id}}" style="display:none;margin-top:4px">
+              <input class="fps-comment-input" id="fci-{{id}}" placeholder="Add a comment…">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fps-field" style="width:110px;flex-shrink:0">
+        <div class="fps-field-label">Next Activity</div>
+        <div class="fps-field-val" style="position:relative">
+          <span class="fps-next-label {{nextActivityClass}}"
+                onclick="openDatePicker('{{id}}','nextActivity','na-{{id}}')"
+                title="Click to set date" style="cursor:pointer">{{nextActivityLabel}}</span>
+          <input type="date" id="na-{{id}}" value="{{nextActivity}}"
+                 onchange="uf('{{id}}','nextActivity',this.value)"
+                 style="position:absolute;opacity:0;width:0;height:0;top:0;left:0">
+        </div>
+      </div>
+
+      <div class="fps-field" style="width:96px;flex-shrink:0">
+        <div class="fps-field-label">Days Left</div>
+        <div class="fps-field-val fps-days-val" style="white-space:nowrap">{{daysStr}}</div>
+      </div>
+
+      <div class="fps-field" style="width:84px">
+        <div class="fps-field-label">Due Date</div>
+        <div class="fps-field-val" style="position:relative">
+          <span class="fps-next-label" id="due-lbl-{{id}}"
+                onclick="openDatePicker('{{id}}','due','due-lbl-{{id}}')"
+                style="cursor:pointer">{{dueLabel}}</span>
+          <input type="date" id="due-inp-{{id}}" value="{{due}}"
+                 onchange="uf('{{id}}','due',this.value)"
+                 style="position:absolute;opacity:0;width:0;height:0;top:0;left:0">
+        </div>
+      </div>
+
+      <div class="fps-field" style="width:84px">
+        <div class="fps-field-label">OE Start</div>
+        <div class="fps-field-val" style="position:relative">
+          <span class="fps-next-label" id="oe-lbl-{{id}}"
+                onclick="openDatePicker('{{id}}','oeStart','oe-lbl-{{id}}')"
+                style="cursor:pointer">{{oeLabel}}</span>
+          <input type="date" id="oe-inp-{{id}}" value="{{oeStart}}"
+                 onchange="uf('{{id}}','oeStart',this.value)"
+                 style="position:absolute;opacity:0;width:0;height:0;top:0;left:0">
+        </div>
+      </div>
+
+      <div class="fps-field" style="width:84px">
+        <div class="fps-field-label">AM</div>
+        <div class="fps-field-val">
+          <select class="fps-select" onchange="uf('{{id}}','am',this.value)">{{amOptions}}</select>
+        </div>
+      </div>
+
+      <div class="fps-field" style="width:100px;flex-shrink:1;min-width:60px">
+        <div class="fps-field-label">Zoho</div>
+        <div class="fps-field-val">{{zohoField}}</div>
+      </div>
+
+      <div class="fps-field" style="width:100px;flex-shrink:1;min-width:60px">
+        <div class="fps-field-label">Estimate</div>
+        <div class="fps-field-val">{{estimateField}}</div>
+      </div>
+
+      <div class="fps-field" style="width:100px;flex-shrink:1;min-width:60px">
+        <div class="fps-field-label">Dropbox</div>
+        <div class="fps-field-val">{{dropboxField}}</div>
+      </div>
+
+      <div class="fps-field" style="width:56px">
+        <div class="fps-field-label">Branding</div>
+        <div class="fps-field-val">
+          <div class="fps-cb{{brandingOn}}" onclick="toggleField('{{id}}','branding')"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
