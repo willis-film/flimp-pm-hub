@@ -434,7 +434,7 @@ select.fi { cursor: pointer; }
 .tool-grid-wrap { flex: 0 0 auto; width: 234px; min-width: 234px; display: flex; align-items: stretch; border-left: 1px solid var(--border); background: var(--surface); overflow: hidden; }
 .tool-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; padding: 5px 7px; width: 100%; align-content: center; }
 .tg-btn { display: flex; align-items: center; justify-content: center; min-width: 0; padding: 3px 4px; border-radius: 3px; border: 1px solid var(--border2); background: var(--surface2); cursor: pointer; transition: all .13s; white-space: nowrap; overflow: hidden; height: 22px; font-family: var(--font); }
-.tg-btn-label { font-size: 12px; font-weight: 600; color: var(--text2); line-height: 1; overflow: hidden; text-overflow: ellipsis; }
+.tg-btn-label { font-size: 12px; font-weight: 400; color: var(--text2); line-height: 1; overflow: hidden; text-overflow: ellipsis; }
 .tg-btn:hover { background: var(--surface3); border-color: rgba(0,0,0,0.2); }
 .tg-btn.active { background: var(--accent); border-color: var(--accent); }
 .tg-btn.active .tg-btn-label { color: #fff; }

@@ -27,6 +27,9 @@ import './panels/distro.js';
 
 // Expose every registered handler globally for the inline on* attributes.
 Object.assign(window, A);
+// Also expose the bus object itself, so inline handlers written as
+// `A.fnName(...)` in render.js resolve (not just the bare-name mirror above).
+window.A = A;
 
 // ── GLOBAL LISTENERS ─────────────────────────────────────────────────────────
 // Wired once, immediately — these target static elements present in index.html.
