@@ -431,12 +431,12 @@ select.fi { cursor: pointer; }
 
 /* ── PANEL TOGGLE (Subtasks / Invoices) ─────────── */
 /* ── TOOL GRID (3x3) + STRIP ACTIONS ───────────── */
-.tool-grid-wrap { flex: 0 0 auto; width: 194px; min-width: 194px; display: flex; align-items: stretch; border-left: 1px solid var(--border); background: var(--surface); }
-.tool-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 2px; padding: 5px 7px; width: 100%; align-content: center; }
-.tg-btn { display: flex; align-items: center; justify-content: center; padding: 3px 5px; border-radius: 3px; border: 1px solid var(--border2); background: var(--surface2); cursor: pointer; transition: all .13s; white-space: nowrap; height: 22px; font-family: var(--font); }
+.tool-grid-wrap { flex: 0 0 auto; width: 216px; min-width: 216px; display: flex; align-items: stretch; border-left: 1px solid var(--border); background: var(--surface); overflow: hidden; }
+.tool-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; padding: 5px 7px; width: 100%; align-content: center; }
+.tg-btn { display: flex; align-items: center; justify-content: center; min-width: 0; padding: 3px 4px; border-radius: 3px; border: 1px solid var(--border2); background: var(--surface2); cursor: pointer; transition: all .13s; white-space: nowrap; overflow: hidden; height: 22px; font-family: var(--font); }
+.tg-btn-label { font-size: 12px; font-weight: 600; color: var(--text2); line-height: 1; overflow: hidden; text-overflow: ellipsis; }
 .tg-btn:hover { background: var(--surface3); border-color: rgba(0,0,0,0.2); }
 .tg-btn.active { background: var(--accent); border-color: var(--accent); }
-.tg-btn-label { font-size: 12px; font-weight: 600; color: var(--text2); line-height: 1; }
 .tg-btn.active .tg-btn-label { color: #fff; }
 .tg-unread { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #dc2626; flex-shrink: 0; margin-left: 3px; vertical-align: 1px; }
 .fps-actions-wrap { flex: 0 0 auto; min-width: 92px; display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 8px 8px 8px 6px; border-left: 1px solid var(--border); background: var(--surface); }
