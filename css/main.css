@@ -14,9 +14,9 @@
   --accent2: #3a4ad4;
   --radius: 4px;
   --radius-lg: 8px;
-  --font: 'Inter', sans-serif;
-  --font-headline: 'Plus Jakarta Sans', sans-serif;
-  --font-mono: 'Sometype Mono', monospace;
+  --font: Calibri, sans-serif;
+  --font-headline: Calibri, sans-serif;
+  --font-mono: Calibri, sans-serif;
   --row-h: 32px;
   --strip-h: 80px;
 
@@ -431,7 +431,7 @@ select.fi { cursor: pointer; }
 
 /* ── PANEL TOGGLE (Subtasks / Invoices) ─────────── */
 /* ── TOOL GRID (3x3) + STRIP ACTIONS ───────────── */
-.tool-grid-wrap { flex-shrink: 0; display: flex; align-items: stretch; border-left: 1px solid var(--border); }
+.tool-grid-wrap { flex-shrink: 0; display: flex; align-items: stretch; border-left: 1px solid var(--border); background: var(--surface); position: relative; z-index: 1; }
 .tool-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 2px; padding: 5px 7px; width: 180px; align-content: center; }
 .tg-btn { display: flex; align-items: center; justify-content: center; padding: 3px 5px; border-radius: 3px; border: 1px solid var(--border2); background: var(--surface2); cursor: pointer; transition: all .13s; white-space: nowrap; height: 22px; font-family: var(--font); }
 .tg-btn:hover { background: var(--surface3); border-color: rgba(0,0,0,0.2); }
@@ -439,7 +439,7 @@ select.fi { cursor: pointer; }
 .tg-btn-label { font-size: 12px; font-weight: 600; color: var(--text2); line-height: 1; }
 .tg-btn.active .tg-btn-label { color: #fff; }
 .tg-unread { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #dc2626; flex-shrink: 0; margin-left: 3px; vertical-align: 1px; }
-.fps-actions-wrap { flex-shrink: 0; display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 8px 8px 8px 6px; border-left: 1px solid var(--border); }
+.fps-actions-wrap { flex-shrink: 0; display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 8px 8px 8px 6px; border-left: 1px solid var(--border); background: var(--surface); position: relative; z-index: 1; }
 
 /* ── INVOICE TABLE ──────────────────────────────── */
 .inv-wrap { overflow-x: auto; border: 1px solid var(--border2); border-top: none; border-radius: 0 0 var(--radius) var(--radius); background: var(--surface); margin-bottom: 10px; }

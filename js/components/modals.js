@@ -1,7 +1,7 @@
 // modals.js — modal + popup controllers: date picker popup, product-tier
 // cascade, the New/Edit Project modal, and the New/Edit Task modal.
 
-import { PRODUCT_TIER_MAP } from '../data/constants.js';
+import { PRODUCT_TIER_MAP, PHASE_LABELS } from '../data/constants.js';
 import { esc, fmtDate, fmtNextActivity } from '../utils.js';
 import { db, save } from '../db.js';
 import { A, register } from '../bus.js';
@@ -106,7 +106,9 @@ function openSubtaskModal(defaultParentId,editId){
   document.getElementById('sm-modal-title').textContent=editId?'Edit Task':'New Task';
   document.getElementById('sm-name').value=row?row.name:'';
   document.getElementById('sm-status').value=row?row.status:'production';
-  document.getElementById('sm-phase').value=row?row.phase||'':'';
+  const phaseSel=document.getElementById('sm-phase');
+  phaseSel.innerHTML='<option value="">None</option>'+Object.entries(PHASE_LABELS).map(([k,v])=>`<option value="${k}">${esc(v)}</option>`).join('');
+  phaseSel.value=row?row.phase||'':'';
   document.getElementById('sm-type').value=row?row.productType||'':'';
   updateModalTiers(row?row.productType||'':'', row?row.productTier||'':'');
   document.getElementById('sm-due').value=row?row.due||'':'';
