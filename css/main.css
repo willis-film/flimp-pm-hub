@@ -31,7 +31,7 @@
 body { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 14px; min-height: 100vh; }
 
 /* ── TOPBAR ─────────────────────────────────────────────────────────── */
-.topbar { background: var(--surface); border-bottom: 1px solid var(--border2); padding: 0 18px; height: 104px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 200; }
+.topbar { background: var(--surface); border-bottom: 1px solid var(--border2); padding: 0 18px; height: 84px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 200; }
 .logo { font-size: 16px; font-weight: 700; color: var(--accent); letter-spacing: -0.3px; font-family: var(--font-headline); padding: 4px 10px; }
 .topbar-right { display: flex; align-items: center; gap: 7px; }
 .btn { padding: 5px 12px; border-radius: var(--radius); border: none; cursor: pointer; font-family: var(--font); font-size: 13px; font-weight: 600; transition: all .13s; white-space: nowrap; }
