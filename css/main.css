@@ -326,27 +326,31 @@ body::before {
 /* strip that still needs the daily I/O check glows faintly brass */
 .fps.io-unchecked { box-shadow: var(--shadow-strip), 0 0 0 1px var(--brass-deep); }
 
-/* status spine — machined left edge carrying the signal lamp */
+/* status spine — a dark machined rail carrying one lit signal lamp.
+   The rail is neutral metal; the LAMP carries the status color + glow. */
 .fps-tab {
-  width: 8px; flex-shrink: 0; position: relative;
-  background: var(--spine, var(--ink-3));
-  box-shadow: 0 0 14px 0 var(--spine-glow, transparent);
+  width: 14px; flex-shrink: 0; position: relative;
+  background: linear-gradient(90deg, #0F161B, #1B252C 55%, #141C22);
+  border-right: 1px solid rgba(0,0,0,0.5);
+  box-shadow: inset -1px 0 0 rgba(255,255,255,0.03);
 }
 .fps-tab::after {
-  /* the lit lamp, centered on the spine */
-  content: ""; position: absolute; left: 50%; top: 16px; transform: translateX(-50%);
-  width: 6px; height: 6px; border-radius: 50%;
-  background: #fff; opacity: 0.92;
-  box-shadow: 0 0 7px 1px var(--spine, #fff);
+  /* the lit lamp — colored, centered, with a glow halo */
+  content: ""; position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+  width: 9px; height: 9px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff 0%, var(--lamp, var(--ink-3)) 42%, var(--lamp-deep, var(--lamp, var(--ink-3))) 100%);
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.45),
+    0 0 6px 1px var(--lamp, transparent),
+    0 0 13px 3px var(--lamp-glow, transparent);
 }
-.fps-tab-kickoff    { --spine: var(--sig-kickoff);    }
-.fps-tab-production { --spine: var(--sig-production); --spine-glow: var(--brass-glow); }
-.fps-tab-limbo      { --spine: var(--sig-limbo);      --spine-glow: rgba(150,132,224,0.22); }
-.fps-tab-done       { --spine: var(--sig-done);       --spine-glow: rgba(69,187,200,0.2); }
-.fps-tab-closed     { --spine: var(--sig-closed);     --spine-glow: rgba(84,176,116,0.2); }
-/* muted spine when the I/O check is already done for the day */
-.fps-tab.io-checked { filter: saturate(0.35) brightness(0.7); }
-.fps-tab.io-checked::after { opacity: 0.4; }
+.fps-tab-kickoff    { --lamp: var(--sig-kickoff);    --lamp-glow: rgba(125,144,160,0.5); }
+.fps-tab-production { --lamp: var(--sig-production); --lamp-glow: rgba(200,162,75,0.65); }
+.fps-tab-limbo      { --lamp: var(--sig-limbo);      --lamp-glow: rgba(150,132,224,0.6); }
+.fps-tab-done       { --lamp: var(--sig-done);       --lamp-glow: rgba(69,187,200,0.55); }
+.fps-tab-closed     { --lamp: var(--sig-closed);     --lamp-glow: rgba(84,176,116,0.55); }
+/* I/O done for the day → lamp dimmed (still lit, just quiet), rail unchanged */
+.fps-tab.io-checked::after { filter: saturate(0.4) brightness(0.6); box-shadow: 0 0 0 1px rgba(0,0,0,0.45), 0 0 4px 0 var(--lamp, transparent); }
 
 /* strip body */
 .fps-body {
@@ -570,6 +574,10 @@ body::before {
 @keyframes slideInRight  { from { transform: translateX(110%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 .fps-block.animating-out { animation: slideOutRight 280ms cubic-bezier(0.4,0,0.2,1) forwards; overflow: hidden; pointer-events: none; }
 .fps-block.animating-in  { animation: slideInRight 300ms cubic-bezier(0.25,0.46,0.45,0.94) forwards; overflow: hidden; }
+/* pre-offset entering state: applied synchronously by render() so the rebuilt
+   block paints already off-screen (no flash in its final position) before the
+   slide-in animation is swapped in on the next frame. */
+.fps-block.fps-enter { transform: translateX(110%); opacity: 0; overflow: hidden; pointer-events: none; }
 
 /* ── STATUS POPUP MENU ───────────────────────────────────────────────────── */
 .status-menu { position: fixed; background: var(--panel-2); border: 1px solid var(--line-2); border-radius: var(--radius); box-shadow: var(--shadow-pop); z-index: 9999; padding: 5px; min-width: 150px; display: none; }

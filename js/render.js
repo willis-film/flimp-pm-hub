@@ -8,6 +8,10 @@ import { db, save } from './db.js';
 import { ui } from './state.js';
 import { A, register } from './bus.js';
 
+// Tracks the parent strip currently animating into a new status section, so
+// render() can stamp the pre-offset `.fps-enter` class on it synchronously.
+let _enteringId = null;
+
 function getChildren(pid){ return db.rows.filter(r=>r.parentId===pid); }
 
 function latestComment(row){ return row.comments&&row.comments.length ? row.comments[row.comments.length-1] : null; }
@@ -64,7 +68,7 @@ function render(){
       const children=getChildren(parent.id);
 
     const block=document.createElement('div');
-    block.className='fps-block';
+    block.className='fps-block'+(_enteringId===parent.id?' fps-enter':'');
     block.id='block-'+parent.id;
 
     // ── FLIGHT PROGRESS STRIP ────────────────────────────────────────────
@@ -597,30 +601,32 @@ function setStatus(id, value){
   if(oldStatus===value){ r.status=value; save(); render(); return; }
   A.logActivity(r,'status',oldStatus,value);
 
-  // Only animate parent strips that will actually move sections
+  // Only animate parent strips (children don't move between status sections).
   const block=document.getElementById('block-'+id);
-  if(!block || r.parentId!==null){
+  const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(!block || r.parentId!==null || prefersReduced){
     r.status=value; save(); render(); return;
   }
 
-  // Slide out
-  block.classList.add('animating-out');
-  setTimeout(()=>{
+  // 1) Slide the current block out. When that finishes, rebuild + slide in.
+  const onOut=()=>{
+    // 2) Rebuild with the new block pre-offset off-screen (render stamps .fps-enter),
+    //    so it never paints in its final position — this kills the flicker.
+    _enteringId=id;
     r.status=value; save(); render();
-    // Double rAF: first frame lets DOM settle, second triggers animation after paint
-    requestAnimationFrame(()=>{
-      requestAnimationFrame(()=>{
-        const newBlock=document.getElementById('block-'+id);
-        if(newBlock){
-          newBlock.classList.add('animating-in');
-          newBlock.addEventListener('animationend',()=>{
-            newBlock.classList.remove('animating-in');
-          },{once:true});
-        }
-        if(ui.detailId===id) openDetail(id);
-      });
-    });
-  }, 280);
+    _enteringId=null;
+    const newBlock=document.getElementById('block-'+id);
+    if(!newBlock){ if(ui.detailId===id) openDetail(id); return; }
+    // 3) On the next frame, swap the static offset for the slide-in animation.
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      newBlock.classList.remove('fps-enter');
+      newBlock.classList.add('animating-in');
+      newBlock.addEventListener('animationend',()=>newBlock.classList.remove('animating-in'),{once:true});
+      if(ui.detailId===id) openDetail(id);
+    }));
+  };
+  block.classList.add('animating-out');
+  block.addEventListener('animationend', onOut, {once:true});
 }
 
 function cycleStatus(id){
