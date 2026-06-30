@@ -25,30 +25,30 @@
   --line-soft: #EDF0F3;
 
   /* ── readout ink ── */
-  --ink:    #1C2A33;      /* primary readout (near-black slate) */
-  --ink-2:  #51626E;      /* secondary labels */
+  --ink:    #15233A;      /* primary readout (wordmark navy) */
+  --ink-2:  #4E6173;      /* secondary labels */
   --ink-3:  #7E8C97;      /* tertiary / placeholder */
   --ink-4:  #A7B2BB;      /* faint */
 
-  /* ── the one warm accent: deep antique brass (contrast on white) ── */
-  --brass:      #9A7B2E;   /* primary accent text/affordance */
-  --brass-soft: #C8A24B;   /* lighter fill / lit highlight */
-  --brass-deep: #6F571E;   /* darkest — borders/active text */
-  --brass-tint: #F6EFDD;   /* faint brass wash for active backgrounds */
-  --brass-glow: rgba(154,123,46,0.18);
+  /* ── the one accent: Frequency Tower brand blue (from the logo) ── */
+  --brass:      #3478DF;   /* primary accent text/affordance */
+  --brass-soft: #5B93E8;   /* lighter fill / lit highlight */
+  --brass-deep: #2A5FB0;   /* darkest — borders/active text */
+  --brass-tint: #E8F0FC;   /* faint blue wash for active backgrounds */
+  --brass-glow: rgba(52,120,223,0.18);
 
-  /* ── oxblood (from the logo): critical only ── */
+  /* ── oxblood (critical only) ── */
   --oxblood:      #A8323A;
   --oxblood-deep: #7E232B;
   --oxblood-tint: #FBECED;
   --oxblood-glow: rgba(168,50,58,0.16);
 
   /* ── status signal code (deepened for contrast on white) ──
-     kickoff slate · production brass · limbo violet · done cyan · closed green */
+     kickoff slate · production brand-blue · limbo violet · done teal · closed green */
   --sig-kickoff:    #64788A;
-  --sig-production: #B08518;
+  --sig-production: #3478DF;
   --sig-limbo:      #6B57C4;
-  --sig-done:       #1B96A6;
+  --sig-done:       #15A0A0;
   --sig-closed:     #2F9159;
   --sig-alert:      #C8434B;
 
@@ -79,17 +79,27 @@
   --strip-h: 84px;
   --rail-w: 224px;
 
-  /* ── type ── */
-  --font:          'Inter', -apple-system, BlinkMacSystemFont, Calibri, sans-serif;
-  --font-headline: 'Spectral', Georgia, 'Times New Roman', serif;
-  --font-display:  'Spectral', Georgia, serif;
-  --font-mono:     'Spline Sans Mono', 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  /* ── type — Montserrat throughout (aligns with the Frequency Tower wordmark) ── */
+  --font:          'Montserrat', -apple-system, BlinkMacSystemFont, Calibri, sans-serif;
+  --font-headline: 'Montserrat', 'Calibri', sans-serif;
+  --font-display:  'Montserrat', 'Calibri', sans-serif;
+  --font-mono:     'Montserrat', 'Calibri', sans-serif;
 
   --shadow-strip: 0 1px 2px rgba(28,42,51,0.04), 0 4px 14px rgba(28,42,51,0.07);
   --shadow-pop:   0 16px 44px rgba(28,42,51,0.18), 0 2px 6px rgba(28,42,51,0.08);
 }
 
 html { color-scheme: light; }
+
+/* Montserrat is proportional, so force tabular figures on the instrument
+   readouts (dates, day counts, IDs, counters) to keep gauge-like alignment. */
+.fps-field-val, .fps-days-val, .bezel-readout, .status-section-count,
+.closeout-count, .activity-time, .comment-time, .inv-input, .fps-input,
+.sheet tbody td, .inv-sheet tbody td, .fps-next-label,
+.cu-banner-count, .gmail-banner-count {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
 
 body {
   font-family: var(--font);
@@ -164,9 +174,9 @@ body::before {
 }
 .brand-cluster { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .brand-logo {
-  height: 52px; width: auto; display: block;
-  /* logo art is dark-on-transparent: keep it dark, just warm it slightly toward the brand bronze */
-  filter: brightness(0) saturate(100%) invert(13%) sepia(18%) saturate(900%) hue-rotate(355deg) brightness(96%) contrast(94%);
+  height: 56px; width: auto; display: block;
+  /* the Frequency Tower logo is navy + blue on transparent, already built for a
+     light background — show it as-is, no recolor. */
 }
 .brand-divider { width: 1px; height: 30px; background: var(--line-2); flex-shrink: 0; }
 .brand-tag {
@@ -424,7 +434,7 @@ body::before {
 .fps-status:hover { filter: brightness(0.97); }
 .fps-status option { font-family: var(--font); background: var(--panel); }
 .fps-status-kickoff    { background: #EEF1F4; color: #455565; border-color: #D3DBE2; }
-.fps-status-production { background: var(--brass-tint); color: #7A5E13; border-color: #E7D4A0; }
+.fps-status-production { background: var(--brass-tint); color: #1F4D94; border-color: #BFD6F5; }
 .fps-status-limbo      { background: #EFEBFb; color: #5544A8; border-color: #D8CFF2; }
 .fps-status-done       { background: #E1F4F6; color: #167380; border-color: #BDE6EB; }
 .fps-status-closed     { background: #E4F3EA; color: #267247; border-color: #BFE3CC; }
@@ -588,7 +598,7 @@ body::before {
   text-transform: uppercase; white-space: nowrap; border: 1px solid transparent;
 }
 .badge-kickoff    { background: #EEF1F4; color: #455565; border-color: #D3DBE2; }
-.badge-production { background: var(--brass-tint); color: #7A5E13; border-color: #E7D4A0; }
+.badge-production { background: var(--brass-tint); color: #1F4D94; border-color: #BFD6F5; }
 .badge-limbo      { background: #EFEBFb; color: #5544A8; border-color: #D8CFF2; }
 .badge-done       { background: #E1F4F6; color: #167380; border-color: #BDE6EB; }
 .badge-closed     { background: #E4F3EA; color: #267247; border-color: #BFE3CC; }
