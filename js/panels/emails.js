@@ -11,11 +11,11 @@ function gmailLabelTags(parent){
   if(!labels.length) return '';
   const pills=labels.map(lid=>{
     const lbl=(db.gmailLabelDefs||[]).find(l=>l.id===lid);
-    if(!lbl) return '<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;background:#f3f4f6;color:#9ca3af;white-space:nowrap;border:1px dashed #d1d5db" title="Label no longer active">label moved<span onclick="removeGmailLabel(\''+parent.id+'\',\''+lid+'\')" style="cursor:pointer;font-size:10px;opacity:0.6;margin-left:2px;line-height:1" title="Remove">\u2715</span></span>';
+    if(!lbl) return '<span class="gl-pill gl-pill-moved" title="Label no longer active">label moved<span class="gl-pill-x" onclick="removeGmailLabel(\''+parent.id+'\',\''+lid+'\')" title="Remove">\u2715</span></span>';
     const displayName=lbl.name.includes('/')?lbl.name.split('/').pop():lbl.name;
-    return '<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;background:'+lbl.bgColor+';color:'+lbl.textColor+';white-space:nowrap">'+esc(displayName)+'<span onclick="removeGmailLabel(\''+parent.id+'\',\''+lid+'\')" style="cursor:pointer;font-size:10px;opacity:0.6;margin-left:2px;line-height:1" title="Remove">\u2715</span></span>';
+    return '<span class="gl-pill" title="'+esc(lbl.name)+'"><span class="gl-pill-dot" style="background:'+(lbl.bgColor||'#9FB1BC')+'"></span>'+esc(displayName)+'<span class="gl-pill-x" onclick="removeGmailLabel(\''+parent.id+'\',\''+lid+'\')" title="Remove">\u2715</span></span>';
   }).join('');
-  return '<div style="display:flex;gap:3px;align-items:center;flex-shrink:0;flex-wrap:nowrap">'+pills+'</div>';
+  return '<div class="gl-pill-wrap">'+pills+'</div>';
 }
 
 function removeGmailLabel(projectId, labelId){

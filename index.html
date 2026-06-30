@@ -3,58 +3,70 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Flimp Project Manager</title>
+<meta name="color-scheme" content="dark">
+<title>Proicere Procuratio — Project Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/main.css">
 </head>
 <body x-data="flimpApp" x-init="boot()">
 
 
-<!-- TOPBAR -->
+<!-- CONSOLE BEZEL -->
 <div class="topbar">
-  <div style="display:flex;align-items:center;gap:10px">
-    <button class="sidebar-toggle" onclick="toggleSidebar()" title="Toggle sidebar">☰</button>
-    <img src="https://willis-film.github.io/flimp-pm-hub/proicere-procuratio-logo.png" alt="Proicere Procuratio" style="height:64px;width:auto;display:block">
+  <div class="brand-cluster">
+    <button class="sidebar-toggle" onclick="toggleSidebar()" title="Toggle control rail" aria-label="Toggle control rail">
+      <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 4h12M2 8h12M2 12h12"/></svg>
+    </button>
+    <img src="https://willis-film.github.io/flimp-pm-hub/proicere-procuratio-logo.png" alt="Proicere Procuratio" class="brand-logo">
+    <span class="brand-divider"></span>
+    <span class="brand-tag">Project Control</span>
   </div>
   <div class="topbar-right">
-    <button class="btn btn-ghost btn-sm" onclick="openParentModal()">+ New Project</button>
-    <button class="btn btn-primary btn-sm" onclick="openSubtaskModal(null)">+ New Subtask</button>
+    <span class="bezel-readout" id="bezel-readout" aria-hidden="true"></span>
+    <button class="btn btn-ghost btn-sm" onclick="openParentModal()">New Project</button>
+    <button class="btn btn-primary btn-sm" onclick="openSubtaskModal(null)">New Subtask</button>
   </div>
 </div>
 
 <div class="main">
-  <!-- SIDEBAR -->
+  <!-- CONTROL RAIL -->
   <div class="sidebar">
-    <div class="sidebar-label">View</div>
-    <div class="sidebar-item active" onclick="setFilter('all',this)"><div class="s-dot" style="background:#4f5de8"></div>All Projects</div>
-    <div class="sidebar-item" onclick="setFilter('kickoff',this)"><div class="s-dot" style="background:#6b7280"></div>Kickoff</div>
-    <div class="sidebar-item" onclick="setFilter('production',this)"><div class="s-dot" style="background:#dc2626"></div>In Production</div>
-    <div class="sidebar-item" onclick="setFilter('limbo',this)"><div class="s-dot" style="background:#ca8a04"></div>In Limbo</div>
-    <div class="sidebar-item" onclick="setFilter('done',this)"><div class="s-dot" style="background:#7c3aed"></div>Done</div>
-    <div class="sidebar-item" onclick="setFilter('closed',this)"><div class="s-dot" style="background:#16a34a"></div>Closed</div>
+    <div class="sidebar-label">Pipeline</div>
+    <div class="sidebar-item active" onclick="setFilter('all',this)"><span class="s-lamp lamp-all"></span>All Projects</div>
+    <div class="sidebar-item" onclick="setFilter('kickoff',this)"><span class="s-lamp lamp-kickoff"></span>Kickoff</div>
+    <div class="sidebar-item" onclick="setFilter('production',this)"><span class="s-lamp lamp-production"></span>In Production</div>
+    <div class="sidebar-item" onclick="setFilter('limbo',this)"><span class="s-lamp lamp-limbo"></span>In Limbo</div>
+    <div class="sidebar-item" onclick="setFilter('done',this)"><span class="s-lamp lamp-done"></span>Done</div>
+    <div class="sidebar-item" onclick="setFilter('closed',this)"><span class="s-lamp lamp-closed"></span>Closed</div>
     <hr class="sidebar-divider">
-    <div class="sidebar-label">Filter</div>
-    <div class="sidebar-item" onclick="setFilter('overdue',this)"><div class="s-dot" style="background:#dc2626"></div>Overdue</div>
-    <div class="sidebar-item" onclick="setFilter('nophase',this)"><div class="s-dot" style="background:#9ca3af"></div>No Phase</div>
+    <div class="sidebar-label">Flags</div>
+    <div class="sidebar-item" onclick="setFilter('overdue',this)"><span class="s-lamp lamp-overdue"></span>Overdue</div>
+    <div class="sidebar-item" onclick="setFilter('nophase',this)"><span class="s-lamp lamp-neutral"></span>No Phase</div>
     <hr class="sidebar-divider">
     <div class="sidebar-label">Gmail</div>
-    <div style="padding:2px 14px 6px;display:flex;align-items:center;gap:5px">
-      <span style="font-size:10px;color:var(--text3);white-space:nowrap">Prefix:</span>
-      <input id="gmail-prefix-input" value="" style="font-family:var(--font);font-size:11px;color:var(--text);background:var(--surface3);border:1px solid var(--border2);border-radius:3px;padding:2px 5px;width:100%;outline:none" onblur="saveGmailPrefix(this.value)" onkeydown="if(event.key==='Enter'){this.blur()}">
+    <div class="rail-prefix">
+      <span class="rail-prefix-tag">Prefix</span>
+      <input id="gmail-prefix-input" value="" class="rail-prefix-input" onblur="saveGmailPrefix(this.value)" onkeydown="if(event.key==='Enter'){this.blur()}">
     </div>
     <div id="gmail-label-list"></div>
-    <div style="padding:4px 14px 6px">
-      <button class="btn btn-ghost btn-sm" style="width:100%;font-size:11px;color:var(--text3)" onclick="openGmailLabelModal()">+ Manage Labels</button>
+    <div class="rail-action">
+      <button class="btn btn-ghost btn-sm rail-manage" onclick="openGmailLabelModal()">Manage Labels</button>
     </div>
     <hr class="sidebar-divider">
     <div class="sidebar-label">ClickUp</div>
     <div id="clickup-task-list"></div>
-    <div style="padding:4px 14px 6px">
-      <button class="btn btn-ghost btn-sm" style="width:100%;font-size:11px;color:var(--text3)" onclick="openClickUpManageModal()">+ Manage Tasks</button>
+    <div class="rail-action">
+      <button class="btn btn-ghost btn-sm rail-manage" onclick="openClickUpManageModal()">Manage Tasks</button>
     </div>
   </div>
   <div class="content">
     <div class="content-header">
-      <div class="page-title" id="page-title">All Projects</div>
+      <div class="page-title-wrap">
+        <span class="page-title-eyebrow">Board</span>
+        <div class="page-title" id="page-title">All Projects</div>
+      </div>
       <div class="header-actions">
         <button class="btn btn-ghost btn-sm">Filter</button>
         <button class="btn btn-ghost btn-sm">Sort</button>
@@ -62,14 +74,14 @@
     </div>
 
     <div class="cu-banner hidden" id="cu-banner">
-      <span class="cu-banner-icon">⚡</span>
+      <span class="cu-banner-icon" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M9 1L3 9h4l-1 6 6-8H8l1-6z"/></svg></span>
       <span class="cu-banner-text"><span class="cu-banner-count" id="cu-banner-count"></span> unassigned ClickUp task<span id="cu-banner-plural"></span> waiting to be assigned to a project.</span>
-      <span class="cu-banner-action" onclick="openClickUpManageModal()">Assign now →</span>
+      <span class="cu-banner-action" onclick="openClickUpManageModal()">Assign now &rarr;</span>
     </div>
     <div class="gmail-banner hidden" id="gmail-banner">
-      <span class="gmail-banner-icon">✉️</span>
+      <span class="gmail-banner-icon" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="3" width="13" height="10" rx="1.2"/><path d="M2 4l6 4.5L14 4"/></svg></span>
       <span class="gmail-banner-text"><span class="gmail-banner-count" id="gmail-banner-count"></span> unassigned Gmail label<span id="gmail-banner-plural"></span> waiting to be assigned to a project.</span>
-      <span class="gmail-banner-action" onclick="openGmailLabelModal()">Assign now →</span>
+      <span class="gmail-banner-action" onclick="openGmailLabelModal()">Assign now &rarr;</span>
     </div>
     <div class="list-wrap" id="list-wrap"></div>
   </div>

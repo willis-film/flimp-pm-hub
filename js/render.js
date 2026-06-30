@@ -97,7 +97,7 @@ function render(){
           <div class="fps-field" style="width:144px;flex-shrink:0">
             <div class="fps-field-label">Tags</div>
             <div class="fps-field-val">
-              <div class="fps-tags">${(parent.tags||[]).length ? (parent.tags||[]).map(t=>`<span class="tag tag-${t.toLowerCase()}">${t}</span>`).join('') : '<span style="color:#d1d5db">—</span>'}</div>
+              <div class="fps-tags">${(parent.tags||[]).length ? (parent.tags||[]).map(t=>`<span class="tag tag-${t.toLowerCase()}">${t}</span>`).join('') : '<span style="color:var(--ink-4)">—</span>'}</div>
             </div>
           </div>
           <div class="fps-field" style="width:440px;flex-shrink:1;min-width:150px">
@@ -107,7 +107,7 @@ function render(){
                 <div class="fps-comment-preview" onclick="openStripComment('${parent.id}')" title="Click to add comment" style="cursor:pointer">
                   ${(parent.comments&&parent.comments.length)
                     ? esc(parent.comments[parent.comments.length-1].text.slice(0,120))
-                    : '<span style="color:#c0c4cc">Click to add a comment…</span>'}
+                    : '<span style="color:var(--ink-4)">Click to add a comment…</span>'}
                 </div>
                 <div class="fps-comment-composer" id="fcc-${parent.id}" style="display:none;margin-top:4px">
                   <input class="fps-comment-input" id="fci-${parent.id}" placeholder="Add a comment…"
@@ -194,7 +194,7 @@ function render(){
               }
             </div>
           </div>
-          <div class="fps-field" style="width:56px">
+          <div class="fps-field" style="width:74px">
             <div class="fps-field-label">Branding</div>
             <div class="fps-field-val"><div class="fps-cb${parent.branding?' on':''}" onclick="toggleField('${parent.id}','branding')"></div></div>
           </div>
@@ -356,7 +356,7 @@ function render(){
           <input type="date" id="dist-inp-${task.id}" value="${task.distributionDate||''}" onchange="A.ufTask('${task.id}','distributionDate',this.value);document.getElementById('dist-lbl-${task.id}').textContent=this.value?fmtDate(this.value):'—'" style="position:absolute;opacity:0;width:0;height:0;top:0;left:0">
         </td>
         <td style="text-align:center">
-          <button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size: 11px;color:#9ca3af" onclick="deleteRow('${task.id}')">✕</button>
+          <button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size: 11px;color:var(--ink-3)" onclick="deleteRow('${task.id}')">✕</button>
         </td>`;
       tbody.appendChild(tr);
     });
@@ -364,7 +364,7 @@ function render(){
     const addTr=document.createElement('tr');
     addTr.className='add-task-row';
     addTr.innerHTML=`
-      <td class="td-name" style="background:#fafbfc">
+      <td class="td-name" style="background:var(--panel-2)">
         <div class="name-inner">
           <div class="toggle-spacer"></div>
           <button class="add-task-btn" onclick="A.openSubtaskModal('${parent.id}')">
@@ -372,7 +372,7 @@ function render(){
           </button>
         </div>
       </td>
-      <td colspan="15" style="background:#fafbfc"></td>`;
+      <td colspan="15"></td>`;
     tbody.appendChild(addTr);
 
     block.appendChild(subWrap);
@@ -477,7 +477,7 @@ function render(){
           <div style="display:flex;gap:4px;align-items:center">
             ${INV_TASKS.map(t=>{
               const on=(inv.tasks||[]).includes(t);
-              return `<button onclick="A.toggleInvTask('${parent.id}',${idx},'${t}')" style="font-family:var(--font);font-size: 11px;font-weight:600;padding:2px 7px;border-radius:3px;border:1.5px solid ${on?'transparent':'#e2e8f0'};cursor:pointer;background:${on?(t==='design'?'#dbeafe':t==='animation'?'#fce7f3':'#ccfbf1'):'#f8fafc'};color:${on?(t==='design'?'#1d4ed8':t==='animation'?'#9d174d':'#0f766e'):'#9ca3af'};transition:all .13s">${t.charAt(0).toUpperCase()+t.slice(1)}</button>`;
+              return `<button onclick="A.toggleInvTask('${parent.id}',${idx},'${t}')" style="font-family:var(--font);font-size: 11px;font-weight:600;padding:2px 7px;border-radius:3px;border:1.5px solid ${on?'transparent':'var(--line-2)'};cursor:pointer;background:${on?(t==='design'?'rgba(146,180,244,0.2)':t==='animation'?'rgba(189,147,189,0.22)':'rgba(69,187,200,0.18)'):'var(--panel)'};color:${on?(t==='design'?'#AcC6F4':t==='animation'?'#D2ADD2':'#7FD6E0'):'var(--ink-3)'};transition:all .13s">${t.charAt(0).toUpperCase()+t.slice(1)}</button>`;
             }).join('')}
           </div>
         </td>
@@ -487,7 +487,7 @@ function render(){
           </select>
         </td>
         <td style="text-align:center">
-          <button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size: 11px;color:#9ca3af" onclick="A.deleteInvoice('${parent.id}',${idx})">✕</button>
+          <button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size: 11px;color:var(--ink-3)" onclick="A.deleteInvoice('${parent.id}',${idx})">✕</button>
         </td>`;
       invTbody.appendChild(tr);
     });
@@ -496,12 +496,12 @@ function render(){
     const addInvTr=document.createElement('tr');
     addInvTr.className='add-task-row';
     addInvTr.innerHTML=`
-      <td style="background:#f8f9ff">
+      <td>
         <button class="add-inv-btn" onclick="A.addInvoice('${parent.id}')">
           <span style="font-size: 14px;line-height:1">+</span>&nbsp;Add invoice
         </button>
       </td>
-      <td colspan="6" style="background:#f8f9ff"></td>`;
+      <td colspan="6"></td>`;
     invTbody.appendChild(addInvTr);
     block.appendChild(invWrap);
 
@@ -545,10 +545,10 @@ function render(){
       const w=document.createElement('div');
       w.className='closeout-wrap'+(activePanel!==s.id?' hidden':'');
       w.id=s.id+'-stub-'+parent.id;
-      w.innerHTML='<div style="padding:26px 20px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center">'+
-        '<div style="font-size:14px;font-weight:700;color:var(--text2)">'+s.label+'</div>'+
-        '<div style="font-size:13px;color:var(--text3);max-width:420px;line-height:1.6">'+s.body+'</div>'+
-        '<div style="font-size:11px;color:#c0c4cc;margin-top:2px">Coming soon</div>'+
+      w.innerHTML='<div style="padding:34px 20px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center">'+
+        '<div style="font-family:var(--font-display);font-size:20px;font-weight:600;color:var(--ink);letter-spacing:0.2px">'+s.label+'</div>'+
+        '<div style="font-size:13px;color:var(--ink-3);max-width:440px;line-height:1.7">'+s.body+'</div>'+
+        '<div style="font-family:var(--font-mono);font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-4);border:1px solid var(--line-2);border-radius:20px;padding:3px 11px;margin-top:6px">Coming soon</div>'+
         '</div>';
       block.appendChild(w);
     });
@@ -705,7 +705,7 @@ function openDetail(id){
   const fields=isParent ? `
     ${df('Status',`<select class="fi" onchange="uf('${id}','status',this.value)">${STATUS_CYCLE.map(s=>`<option value="${s}"${row.status===s?' selected':''}>${STATUS_LABELS[s]}</option>`).join('')}</select>`)}
     ${df('I/O',`<input type="checkbox"${row.io?' checked':''} onchange="uf('${id}','io',this.checked)">`)}
-    ${df('Tags',`<div style="display:flex;gap:4px;flex-wrap:wrap;">${ALL_TAGS.map(t=>{const a=(row.tags||[]).includes(t);return `<button onclick="toggleTag('${id}','${t}')" style="font-family:var(--font);font-size: 12px;font-weight:400;padding:3px 9px;border-radius:3px;border:1.5px solid ${a?'transparent':'#d1d5db'};cursor:pointer;color:${a?tagTextColor(t):'#9ca3af'};background:${a?tagColor(t):'#f3f4f6'};transition:all .13s">${t}</button>`}).join('')}</div>`)}
+    ${df('Tags',`<div style="display:flex;gap:4px;flex-wrap:wrap;">${ALL_TAGS.map(t=>{const a=(row.tags||[]).includes(t);return `<button onclick="toggleTag('${id}','${t}')" style="font-family:var(--font);font-size: 12px;font-weight:400;padding:3px 9px;border-radius:3px;border:1.5px solid ${a?'transparent':'var(--line-2)'};cursor:pointer;color:${a?tagTextColor(t):'var(--ink-3)'};background:${a?tagColor(t):'var(--panel-2)'};transition:all .13s">${t}</button>`}).join('')}</div>`)}
     ${df('Due Date',`<input class="fi" type="date" value="${row.due||''}" onchange="uf('${id}','due',this.value)" style="width:160px">`)}
     ${df('OE Start',`<input class="fi" type="date" value="${row.oeStart||''}" onchange="uf('${id}','oeStart',this.value)" style="width:160px">`)}
     ${df('AM',`<select class="fi" onchange="uf('${id}','am',this.value)"><option value="">—</option>${AM_LIST.map(a=>`<option value="${a}"${row.am===a?' selected':''}>${a}</option>`).join('')}</select>`)}
@@ -717,7 +717,7 @@ function openDetail(id){
   ` : `
     ${df('Status',`<select class="fi" onchange="uf('${id}','status',this.value)">${STATUS_CYCLE.map(s=>`<option value="${s}"${row.status===s?' selected':''}>${STATUS_LABELS[s]}</option>`).join('')}</select>`)}
     ${df('Phase',`<select class="fi" onchange="uf('${id}','phase',this.value)"><option value="">None</option>${Object.entries(PHASE_LABELS).map(([k,v])=>`<option value="${k}"${row.phase===k?' selected':''}>${v}</option>`).join('')}</select>`)}
-    ${df('Tags',`<div style="display:flex;gap:4px;flex-wrap:wrap;">${ALL_TAGS.map(t=>{const a=(row.tags||[]).includes(t);return `<button onclick="toggleTag('${id}','${t}')" style="font-family:var(--font);font-size: 12px;font-weight:400;padding:3px 9px;border-radius:3px;border:1.5px solid ${a?'transparent':'#d1d5db'};cursor:pointer;color:${a?tagTextColor(t):'#9ca3af'};background:${a?tagColor(t):'#f3f4f6'};transition:all .13s">${t}</button>`}).join('')}</div>`)}
+    ${df('Tags',`<div style="display:flex;gap:4px;flex-wrap:wrap;">${ALL_TAGS.map(t=>{const a=(row.tags||[]).includes(t);return `<button onclick="toggleTag('${id}','${t}')" style="font-family:var(--font);font-size: 12px;font-weight:400;padding:3px 9px;border-radius:3px;border:1.5px solid ${a?'transparent':'var(--line-2)'};cursor:pointer;color:${a?tagTextColor(t):'var(--ink-3)'};background:${a?tagColor(t):'var(--panel-2)'};transition:all .13s">${t}</button>`}).join('')}</div>`)}
     ${df('Due Date',`<input class="fi" type="date" value="${row.due||''}" onchange="uf('${id}','due',this.value)" style="width:160px">`)}
     ${df('AM',`<select class="fi" onchange="uf('${id}','am',this.value)"><option value="">—</option>${AM_LIST.map(a=>`<option value="${a}"${row.am===a?' selected':''}>${a}</option>`).join('')}</select>`)}
     ${df('New / Update',`<select class="fi" onchange="uf('${id}','newOrUpdate',this.value)"><option value="">—</option><option value="New"${row.newOrUpdate==='New'?' selected':''}>New</option><option value="Update"${row.newOrUpdate==='Update'?' selected':''}>Update</option></select>`)}
@@ -765,7 +765,7 @@ function renderComments(row){
       <div class="comment-head">
         <span class="comment-author">${esc(c.author)}</span>
         <span class="comment-time">${esc(c.time)}</span>
-        <button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size: 11px;color:#9ca3af;margin-left:auto" onclick="delComment('${row.id}',${i})">✕</button>
+        <button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size: 11px;color:var(--ink-3);margin-left:auto" onclick="delComment('${row.id}',${i})">✕</button>
       </div>
       <div class="comment-text">${esc(c.text)}</div>
     </div>`).join('');
