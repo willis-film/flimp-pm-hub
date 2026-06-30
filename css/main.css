@@ -326,31 +326,32 @@ body::before {
 /* strip that still needs the daily I/O check glows faintly brass */
 .fps.io-unchecked { box-shadow: var(--shadow-strip), 0 0 0 1px var(--brass-deep); }
 
-/* status spine — a dark machined rail carrying one lit signal lamp.
-   The rail is neutral metal; the LAMP carries the status color + glow. */
+/* status spine — a dark machined rail carrying three lit signal lamps.
+   The rail is neutral metal; the LAMPS carry the status color + glow. */
 .fps-tab {
-  width: 14px; flex-shrink: 0; position: relative;
+  width: 16px; flex-shrink: 0; position: relative;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 9px; padding: 4px 0;
   background: linear-gradient(90deg, #0F161B, #1B252C 55%, #141C22);
   border-right: 1px solid rgba(0,0,0,0.5);
   box-shadow: inset -1px 0 0 rgba(255,255,255,0.03);
 }
-.fps-tab::after {
-  /* the lit lamp — colored, centered, with a glow halo */
-  content: ""; position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
-  width: 9px; height: 9px; border-radius: 50%;
+.fps-lamp {
+  /* a lit lamp — colored, with a glow halo (three stacked on the rail) */
+  width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
   background: radial-gradient(circle at 35% 30%, #fff 0%, var(--lamp, var(--ink-3)) 42%, var(--lamp-deep, var(--lamp, var(--ink-3))) 100%);
   box-shadow:
     0 0 0 1px rgba(0,0,0,0.45),
     0 0 6px 1px var(--lamp, transparent),
-    0 0 13px 3px var(--lamp-glow, transparent);
+    0 0 12px 2px var(--lamp-glow, transparent);
 }
 .fps-tab-kickoff    { --lamp: var(--sig-kickoff);    --lamp-glow: rgba(125,144,160,0.5); }
 .fps-tab-production { --lamp: var(--sig-production); --lamp-glow: rgba(200,162,75,0.65); }
 .fps-tab-limbo      { --lamp: var(--sig-limbo);      --lamp-glow: rgba(150,132,224,0.6); }
 .fps-tab-done       { --lamp: var(--sig-done);       --lamp-glow: rgba(69,187,200,0.55); }
 .fps-tab-closed     { --lamp: var(--sig-closed);     --lamp-glow: rgba(84,176,116,0.55); }
-/* I/O done for the day → lamp dimmed (still lit, just quiet), rail unchanged */
-.fps-tab.io-checked::after { filter: saturate(0.4) brightness(0.6); box-shadow: 0 0 0 1px rgba(0,0,0,0.45), 0 0 4px 0 var(--lamp, transparent); }
+/* I/O done for the day → lamps dimmed (still lit, just quiet), rail unchanged */
+.fps-tab.io-checked .fps-lamp { filter: saturate(0.4) brightness(0.6); box-shadow: 0 0 0 1px rgba(0,0,0,0.45), 0 0 4px 0 var(--lamp, transparent); }
 
 /* strip body */
 .fps-body {

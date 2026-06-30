@@ -82,7 +82,7 @@ function render(){
     strip.id='fps-'+parent.id;
 
     strip.innerHTML=`
-      <div class="fps-tab fps-tab-${parent.status}${parent.io?' io-checked':''}"></div>
+      <div class="fps-tab fps-tab-${parent.status}${parent.io?' io-checked':''}"><i class="fps-lamp"></i><i class="fps-lamp"></i><i class="fps-lamp"></i></div>
       <div class="fps-body">
         <div class="fps-top">
           <span class="fps-name" onclick="openDetail('${parent.id}')">${esc(parent.name)}</span>
