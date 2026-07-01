@@ -372,15 +372,18 @@ body::before {
 
 /* TOP ROW: project name + labels + status */
 .fps-top { display: flex; align-items: center; gap: 10px; }
+.fps-name-wrap {
+  flex: 1; min-width: 0; display: inline-flex; align-items: center; gap: 3px;
+}
 .fps-name {
   font-family: var(--font-display); font-size: 18px; font-weight: 600; color: var(--ink);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; cursor: pointer;
   letter-spacing: 0.15px; transition: color .13s;
 }
 .fps-name:hover { color: var(--brass); }
 .fps-edit-icon {
   flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
-  width: 22px; height: 22px; padding: 0; margin-left: -2px;
+  width: 22px; height: 22px; padding: 0;
   background: none; border: none; cursor: pointer; border-radius: 4px;
   color: var(--ink-4); transition: color .13s, background .13s; line-height: 0;
 }

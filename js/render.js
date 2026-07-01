@@ -85,10 +85,12 @@ function render(){
       <div class="fps-tab fps-tab-${parent.status}${parent.io?' io-checked':''}"><i class="fps-lamp"></i><i class="fps-lamp"></i><i class="fps-lamp"></i></div>
       <div class="fps-body">
         <div class="fps-top">
-          <span class="fps-name" onclick="openDetail('${parent.id}')">${esc(parent.name)}</span>
-          <button class="fps-edit-icon" title="Edit project" aria-label="Edit project" onclick="event.stopPropagation();A.openParentModal('${parent.id}')">
-            <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 2.5l2 2L6 12l-2.6.6.6-2.6 7.5-7.5z"/><path d="M10.5 3.5l2 2"/></svg>
-          </button>
+          <span class="fps-name-wrap">
+            <span class="fps-name" onclick="openDetail('${parent.id}')">${esc(parent.name)}</span>
+            <button class="fps-edit-icon" title="Edit project" aria-label="Edit project" onclick="event.stopPropagation();A.openParentModal('${parent.id}')">
+              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 2.5l2 2L6 12l-2.6.6.6-2.6 7.5-7.5z"/><path d="M10.5 3.5l2 2"/></svg>
+            </button>
+          </span>
           ${A.gmailLabelTags(parent)}
           <div class="fps-status-wrap" style="position:relative;flex-shrink:0">
             <select class="fps-status fps-status-${parent.status}" onchange="setStatus('${parent.id}',this.value)" style="cursor:pointer;padding-right:4px">
