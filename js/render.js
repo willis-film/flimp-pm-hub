@@ -86,6 +86,9 @@ function render(){
       <div class="fps-body">
         <div class="fps-top">
           <span class="fps-name" onclick="openDetail('${parent.id}')">${esc(parent.name)}</span>
+          <button class="fps-edit-icon" title="Edit project" aria-label="Edit project" onclick="event.stopPropagation();A.openParentModal('${parent.id}')">
+            <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 2.5l2 2L6 12l-2.6.6.6-2.6 7.5-7.5z"/><path d="M10.5 3.5l2 2"/></svg>
+          </button>
           ${A.gmailLabelTags(parent)}
           <div class="fps-status-wrap" style="position:relative;flex-shrink:0">
             <select class="fps-status fps-status-${parent.status}" onchange="setStatus('${parent.id}',this.value)" style="cursor:pointer;padding-right:4px">
@@ -236,27 +239,8 @@ function render(){
     gridWrap.appendChild(_toolGrid);
     strip.appendChild(gridWrap);
 
-    // ── STRIP ACTIONS ─────────────────────────────────────────────────────
-    const _actWrap = document.createElement('div');
-    _actWrap.className = 'fps-actions-wrap';
-    if(!['done','closed'].includes(parent.status)){
-      const _subBtn = document.createElement('button');
-      _subBtn.className = 'btn btn-ghost btn-sm';
-      _subBtn.textContent = '+ Subtask';
-      _subBtn.onclick = (()=>{ const _id=parent.id; return ()=>A.openSubtaskModal(_id); })();
-      _actWrap.appendChild(_subBtn);
-    }
-    const _editBtn = document.createElement('button');
-    _editBtn.className = 'btn btn-ghost btn-sm';
-    _editBtn.textContent = 'Edit';
-    _editBtn.onclick = (()=>{ const _id=parent.id; return ()=>A.openParentModal(_id); })();
-    _actWrap.appendChild(_editBtn);
-    const _delBtn = document.createElement('button');
-    _delBtn.className = 'btn btn-danger btn-sm';
-    _delBtn.textContent = '✕';
-    _delBtn.onclick = (()=>{ const _id=parent.id; return ()=>deleteRow(_id); })();
-    _actWrap.appendChild(_delBtn);
-    strip.appendChild(_actWrap);
+    // ── STRIP ACTIONS removed: +Subtask lives in the subtasks panel; Edit is now
+    //    the pencil next to the title; project delete moved into the detail panel.
 
     // ── SUBTASK TABLE ─────────────────────────────────────────────────────
     const activePanel=parent.activePanel||'none';
@@ -749,6 +733,12 @@ function openDetail(id){
         <button class="btn btn-primary btn-sm" onclick="postComment('${id}')">Post</button>
       </div>
     </div>
+    ${isParent?`<div class="dp-section dp-danger-zone">
+      <button class="btn btn-danger dp-delete-btn" onclick="deleteRow('${id}')">
+        <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-2px"><path d="M2.5 4h11M6 4V2.5h4V4M4 4l.6 9a1 1 0 001 1h4.8a1 1 0 001-1L12 4M6.5 7v4.5M9.5 7v4.5"/></svg>
+        Delete Project
+      </button>
+    </div>`:''}
     <div class="dp-section">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;border-bottom:1px solid var(--border);padding-bottom:5px">
         <span class="dp-section-label" style="margin-bottom:0;border-bottom:none;padding-bottom:0">Activity Log</span>
