@@ -341,11 +341,14 @@ body::before {
 .fps-tab {
   width: 20px; flex-shrink: 0; position: relative;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 14px; padding: 4px 0;
+  gap: 14px; padding: 4px 0; cursor: pointer;
   background: linear-gradient(90deg, #EDF0F3, #F7F9FB 55%, #E8ECEF);
   border-right: 1px solid var(--line-2);
   box-shadow: inset -1px 0 0 rgba(255,255,255,0.6);
+  transition: background .13s;
 }
+.fps-tab:hover { background: linear-gradient(90deg, #E4E9EE, #EEF2F6 55%, #DFE5EA); }
+.fps-tab:focus-visible { outline: 2px solid var(--brass); outline-offset: -2px; }
 .fps-lamp {
   /* a lit lamp — solid status color, tight darkening ring + inner highlight (no halo) */
   width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
@@ -565,13 +568,22 @@ body::before {
 .td-name { position: sticky; left: 0; background: var(--panel); border-right: 2px solid var(--line-2) !important; z-index: 5; transition: background .08s; }
 .name-inner { display: flex; align-items: center; height: 100%; gap: 0; }
 .toggle-spacer { width: 18px; flex-shrink: 0; }
-.row-dot { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--line-2); flex-shrink: 0; cursor: pointer; transition: all .13s; margin: 0 8px 0 4px; }
+.row-dot {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; cursor: pointer;
+  transition: transform .13s; margin: 0 8px 0 4px;
+  background:
+    radial-gradient(circle at 35% 28%, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0) 45%),
+    var(--lamp, var(--ink-3));
+  box-shadow:
+    0 0 0 1px var(--lamp-ring, rgba(28,42,51,0.22)),
+    0 1px 1px rgba(28,42,51,0.18);
+}
 .row-dot:hover { transform: scale(1.25); }
-.row-dot.is-kickoff    { background: var(--sig-kickoff);    border-color: var(--sig-kickoff); }
-.row-dot.is-production { background: var(--sig-production); border-color: var(--sig-production); }
-.row-dot.is-limbo      { background: var(--sig-limbo);      border-color: var(--sig-limbo); }
-.row-dot.is-done       { background: var(--sig-done);       border-color: var(--sig-done); }
-.row-dot.is-closed     { background: var(--sig-closed);     border-color: var(--sig-closed); }
+.row-dot.is-kickoff    { --lamp: var(--sig-kickoff);    --lamp-ring: rgba(70,88,104,0.4); }
+.row-dot.is-production { --lamp: var(--sig-production); --lamp-ring: rgba(150,30,38,0.42); }
+.row-dot.is-limbo      { --lamp: var(--sig-limbo);      --lamp-ring: rgba(80,64,160,0.4); }
+.row-dot.is-done       { --lamp: var(--sig-done);       --lamp-ring: rgba(20,110,124,0.4); }
+.row-dot.is-closed     { --lamp: var(--sig-closed);     --lamp-ring: rgba(34,110,68,0.4); }
 
 .task-name-text { font-family: var(--font); font-size: 13px; color: var(--ink); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
 .task-name-text:hover { color: var(--brass); }

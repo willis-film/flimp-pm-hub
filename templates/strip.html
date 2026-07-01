@@ -29,7 +29,7 @@
   fetch/parse this file) — they are not auto-synced yet.
 -->
 <div class="fps {{ioUncheckedClass}}" id="fps-{{id}}">
-  <div class="fps-tab fps-tab-{{status}}{{ioClass}}"><i class="fps-lamp"></i><i class="fps-lamp"></i><i class="fps-lamp"></i></div>
+  <div class="fps-tab fps-tab-{{status}}{{ioClass}}" onclick="toggleField('{{id}}','io')" title="Toggle I/O" role="button" tabindex="0"><i class="fps-lamp"></i><i class="fps-lamp"></i><i class="fps-lamp"></i></div>
   <div class="fps-body">
 
     <!-- TOP ROW: name + labels + status -->
@@ -47,13 +47,6 @@
 
     <!-- BOTTOM ROW: field slots -->
     <div class="fps-fields">
-      <div class="fps-field" style="width:36px">
-        <div class="fps-field-label">I/O</div>
-        <div class="fps-field-val">
-          <div class="fps-cb{{ioOn}}" onclick="toggleField('{{id}}','io')"></div>
-        </div>
-      </div>
-
       <div class="fps-field" style="width:144px;flex-shrink:0">
         <div class="fps-field-label">Tags</div>
         <div class="fps-field-val"><div class="fps-tags">{{tagsHtml}}</div></div>

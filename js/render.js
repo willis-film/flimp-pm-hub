@@ -82,7 +82,7 @@ function render(){
     strip.id='fps-'+parent.id;
 
     strip.innerHTML=`
-      <div class="fps-tab fps-tab-${parent.status}${parent.io?' io-checked':''}"><i class="fps-lamp"></i><i class="fps-lamp"></i><i class="fps-lamp"></i></div>
+      <div class="fps-tab fps-tab-${parent.status}${parent.io?' io-checked':''}" onclick="toggleField('${parent.id}','io')" title="Toggle I/O" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleField('${parent.id}','io')}"><i class="fps-lamp"></i><i class="fps-lamp"></i><i class="fps-lamp"></i></div>
       <div class="fps-body">
         <div class="fps-top">
           <span class="fps-name-wrap">
@@ -99,10 +99,6 @@ function render(){
           </div>
         </div>
         <div class="fps-fields">
-          <div class="fps-field" style="width:36px">
-            <div class="fps-field-label">I/O</div>
-            <div class="fps-field-val"><div class="fps-cb${parent.io?' on':''}" onclick="toggleField('${parent.id}','io')"></div></div>
-          </div>
           <div class="fps-field" style="width:144px;flex-shrink:0">
             <div class="fps-field-label">Tags</div>
             <div class="fps-field-val">
