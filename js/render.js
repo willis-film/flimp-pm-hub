@@ -121,7 +121,6 @@ function render(){
     strip.innerHTML=`
       <div class="fps-tab fps-tab-${parent.status}${parent.io?' io-checked':''}" onclick="toggleField('${parent.id}','io')" title="Toggle I/O" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleField('${parent.id}','io')}"><i class="fps-lamp"></i><i class="fps-lamp"></i><i class="fps-lamp"></i></div>
       <div class="fps-body">
-        <span class="fps-tailno">${esc((parent.id||'').toUpperCase())}</span>
         <div class="fps-top">
           <span class="fps-name-wrap">
             <span class="fps-name" onclick="openDetail('${parent.id}')">${esc(parent.name)}</span>
@@ -600,8 +599,19 @@ function toggleLinkEdit(inputId, btnId){
   if(!inp) return;
   const hidden=inp.style.display==='none';
   inp.style.display=hidden?'inline-block':'none';
+  // The link fields are only ~60-100px wide, far too narrow to read a URL in.
+  // While editing, pop the input into a wide floating overlay anchored to the
+  // field (see .fps-link-editing in main.css).
+  const slot = inp.closest('.fps-field-val');
+  if(slot) slot.classList.toggle('fps-link-editing', hidden);
   if(btn) btn.textContent=hidden?'✕':'✎';
-  if(hidden){ inp.focus(); inp.select(); }
+  if(hidden){
+    inp.focus(); inp.select();
+    // Escape closes the editor without waiting for blur.
+    inp.onkeydown = (e)=>{
+      if(e.key==='Escape'||e.key==='Enter'){ e.preventDefault(); inp.blur(); toggleLinkEdit(inputId, btnId); }
+    };
+  }
 }
 
 function setPanel(id, panel){

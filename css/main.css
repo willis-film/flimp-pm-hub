@@ -335,7 +335,16 @@ body::before {
 }
 .fps:hover { border-color: #B7C0C9; box-shadow: 0 2px 4px rgba(28,42,51,0.06), 0 8px 22px rgba(28,42,51,0.1); }
 /* strip that still needs the daily I/O check carries a faint brass edge */
-.fps.io-unchecked { box-shadow: var(--shadow-strip), inset 3px 0 0 var(--brass-soft); }
+/* strip that still needs the daily I/O check carries a faint brass edge.
+   Drawn as a pseudo-element so it layers WITH the shadow stack (defined in the
+   LIVE / HANDLED block below) instead of overwriting box-shadow. */
+.fps.io-unchecked::before{
+  content:"";
+  position:absolute; left:0; top:0; bottom:0; width:3px; z-index:4;
+  background: var(--brass-soft);
+  border-radius: var(--radius) 0 0 var(--radius);
+  pointer-events:none;
+}
 
 /* status spine — a brushed light-metal rail carrying three lit signal lamps */
 .fps-tab {
@@ -365,7 +374,20 @@ body::before {
 .fps-tab-done       { --lamp: var(--sig-done);       --lamp-ring: rgba(20,110,124,0.4); }
 .fps-tab-closed     { --lamp: var(--sig-closed);     --lamp-ring: rgba(34,110,68,0.4); }
 /* I/O done for the day → lamps muted (still present, just quiet) */
-.fps-tab.io-checked .fps-lamp { filter: saturate(0.35) brightness(1.08); opacity: 0.45; }
+/* I/O done → lamps read as UNLIT: still solid physical objects, just dark.
+   NOTE: do NOT dim these with opacity — a translucent lamp lets the brushed
+   metal grain show straight through its face. Dim by color instead. */
+.fps-tab.io-checked .fps-lamp {
+  /* fallback first: a flat unlit gray for browsers without color-mix() */
+  background: #B4BBC1;
+  background:
+    radial-gradient(circle at 35% 28%, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0) 45%),
+    color-mix(in srgb, var(--lamp, var(--ink-3)) 22%, #AEB6BC);
+  box-shadow:
+    0 0 0 1px rgba(28,42,51,0.28),
+    0 1px 1px rgba(28,42,51,0.18),
+    inset 0 1px 2px rgba(28,42,51,0.22);   /* recessed, unlit */
+}
 
 /* strip body */
 .fps-body {
@@ -615,7 +637,21 @@ body::before {
 .status-menu.open { display: block; }
 .status-menu-item { display: flex; align-items: center; gap: 10px; padding: 7px 11px; border-radius: var(--radius-sm); cursor: pointer; font-size: 12.5px; font-family: var(--font); color: var(--ink-2); transition: background .1s, color .1s; }
 .status-menu-item:hover { background: var(--panel-2); color: var(--ink); }
-.status-menu-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 0 1px rgba(28,42,51,0.15) inset; }
+.status-menu-dot {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  background:
+    radial-gradient(circle at 35% 28%, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0) 45%),
+    var(--lamp, var(--ink-3));
+  box-shadow:
+    0 0 0 1px var(--lamp-ring, rgba(28,42,51,0.22)),
+    0 1px 1px rgba(28,42,51,0.18);
+}
+/* same signal vars as the row dots + strip lamps — single source of truth */
+.status-menu-dot.is-kickoff    { --lamp: var(--sig-kickoff);    --lamp-ring: rgba(70,88,104,0.4); }
+.status-menu-dot.is-production { --lamp: var(--sig-production); --lamp-ring: rgba(150,30,38,0.42); }
+.status-menu-dot.is-limbo      { --lamp: var(--sig-limbo);      --lamp-ring: rgba(80,64,160,0.4); }
+.status-menu-dot.is-done       { --lamp: var(--sig-done);       --lamp-ring: rgba(20,110,124,0.4); }
+.status-menu-dot.is-closed     { --lamp: var(--sig-closed);     --lamp-ring: rgba(34,110,68,0.4); }
 
 /* ── BADGES / PILLS / PHASE (detail-panel + tables) ──────────────────────── */
 .badge {
@@ -888,14 +924,30 @@ body::before{
 
 /* (3) PAPER-EDGE CARD LIFT — strips seated on the board like physical cards:
    a crisp top light-line, a soft contact shadow, a slightly warmer edge. */
+/* LIVE strip (I/O still to do → lamps lit): stands proud of the board. */
 .fps{
   box-shadow:
-    0 1px 0 rgba(255,255,255,0.9) inset,          /* top light-line */
+    0 1px 0 rgba(255,255,255,0.9) inset,          /* top light-line (raised edge) */
     0 0 0 1px rgba(28,42,51,0.02),                /* hairline seat */
     0 1px 1px rgba(28,42,51,0.05),                /* contact shadow */
     0 6px 16px rgba(28,42,51,0.09),               /* lift */
     0 14px 28px rgba(28,42,51,0.05);              /* ambient */
+  transition: box-shadow .18s ease, transform .18s ease, border-color .15s;
 }
+
+/* HANDLED strip (I/O done → lamps unlit): settles down onto the paper.
+   The cast shadow all but disappears, the raised light-line goes away, and a
+   soft inset makes it read as pressed INTO the board rather than floating on it. */
+.fps:not(.io-unchecked){
+  transform: translateY(1px);
+  border-color: var(--line);
+  box-shadow:
+    0 1px 2px rgba(28,42,51,0.10) inset,          /* pressed into the paper */
+    0 0 0 1px rgba(28,42,51,0.02),
+    0 1px 2px rgba(28,42,51,0.05);                /* barely any cast */
+}
+.fps:not(.io-unchecked) .fps-body{ opacity: 0.92; }  /* a touch quieter overall */
+
 .fps:hover{
   box-shadow:
     0 1px 0 rgba(255,255,255,0.95) inset,
@@ -904,17 +956,18 @@ body::before{
     0 10px 22px rgba(28,42,51,0.12),
     0 20px 40px rgba(28,42,51,0.06);
 }
-
-/* (4) TAIL NUMBER — faint registration in the card corner.
-   Functional: it's the actual record id. */
-.fps-tailno{
-  position: absolute; top: 6px; right: 11px; z-index: 2;
-  font-family: var(--font-mono); font-size: 9px; font-weight: 500;
-  letter-spacing: 1.6px; color: var(--ink-4);
-  user-select: all; pointer-events: auto;
+/* hovering a handled strip lifts it slightly — it's still reachable, just at rest */
+.fps:not(.io-unchecked):hover{
+  transform: translateY(0);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.7) inset,
+    0 0 0 1px rgba(28,42,51,0.03),
+    0 2px 3px rgba(28,42,51,0.06),
+    0 6px 14px rgba(28,42,51,0.08);
 }
+.fps:not(.io-unchecked):hover .fps-body{ opacity: 1; }
 
-/* (5) SIGNAL STRENGTH — reception bars showing staleness.
+/* (4) SIGNAL STRENGTH — reception bars showing staleness.
    Real data: computed from lastTouchedAt. Full bars = touched recently. */
 .sig-strength{
   display: inline-flex; align-items: flex-end; gap: 1.5px;
@@ -934,3 +987,32 @@ body::before{
 .sig-strength.sig-2 .sig-bar.on{ background: #C9962F; }
 .sig-strength.sig-1 .sig-bar.on{ background: var(--sig-alert); }
 .sig-strength.sig-0 .sig-bar{ background: var(--line-2); }
+
+/* ── LINK EDITOR (Zoho / Estimate / Dropbox) ────────────────────────────────
+   These fields are only ~60-100px wide — impossible to read a URL in. While
+   editing, the input pops out of its slot into a wide floating overlay. */
+.fps-field-val.fps-link-editing{
+  position: relative;
+  z-index: 30;
+}
+.fps-field-val.fps-link-editing .fps-input{
+  position: absolute;
+  top: -5px; left: -8px;
+  width: 340px;                    /* wide enough to actually see a URL */
+  max-width: min(340px, 42vw);
+  padding: 6px 9px;
+  font-size: 12.5px;
+  background: var(--panel);
+  border: 1px solid var(--brass);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 0 0 3px var(--brass-glow), 0 8px 22px rgba(28,42,51,0.16);
+  outline: none;
+  z-index: 31;
+}
+/* keep the ✕ toggle clickable above the popped-out input */
+.fps-field-val.fps-link-editing > span[id^="zh-lnk"],
+.fps-field-val.fps-link-editing > span[id^="db-lnk"],
+.fps-field-val.fps-link-editing > span[id^="est-lnk"]{
+  position: relative;
+  z-index: 32;
+}
