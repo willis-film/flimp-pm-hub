@@ -78,6 +78,17 @@
   --radius-lg: 12px;
   --row-h: 34px;
   --strip-h: 84px;
+
+  /* Spine geometry. The status tab's width lives here rather than inline on
+     .fps-tab because the open panels indent by exactly this much — they hang off
+     the spine like a submenu rather than sitting under the whole strip. One
+     value, two consumers; they cannot drift apart.
+       --spine-w   the lamp rail itself
+       --spine-off rail + its 1px right border + the strip's 1px left border,
+                   i.e. the distance from the block's left edge to where the
+                   strip BODY starts. That is the line panels align to. */
+  --spine-w:   20px;
+  --spine-off: 22px;
   --rail-w: 224px;
 
   /* ── type — Montserrat throughout (aligns with the Frequency Tower wordmark) ── */
@@ -340,7 +351,7 @@ body::before {
 
 /* status spine — a brushed light-metal rail carrying three lit signal lamps */
 .fps-tab {
-  width: 20px; flex-shrink: 0; position: relative;
+  width: var(--spine-w); flex-shrink: 0; position: relative;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 14px; padding: 4px 0; cursor: pointer;
   background: linear-gradient(90deg, #EDF0F3, #F7F9FB 55%, #E8ECEF);
@@ -541,11 +552,26 @@ body::before {
 }
 
 /* ── SUBTASK TABLE ───────────────────────────────────────────────────────── */
-.subtask-wrap, .inv-wrap, .email-wrap, .closeout-wrap {
+/* ── OPEN PANELS ──────────────────────────────────────────────────────────────
+   Every panel opened from the bento grid indents to --spine-off, so its left
+   edge lands exactly where the strip BODY starts — beside the lamp rail, not
+   under it. The spine then runs unbroken down the left of the whole open block,
+   and the panel reads as hanging off it: a submenu of that strip, not a slab
+   sitting beneath it.
+
+   Consequences of the indent, both deliberate:
+   · No bottom-left radius. A rounded corner there would pinch the panel away
+     from the spine and break the vertical run — the exact thing the indent
+     exists to create.
+   · The left border stays. The panel is inset from the block, so its left edge
+     is now a real exposed edge rather than a seam against the strip. */
+
+.subtask-wrap, .inv-wrap, .email-wrap, .closeout-wrap, .info-wrap {
+  margin-left: var(--spine-off);
   overflow-x: auto; border: 1px solid var(--line-2); border-top: none;
   border-radius: 0 0 var(--radius) var(--radius); background: var(--panel); margin-bottom: 11px;
 }
-.subtask-wrap.hidden, .inv-wrap.hidden, .email-wrap.hidden, .closeout-wrap.hidden { display: none; }
+.subtask-wrap.hidden, .inv-wrap.hidden, .email-wrap.hidden, .closeout-wrap.hidden, .info-wrap.hidden { display: none; }
 
 .sheet, .inv-sheet, .email-sheet { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; }
 
@@ -1019,12 +1045,9 @@ body::before{
    groups auto-fit, so at 1550px+ each group collapses toward a single row.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.info-wrap {
-  border: 1px solid var(--line-2); border-top: none;
-  border-radius: 0 0 var(--radius) var(--radius);
-  background: var(--panel); margin-bottom: 11px;
-}
-.info-wrap.hidden { display: none; }
+/* .info-wrap's box (indent, borders, radius) comes from the shared panel rule
+   above, alongside .subtask-wrap and the rest — it is not special. Only its
+   interior is defined here. */
 
 .info-layout { display: grid; grid-template-columns: 168px minmax(0, 1fr); }
 
@@ -1039,6 +1062,8 @@ body::before{
   padding: 10px 0 14px;
   border-radius: 0 0 0 var(--radius);
 }
+/* The panel is now inset to the spine, so its bottom-left corner is a real
+   exposed corner. Keep the radius here — it matches the wrap's own. */
 .info-rail-row {
   display: flex; align-items: center; gap: 8px;
   padding: 7px 10px 7px 8px;
