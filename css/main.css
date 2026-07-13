@@ -46,11 +46,11 @@
   /* ── status signal code (deepened for contrast on white) ──
      kickoff slate · production red · limbo violet · done teal · closed green
      (alert red below is a separate, brighter shade reserved for overdue) */
-  --sig-kickoff:    #64788A;
-  --sig-production: #C32F38;
-  --sig-limbo:      #6B57C4;
-  --sig-done:       #15A0A0;
-  --sig-closed:     #2F9159;
+  --sig-kickoff:    #64788A;   /* grey */
+  --sig-production: #C32F38;   /* red */
+  --sig-limbo:      #C99A2E;   /* gold */
+  --sig-done:       #4A9BD8;   /* light blue */
+  --sig-closed:     #2F9159;   /* green */
   --sig-alert:      #E25A52;
 
   /* legacy var names kept so any stray reference still resolves */
@@ -318,8 +318,8 @@ body::before {
 .ssl-closed     { color: var(--sig-closed);      --band-sig: var(--sig-closed); }
 .sll-kickoff    { background: linear-gradient(90deg, rgba(100,120,138,0.35), transparent); }
 .sll-production { background: linear-gradient(90deg, rgba(195,47,56,0.38), transparent); }
-.sll-limbo      { background: linear-gradient(90deg, rgba(107,87,196,0.32), transparent); }
-.sll-done       { background: linear-gradient(90deg, rgba(27,150,166,0.32), transparent); }
+.sll-limbo      { background: linear-gradient(90deg, rgba(201,154,46,0.35), transparent); }
+.sll-done       { background: linear-gradient(90deg, rgba(74,155,216,0.34), transparent); }
 .sll-closed     { background: linear-gradient(90deg, rgba(47,145,89,0.32), transparent); }
 
 /* ── FLIGHT PROGRESS STRIP ───────────────────────────────────────────────── */
@@ -362,8 +362,8 @@ body::before {
 }
 .fps-tab-kickoff    { --lamp: var(--sig-kickoff);    --lamp-ring: rgba(70,88,104,0.4); }
 .fps-tab-production { --lamp: var(--sig-production); --lamp-ring: rgba(150,30,38,0.42); }
-.fps-tab-limbo      { --lamp: var(--sig-limbo);      --lamp-ring: rgba(80,64,160,0.4); }
-.fps-tab-done       { --lamp: var(--sig-done);       --lamp-ring: rgba(20,110,124,0.4); }
+.fps-tab-limbo      { --lamp: var(--sig-limbo);      --lamp-ring: rgba(150,112,26,0.45); }
+.fps-tab-done       { --lamp: var(--sig-done);       --lamp-ring: rgba(30,100,150,0.42); }
 .fps-tab-closed     { --lamp: var(--sig-closed);     --lamp-ring: rgba(34,110,68,0.4); }
 /* I/O done for the day → lamps muted (still present, just quiet) */
 /* I/O done → lamps read as UNLIT: still solid physical objects, just dark.
@@ -463,8 +463,8 @@ body::before {
 .fps-status option { font-family: var(--font); background: var(--panel); }
 .fps-status-kickoff    { background: #EEF1F4; color: #455565; border-color: #D3DBE2; }
 .fps-status-production { background: #FBEAEB; color: #A82530; border-color: #F0C6C9; }
-.fps-status-limbo      { background: #EFEBFb; color: #5544A8; border-color: #D8CFF2; }
-.fps-status-done       { background: #E1F4F6; color: #167380; border-color: #BDE6EB; }
+.fps-status-limbo      { background: #FBF1DC; color: #8A6712; border-color: #EFDCA8; }
+.fps-status-done       { background: #E4F1FB; color: #1F6394; border-color: #C2DDF2; }
 .fps-status-closed     { background: #E4F3EA; color: #267247; border-color: #BFE3CC; }
 
 /* overdue readout */
@@ -595,8 +595,8 @@ body::before {
 .row-dot:hover { transform: scale(1.25); }
 .row-dot.is-kickoff    { --lamp: var(--sig-kickoff);    --lamp-ring: rgba(70,88,104,0.4); }
 .row-dot.is-production { --lamp: var(--sig-production); --lamp-ring: rgba(150,30,38,0.42); }
-.row-dot.is-limbo      { --lamp: var(--sig-limbo);      --lamp-ring: rgba(80,64,160,0.4); }
-.row-dot.is-done       { --lamp: var(--sig-done);       --lamp-ring: rgba(20,110,124,0.4); }
+.row-dot.is-limbo      { --lamp: var(--sig-limbo);      --lamp-ring: rgba(150,112,26,0.45); }
+.row-dot.is-done       { --lamp: var(--sig-done);       --lamp-ring: rgba(30,100,150,0.42); }
 .row-dot.is-closed     { --lamp: var(--sig-closed);     --lamp-ring: rgba(34,110,68,0.4); }
 
 .task-name-text { font-family: var(--font); font-size: 13px; color: var(--ink); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
@@ -641,8 +641,8 @@ body::before {
 /* same signal vars as the row dots + strip lamps — single source of truth */
 .status-menu-dot.is-kickoff    { --lamp: var(--sig-kickoff);    --lamp-ring: rgba(70,88,104,0.4); }
 .status-menu-dot.is-production { --lamp: var(--sig-production); --lamp-ring: rgba(150,30,38,0.42); }
-.status-menu-dot.is-limbo      { --lamp: var(--sig-limbo);      --lamp-ring: rgba(80,64,160,0.4); }
-.status-menu-dot.is-done       { --lamp: var(--sig-done);       --lamp-ring: rgba(20,110,124,0.4); }
+.status-menu-dot.is-limbo      { --lamp: var(--sig-limbo);      --lamp-ring: rgba(150,112,26,0.45); }
+.status-menu-dot.is-done       { --lamp: var(--sig-done);       --lamp-ring: rgba(30,100,150,0.42); }
 .status-menu-dot.is-closed     { --lamp: var(--sig-closed);     --lamp-ring: rgba(34,110,68,0.4); }
 
 /* ── BADGES / PILLS / PHASE (detail-panel + tables) ──────────────────────── */
@@ -653,8 +653,8 @@ body::before {
 }
 .badge-kickoff    { background: #EEF1F4; color: #455565; border-color: #D3DBE2; }
 .badge-production { background: #FBEAEB; color: #A82530; border-color: #F0C6C9; }
-.badge-limbo      { background: #EFEBFb; color: #5544A8; border-color: #D8CFF2; }
-.badge-done       { background: #E1F4F6; color: #167380; border-color: #BDE6EB; }
+.badge-limbo      { background: #FBF1DC; color: #8A6712; border-color: #EFDCA8; }
+.badge-done       { background: #E4F1FB; color: #1F6394; border-color: #C2DDF2; }
 .badge-closed     { background: #E4F3EA; color: #267247; border-color: #BFE3CC; }
 
 .phase-pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px; font-family: var(--font-mono); font-size: 10px; font-weight: 600; white-space: nowrap; border: 1px solid transparent; }

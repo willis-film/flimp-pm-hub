@@ -3,7 +3,9 @@
 
 export const STATUS_LABELS = { kickoff:'Kickoff', production:'In Production', limbo:'In Limbo', done:'Done', closed:'Closed' };
 
-export const STATUS_DOT_COLORS = { kickoff:'#6b7280', production:'#dc2626', limbo:'#ca8a04', done:'#7c3aed', closed:'#16a34a' };
+// NOTE: status dot colors are NOT defined here. They live as --sig-* CSS
+// variables in css/main.css and are applied via `is-<status>` classes, so the
+// strip lamps, subtask row dots, and status picker can never drift apart.
 
 export const PHASE_LABELS  = {
   'client-content': 'Client Content Collection',
