@@ -334,17 +334,9 @@ body::before {
   box-shadow: var(--shadow-strip); overflow: hidden;
 }
 .fps:hover { border-color: #B7C0C9; box-shadow: 0 2px 4px rgba(28,42,51,0.06), 0 8px 22px rgba(28,42,51,0.1); }
-/* strip that still needs the daily I/O check carries a faint brass edge */
-/* strip that still needs the daily I/O check carries a faint brass edge.
-   Drawn as a pseudo-element so it layers WITH the shadow stack (defined in the
-   LIVE / HANDLED block below) instead of overwriting box-shadow. */
-.fps.io-unchecked::before{
-  content:"";
-  position:absolute; left:0; top:0; bottom:0; width:3px; z-index:4;
-  background: var(--brass-soft);
-  border-radius: var(--radius) 0 0 var(--radius);
-  pointer-events:none;
-}
+/* NOTE: no separate "needs I/O" edge bar. That state is already communicated
+   twice over — by the spine lamps (lit vs unlit) and by the strip's shadow
+   (standing proud vs seated on the board). A third marker was redundant. */
 
 /* status spine — a brushed light-metal rail carrying three lit signal lamps */
 .fps-tab {
