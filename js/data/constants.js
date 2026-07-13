@@ -106,6 +106,7 @@ export const ACTIVITY_FIELD_LABELS = {
   otherVendor1:'Other Vendor 1', otherVendor1Cost:'Other Vendor 1 Cost',
   otherVendor2:'Writer / Other Vendor 2', otherVendor2Cost:'Writer / Other Vendor 2 Cost',
   // Info panel — project scope
+  timeline:'Timeline',
   projectOwner:'Project Owner', clientAccount:'Client Account', clientContact:'Client Contact',
   brokerAccount:'Broker Account', brokerContact:'Broker Contact', oeEnd:'OE End'
 };

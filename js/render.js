@@ -568,9 +568,17 @@ function render(){
     if (activePanel === 'info') infoWrap.innerHTML = A.infoPanelHtml(parent);
     block.appendChild(infoWrap);
 
+    // ── TIMELINE PANEL ─────────────────────────────────────────────────────
+    // A receiver for the Timeline Tool's export, not a second Gantt engine.
+    // Display only — it never writes dates back onto the rows.
+    const tlWrap = document.createElement('div');
+    tlWrap.className = 'timeline-wrap' + (activePanel !== 'timeline' ? ' hidden' : '');
+    tlWrap.id = 'tl-' + parent.id;
+    if (activePanel === 'timeline') tlWrap.innerHTML = A.timelinePanelHtml(parent);
+    block.appendChild(tlWrap);
+
     // ── STUB PANELS ────────────────────────────────────────────────────────
     const _stubDefs=[
-      { id:'timeline',  label:'Timeline',     body:'Gantt chart and feasibility check. The Timeline Tool will live here — dates and deliverables pre-fill from this project.' },
       { id:'templates', label:'Templates',    body:'Email drafts and kickoff document generator — all fields pre-filled from client name, contacts, deliverables, and dates.' },
       { id:'metrics',   label:'Metrics',      body:'Activity log, days spent per phase, and project health summary.' },
       { id:'distro',    label:'Distribution', body:'Build and send review link or final delivery emails. Contacts and deliverable links pre-fill from this project.' },

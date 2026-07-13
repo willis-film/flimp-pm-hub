@@ -45,7 +45,10 @@ const PROJECT_FIELD_DEFAULTS = {
   projectOwner:'', clientAccount:'', clientContact:'',
   brokerAccount:'', brokerContact:'',
   oeEnd:'', hubspotLink:'', estimateLink:'', invoiceRef:'',
-  totalRevenue:''
+  totalRevenue:'',
+  // Pasted Timeline Tool export. Null until imported. Project scope only —
+  // the plan is authored per project, not per item.
+  timeline: null
 };
 
 function backfillInfoFields() {
