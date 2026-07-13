@@ -557,10 +557,20 @@ function render(){
       block.appendChild(coWrap);
     }
 
+    // ── INFO PANEL ─────────────────────────────────────────────────────────
+    // No longer a stub. Owns the full field record for both scopes — the
+    // project (parent row) and each project item (subtask row). Body is built
+    // by js/panels/info.js; this just mounts it.
+    const infoWrap = document.createElement('div');
+    infoWrap.className = 'info-wrap' + (activePanel !== 'info' ? ' hidden' : '');
+    infoWrap.id = 'info-' + parent.id;
+    // Only build the (large) form when the panel is actually open.
+    if (activePanel === 'info') infoWrap.innerHTML = A.infoPanelHtml(parent);
+    block.appendChild(infoWrap);
+
     // ── STUB PANELS ────────────────────────────────────────────────────────
     const _stubDefs=[
       { id:'timeline',  label:'Timeline',     body:'Gantt chart and feasibility check. The Timeline Tool will live here — dates and deliverables pre-fill from this project.' },
-      { id:'info',      label:'Info',         body:'Project contacts, Zoho CRM link, Dropbox link, estimate link, and other key reference fields.' },
       { id:'templates', label:'Templates',    body:'Email drafts and kickoff document generator — all fields pre-filled from client name, contacts, deliverables, and dates.' },
       { id:'metrics',   label:'Metrics',      body:'Activity log, days spent per phase, and project health summary.' },
       { id:'distro',    label:'Distribution', body:'Build and send review link or final delivery emails. Contacts and deliverable links pre-fill from this project.' },

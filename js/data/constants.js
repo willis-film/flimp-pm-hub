@@ -59,6 +59,21 @@ export const PRODUCT_TIER_MAP = {
   'Other': ['Rush Fee','Other','Additional Edits','Hosting','English Closed Captions','Foreign-Language Closed Captions','Baked-in Subtitles','Full-Day On-Site Shoots','Voice-Over Narration (with no video)','Voice-Over Pickups','SCORM','Writing Services']
 };
 
+// ── INFO PANEL LOOKUPS ───────────────────────────────────────────────────────
+// These become Supabase lookup tables later; hardcoded here so the Info panel
+// has real option lists to bind against while the schema is still being worked
+// out. PRODUCT_TOPIC_LIST is new — it had no prior home in the build.
+
+export const LANGUAGE_LIST = ['English','Spanish','French (Canadian)','Portuguese','Bilingual (EN/ES)','Other'];
+
+export const PRODUCT_TOPIC_LIST = [
+  'Open Enrollment','New Hire / Onboarding','Medical Plans','HSA / FSA','Dental & Vision',
+  'Voluntary Benefits','Retirement / 401k','Wellness','Leave & Time Off','Total Rewards',
+  'Benefits Overview','Plan Changes','Cost Transparency','Other'
+];
+
+export const OWNER_LIST = ['Andrew Willis','Heather Klee','Julie','Kristy'];
+
 export const CLOSEOUT_ITEMS = [
   'Invoices Received',
   'Invoices Documented',
@@ -82,7 +97,24 @@ export const ACTIVITY_FIELD_LABELS = {
   productType:'Product Type', productTier:'Product Tier', productStyle:'Product Style',
   nextActivity:'Next Activity', tags:'Tags', designer:'Designer',
   animator:'Animator', voArtist:'VO Artist', distributionDate:'Dist. Date',
-  name:'Name'
+  name:'Name',
+  // Info panel — item scope
+  itemOwner:'Item Owner', startDate:'Start Date', roundsOfEdits:'Rounds of Edits',
+  language:'Language', productTopic:'Product Topic',
+  totalRevenue:'Total Revenue', grossProfit:'Gross Profit',
+  designerCost:'Designer Cost', animatorCost:'Animator Cost', voCost:'VO Cost',
+  otherVendor1:'Other Vendor 1', otherVendor1Cost:'Other Vendor 1 Cost',
+  otherVendor2:'Writer / Other Vendor 2', otherVendor2Cost:'Writer / Other Vendor 2 Cost',
+  // Info panel — project scope
+  projectOwner:'Project Owner', clientAccount:'Client Account', clientContact:'Client Contact',
+  brokerAccount:'Broker Account', brokerContact:'Broker Contact', oeEnd:'OE End'
 };
 
-export const ACTIVITY_SKIP = new Set(['io','zohoLink','dropboxLink','activePanel','collapsed','comments','invoices','gmailLabels','clickupTasks','clickupId']);
+// Fields excluded from the activity log — either UI state, or link fields whose
+// churn would swamp the log with noise.
+export const ACTIVITY_SKIP = new Set([
+  'io','zohoLink','dropboxLink','activePanel','collapsed','comments','invoices',
+  'gmailLabels','clickupTasks','clickupId',
+  'previewLink','reportingLink','reviewStudioLink','boordsLink','hubspotLink',
+  'estimateLink','invoiceRef'
+]);

@@ -21,6 +21,41 @@ export function save() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); } catch (e) {}
 }
 
+// ── INFO PANEL FIELD DEFAULTS ────────────────────────────────────────────────
+// The Info panel introduced columns that predate no row in seed.js and exist in
+// nobody's saved localStorage. Because load() does an Object.assign merge of the
+// SAVED state over the seed, a saved db wholesale replaces `rows` — so seeding
+// these keys in seed.js alone would not reach an existing user's data. They are
+// backfilled here instead, after the merge, on every load.
+//
+// Item scope (subtask rows) and project scope (parent rows) take different sets.
+// Missing keys are added; existing values are never overwritten.
+
+const ITEM_FIELD_DEFAULTS = {
+  itemOwner:'', startDate:'', distributionDate:'',
+  previewLink:'', reportingLink:'', reviewStudioLink:'', boordsLink:'',
+  roundsOfEdits:'', language:'', productTopic:'',
+  totalRevenue:'', grossProfit:'',
+  designerCost:'', animatorCost:'', voCost:'',
+  otherVendor1:'', otherVendor1Cost:'',
+  otherVendor2:'', otherVendor2Cost:''
+};
+
+const PROJECT_FIELD_DEFAULTS = {
+  projectOwner:'', clientAccount:'', clientContact:'',
+  brokerAccount:'', brokerContact:'',
+  oeEnd:'', hubspotLink:'', estimateLink:'', invoiceRef:''
+};
+
+function backfillInfoFields() {
+  (db.rows || []).forEach(r => {
+    const defaults = r.parentId ? ITEM_FIELD_DEFAULTS : PROJECT_FIELD_DEFAULTS;
+    for (const k in defaults) {
+      if (!(k in r)) r[k] = defaults[k];
+    }
+  });
+}
+
 // load(): currently localStorage. Swap this body for a Supabase select later.
 // Mirrors the original Object.assign merge so missing keys fall back to seed.
 export function load() {
@@ -32,6 +67,8 @@ export function load() {
       Object.assign(db, saved);
     }
   } catch (e) {}
+  // Runs unconditionally — covers both the fresh-seed and hydrated-save paths.
+  backfillInfoFields();
 }
 
 // Resets every row's daily I/O flag the first time the app opens on a new day.

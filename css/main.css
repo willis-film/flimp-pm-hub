@@ -1008,3 +1008,221 @@ body::before{
   position: relative;
   z-index: 32;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   INFO PANEL
+   The widest field surface in the app. Left rail selects scope (project vs.
+   project item); right surface renders that scope's fields, grouped.
+
+   Layout is horizontal-first: the accordion is wide and short, so the rail
+   costs cheap horizontal space and saves expensive vertical space. Field
+   groups auto-fit, so at 1550px+ each group collapses toward a single row.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.info-wrap {
+  border: 1px solid var(--line-2); border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  background: var(--panel); margin-bottom: 11px;
+}
+.info-wrap.hidden { display: none; }
+
+.info-layout { display: grid; grid-template-columns: 168px minmax(0, 1fr); }
+
+/* ── RAIL ─────────────────────────────────────────────────────────────────
+   Lamps are the same is-<status> classes the strip and subtask dots use, so
+   the palette can never drift. The rail is a status readout as much as a
+   navigation device — that is what earns it the space. */
+
+.info-rail {
+  border-right: 1px solid var(--line);
+  background: var(--panel-2);
+  padding: 10px 0 14px;
+  border-radius: 0 0 0 var(--radius);
+}
+.info-rail-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px 7px 8px;
+  border-left: 2px solid transparent;
+  cursor: pointer; user-select: none;
+  transition: background .12s, border-color .12s;
+}
+.info-rail-row:hover { background: var(--panel-3); }
+.info-rail-row.active {
+  background: var(--panel);
+  border-left-color: var(--brass);
+}
+.info-rail-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+  background: var(--ink-4);
+}
+.info-rail-dot.is-kickoff    { background: var(--sig-kickoff); }
+.info-rail-dot.is-production { background: var(--sig-production); }
+.info-rail-dot.is-limbo      { background: var(--sig-limbo); }
+.info-rail-dot.is-done       { background: var(--sig-done); }
+.info-rail-dot.is-closed     { background: var(--sig-closed); }
+
+.info-rail-name {
+  font-family: var(--font); font-size: 11.5px; font-weight: 400;
+  color: var(--ink-2); line-height: 1.35;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.info-rail-name.is-project { font-weight: 600; color: var(--ink); }
+.info-rail-row.active .info-rail-name { color: var(--ink); font-weight: 500; }
+.info-rail-row.active .info-rail-name.is-project { font-weight: 600; }
+
+.info-rail-rule { height: 1px; background: var(--line-2); margin: 9px 10px; }
+.info-rail-cap {
+  font-family: var(--font-mono); font-size: 8.5px; letter-spacing: 1.2px;
+  text-transform: uppercase; color: var(--ink-4); padding: 0 10px 5px;
+}
+.info-rail-empty {
+  font-size: 11px; color: var(--ink-4); font-style: italic; padding: 4px 10px;
+}
+
+/* ── SURFACE ──────────────────────────────────────────────────────────────
+   max-width caps the form so a 3370px monitor doesn't stretch a "rounds of
+   edits" number input to 400px. Wide isn't automatically better. */
+
+.info-surface { padding: 14px 20px 18px; max-width: 1600px; }
+
+.info-head {
+  display: flex; align-items: baseline; gap: 10px;
+  padding-bottom: 10px; margin-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+.info-head-name {
+  font-family: var(--font-display, var(--font)); font-size: 16px; font-weight: 600;
+  color: var(--ink); letter-spacing: 0.1px;
+}
+.info-head-scope {
+  font-family: var(--font-mono); font-size: 8.5px; letter-spacing: 1.2px;
+  text-transform: uppercase; color: var(--ink-4);
+  border: 1px solid var(--line-2); border-radius: 20px; padding: 2px 8px;
+}
+
+/* ── GROUPS ───────────────────────────────────────────────────────────────
+   auto-fit, so the same markup reflows from one column on a laptop to a
+   single row per group at 1550px+. */
+
+.info-g { margin-bottom: 16px; }
+.info-g:last-child { margin-bottom: 0; }
+.info-gh {
+  font-family: var(--font-mono); font-size: 8.5px; letter-spacing: 1.4px;
+  text-transform: uppercase; color: var(--ink-3);
+  padding-bottom: 5px; margin-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+.info-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px 14px;
+}
+/* Link fields need room to read a URL — wider minimum, fewer columns. */
+.info-g-wide .info-grid { grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)); }
+
+.info-f { min-width: 0; }
+.info-lbl {
+  font-family: var(--font); font-size: 10.5px; font-weight: 500;
+  color: var(--ink-2); margin-bottom: 3px;
+  display: flex; align-items: baseline; gap: 5px;
+}
+.info-note {
+  font-family: var(--font-mono); font-size: 8px; letter-spacing: 0.8px;
+  text-transform: uppercase; color: var(--ink-4);
+}
+
+/* ── CONTROLS ─────────────────────────────────────────────────────────────── */
+
+.info-in {
+  width: 100%; box-sizing: border-box; height: 30px;
+  font-family: var(--font); font-size: 12px; color: var(--ink);
+  background: var(--panel); border: 1px solid var(--line-2);
+  border-radius: 4px; padding: 0 8px;
+  transition: border-color .12s, box-shadow .12s;
+}
+.info-in:hover  { border-color: var(--ink-4); }
+.info-in:focus  {
+  outline: none; border-color: var(--brass);
+  box-shadow: 0 0 0 2px var(--brass-glow);
+}
+.info-in::placeholder { color: var(--ink-4); }
+select.info-in { cursor: pointer; padding-right: 4px; }
+
+/* Money inputs carry their own sigil rather than relying on the label to say
+   so — the number is the thing being read, and it should read as currency. */
+.info-money { position: relative; }
+.info-money-sig {
+  position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
+  font-family: var(--font-mono); font-size: 11px; color: var(--ink-4);
+  pointer-events: none;
+}
+.info-in-money { padding-left: 19px; font-family: var(--font-mono); font-size: 11.5px; }
+
+.info-link { position: relative; display: flex; align-items: center; }
+.info-link .info-in { padding-right: 24px; }
+.info-link-out {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  font-size: 11px; color: var(--ink-3); text-decoration: none; line-height: 1;
+}
+.info-link-out:hover { color: var(--brass); }
+
+/* ── READ-ONLY WELLS ──────────────────────────────────────────────────────
+   Computed values (margin, vendor total) and inapplicable fields. The dashed
+   rule is load-bearing: it is what distinguishes a value the tool derived from
+   a value someone typed. Never style an input to look like this. */
+
+.info-well {
+  width: 100%; box-sizing: border-box; height: 30px;
+  display: flex; align-items: center; padding: 0 8px;
+  font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-2);
+  background: var(--panel-2);
+  border: 1px dashed var(--line-2); border-radius: 4px;
+}
+.info-well-na {
+  font-family: var(--font); font-size: 10.5px; font-style: italic;
+  color: var(--ink-4);
+}
+
+/* ── VENDOR TABLE ─────────────────────────────────────────────────────────
+   Five rows of one shape. Rendering these as ten loose fields would pretend
+   five instances of a thing are ten different things. */
+
+.info-vt { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
+.info-vt th {
+  font-family: var(--font-mono); font-size: 8.5px; letter-spacing: 1.1px;
+  text-transform: uppercase; color: var(--ink-4); font-weight: 500;
+  text-align: left; padding: 0 8px 5px 0;
+}
+.info-vt th:nth-child(1), .info-vt td:nth-child(1) { width: 190px; }
+.info-vt th:nth-child(3), .info-vt td:nth-child(3) { width: 130px; }
+.info-vt td { padding: 2px 8px 2px 0; vertical-align: middle; }
+.info-vt td:last-child, .info-vt th:last-child { padding-right: 0; }
+.info-v-role {
+  font-family: var(--font); font-size: 11px; color: var(--ink-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.info-vt tfoot td {
+  padding-top: 7px; border-top: 1px solid var(--line);
+}
+.info-vt tfoot .info-v-role {
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 1.1px;
+  text-transform: uppercase; color: var(--ink-3);
+}
+.info-v-total {
+  font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+  color: var(--ink); padding-left: 8px;
+}
+
+/* ── RECONCILIATION WARNING ───────────────────────────────────────────────
+   Gross profit is entered, vendor costs are entered, revenue is entered.
+   Nothing forces them to agree. This does not block — it just refuses to let
+   the disagreement be silent, which is the failure mode that makes a margin
+   ledger useless a year later. */
+
+.info-drift {
+  margin-top: 9px; padding: 7px 11px;
+  font-family: var(--font); font-size: 11px; line-height: 1.5;
+  color: #8A6410; background: rgba(201, 154, 46, 0.09);
+  border: 1px solid rgba(201, 154, 46, 0.32);
+  border-left: 3px solid var(--sig-limbo);
+  border-radius: 3px;
+}
