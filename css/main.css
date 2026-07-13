@@ -840,3 +840,97 @@ select { -webkit-appearance: none; -moz-appearance: none; appearance: none; }
   .content-header { padding: 12px 16px; }
   .list-wrap { padding: 12px 14px 50px; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   EMBELLISHMENTS — subtle instrument/chart detailing.
+   Principle: every detail either carries real information or is honest
+   material. No shape-without-meaning.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* (1) BACKGROUND TEXTURE — chart linework, in the existing neutral palette.
+   Structure only: a fine lat/long grid + faint diagonal contour hatching.
+   No color washes; the theme's colors are untouched. */
+body::before{
+  background-image:
+    /* diagonal contour hatching */
+    repeating-linear-gradient(58deg, rgba(28,42,51,0.014) 0 1px, transparent 1px 14px),
+    /* fine lat/long grid */
+    linear-gradient(to right, rgba(28,42,51,0.016) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(28,42,51,0.016) 1px, transparent 1px);
+  background-size: auto, 46px 46px, 46px 46px;
+}
+
+/* (2) BRUSHED-METAL SPINE — real machined grain + specular highlight,
+   so the holder reads as aluminum rather than a gray bar. */
+.fps-tab{
+  background:
+    /* fine brushed grain */
+    repeating-linear-gradient(90deg,
+      rgba(255,255,255,0.5) 0 1px,
+      rgba(28,42,51,0.05) 1px 2px),
+    /* specular highlight across the face */
+    linear-gradient(90deg,
+      #B9C0C6 0%,
+      #D6DBDF 26%,
+      #F2F5F7 48%,
+      #CFD5D9 70%,
+      #AFB7BD 100%);
+  border-right: 1px solid #9AA3AA;
+  box-shadow:
+    inset -1px 0 0 rgba(255,255,255,0.55),
+    inset 1px 0 0 rgba(28,42,51,0.10);
+}
+.fps-tab:hover{
+  background:
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.55) 0 1px, rgba(28,42,51,0.05) 1px 2px),
+    linear-gradient(90deg,#C2C9CF 0%,#DFE4E8 26%,#F8FAFB 48%,#D8DEE2 70%,#B8C0C6 100%);
+}
+
+/* (3) PAPER-EDGE CARD LIFT — strips seated on the board like physical cards:
+   a crisp top light-line, a soft contact shadow, a slightly warmer edge. */
+.fps{
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.9) inset,          /* top light-line */
+    0 0 0 1px rgba(28,42,51,0.02),                /* hairline seat */
+    0 1px 1px rgba(28,42,51,0.05),                /* contact shadow */
+    0 6px 16px rgba(28,42,51,0.09),               /* lift */
+    0 14px 28px rgba(28,42,51,0.05);              /* ambient */
+}
+.fps:hover{
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.95) inset,
+    0 0 0 1px rgba(28,42,51,0.03),
+    0 2px 2px rgba(28,42,51,0.06),
+    0 10px 22px rgba(28,42,51,0.12),
+    0 20px 40px rgba(28,42,51,0.06);
+}
+
+/* (4) TAIL NUMBER — faint registration in the card corner.
+   Functional: it's the actual record id. */
+.fps-tailno{
+  position: absolute; top: 6px; right: 11px; z-index: 2;
+  font-family: var(--font-mono); font-size: 9px; font-weight: 500;
+  letter-spacing: 1.6px; color: var(--ink-4);
+  user-select: all; pointer-events: auto;
+}
+
+/* (5) SIGNAL STRENGTH — reception bars showing staleness.
+   Real data: computed from lastTouchedAt. Full bars = touched recently. */
+.sig-strength{
+  display: inline-flex; align-items: flex-end; gap: 1.5px;
+  height: 11px; flex-shrink: 0; margin-left: 3px; cursor: help;
+}
+.sig-bar{
+  width: 2.5px; border-radius: 1px; background: var(--line-2);
+  transition: background .15s;
+}
+.sig-bar:nth-child(1){ height: 4px; }
+.sig-bar:nth-child(2){ height: 6px; }
+.sig-bar:nth-child(3){ height: 8.5px; }
+.sig-bar:nth-child(4){ height: 11px; }
+/* lit bars take the accent; the weaker the signal, the warmer the warning */
+.sig-strength.sig-4 .sig-bar.on{ background: var(--brass); }
+.sig-strength.sig-3 .sig-bar.on{ background: var(--brass); }
+.sig-strength.sig-2 .sig-bar.on{ background: #C9962F; }
+.sig-strength.sig-1 .sig-bar.on{ background: var(--sig-alert); }
+.sig-strength.sig-0 .sig-bar{ background: var(--line-2); }

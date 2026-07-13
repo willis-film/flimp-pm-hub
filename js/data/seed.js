@@ -51,8 +51,8 @@ export const SEED_DB = {
       gmailLabels:['lbl1'],
       invoices:[],
       comments:[
-        { author:'Willis', time:'4 days ago', text:'Storyboard and DP update sent to client for review.' },
-        { author:'Julie', time:'3 days ago', text:'Client confirmed receipt, waiting on feedback.' }
+        { author:'Willis', at:'2026-07-09T15:51:33.932938Z', text:'Storyboard and DP update sent to client for review.' },
+        { author:'Julie', at:'2026-07-10T15:51:33.932938Z', text:'Client confirmed receipt, waiting on feedback.' }
       ]
     },
     { id:'r2', parentId:'r1', collapsed:false,
@@ -65,7 +65,7 @@ export const SEED_DB = {
       distributionDate:'2026-05-01',
       zohoLink:'crm.zoho.com', dropboxLink:'dropbox.com/grange-main',
       nextActivity:null,
-      comments:[{ author:'Willis', time:'2 days ago', text:'Script draft v2 sent.' }]
+      comments:[{ author:'Willis', at:'2026-07-11T15:51:33.932938Z', text:'Script draft v2 sent.' }]
     },
     { id:'rcu1', parentId:'r1', clickupId:'cu1', collapsed:false,
       name:'Grange – HSA Main Video',
@@ -109,7 +109,7 @@ export const SEED_DB = {
       invoices:[
         { id:'inv1', sent:'2026-02-01', vendor:'Universal Companies', number:'INV-2026-001', amount:'4500', tasks:['design','animation'], status:'paid' }
       ],
-      comments:[{ author:'Willis', time:'2 weeks ago', text:'Kickoff email sent 1.29. Awaiting client materials.' }]
+      comments:[{ author:'Willis', at:'2026-06-29T15:51:45.302364Z', text:'Kickoff email sent 1.29. Awaiting client materials.' }]
     },
     { id:'r4', parentId:'r3', collapsed:false,
       name:'Universal Companies PPT Update',
@@ -121,7 +121,7 @@ export const SEED_DB = {
       distributionDate:'2026-02-15',
       zohoLink:'crm.zoho.com', dropboxLink:'dropbox.com/uc-ppt',
       nextActivity:null,
-      comments:[{ author:'Willis', time:'2 weeks ago', text:'Kickoff email sent 1.29.' }]
+      comments:[{ author:'Willis', at:'2026-06-29T15:51:45.302364Z', text:'Kickoff email sent 1.29.' }]
     },
     { id:'r5', parentId:'r3', collapsed:false,
       name:'Universal Companies – 9.5 Custom PPTV – 2026',

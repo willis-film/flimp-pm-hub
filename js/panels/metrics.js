@@ -1,7 +1,7 @@
 // metrics.js — Metrics panel: activity log formatting + CSV export.
 
 import { STATUS_LABELS, ACTIVITY_FIELD_LABELS, ACTIVITY_SKIP } from '../data/constants.js';
-import { esc, fmtDate, downloadCSV } from '../utils.js';
+import { esc, fmtDate, downloadCSV, fmtRelTime, fmtAbsTime } from '../utils.js';
 import { db } from '../db.js';
 import { A, register } from '../bus.js';
 
@@ -21,9 +21,9 @@ function logActivity(row, field, oldVal, newVal){
   const newStr=fmtActivityVal(field,newVal);
   if(oldStr===newStr) return;
   if(!row.activityLog) row.activityLog=[];
-  const now=new Date();
+  // Store a real ISO timestamp; format at display time (see utils.fmtRelTime).
   row.activityLog.unshift({
-    time:now.toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}),
+    at:new Date().toISOString(),
     field,
     from:oldStr,
     to:newStr
@@ -36,7 +36,7 @@ function renderActivityLog(row){
   if(!log.length) return '<div class="no-activity">No activity recorded yet.</div>';
   return '<div class="activity-list">'+log.map(e=>`
     <div class="activity-entry">
-      <span class="activity-time">${esc(e.time)}</span>
+      <span class="activity-time" title="${esc(fmtAbsTime(e))}">${esc(fmtRelTime(e))}</span>
       <span class="activity-field">${esc(ACTIVITY_FIELD_LABELS[e.field]||e.field)}</span>
       <span class="activity-change">
         <span class="activity-old">${esc(e.from)}</span>
@@ -50,7 +50,7 @@ function exportRowActivity(id){
   const log=row.activityLog||[];
   if(!log.length){ alert('No activity to export.'); return; }
   const headers=['Time','Field','From','To','Row Name'];
-  const csvRows=[headers,...log.map(e=>[e.time, ACTIVITY_FIELD_LABELS[e.field]||e.field, e.from, e.to, row.name])];
+  const csvRows=[headers,...log.map(e=>[fmtAbsTime(e), ACTIVITY_FIELD_LABELS[e.field]||e.field, e.from, e.to, row.name])];
   downloadCSV((row.name||'activity').replace(/[^a-z0-9]/gi,'_')+'_activity.csv', csvRows);
 }
 
@@ -63,7 +63,7 @@ function exportProjectActivity(parentId){
   allRows.forEach(row=>{
     const type=row.parentId===null?'Project':'Task';
     (row.activityLog||[]).forEach(e=>{
-      csvRows.push([e.time, ACTIVITY_FIELD_LABELS[e.field]||e.field, e.from, e.to, row.name, type]);
+      csvRows.push([fmtAbsTime(e), ACTIVITY_FIELD_LABELS[e.field]||e.field, e.from, e.to, row.name, type]);
     });
   });
   if(csvRows.length===1){ alert('No activity to export.'); return; }

@@ -74,3 +74,38 @@ export function downloadCSV(filename, rows) {
   a.click();
   URL.revokeObjectURL(a.href);
 }
+
+// ── TIMESTAMPS ─────────────────────────────────────────────────────────────
+// Activity-log and comment entries store `at` as a real ISO timestamp.
+// Formatting happens at DISPLAY time, so relative labels stay truthful as time
+// passes (the old approach froze a string like "4 days ago" forever).
+// Legacy entries that only have a `time` string are passed through unchanged.
+
+/** Relative label: "just now", "3h ago", "2d ago", "Mar 4". */
+export function fmtRelTime(entry) {
+  const iso = entry && (entry.at || null);
+  if (!iso) return (entry && entry.time) || '';   // legacy fallback
+  const then = new Date(iso);
+  if (isNaN(then)) return (entry && entry.time) || '';
+  const mins = Math.floor((Date.now() - then.getTime()) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days === 1) return 'yesterday';
+  if (days < 30) return `${days}d ago`;
+  return then.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+/** Absolute label for tooltips/CSV: "Jul 10, 2026, 3:42 PM". */
+export function fmtAbsTime(entry) {
+  const iso = entry && (entry.at || null);
+  if (!iso) return (entry && entry.time) || '';
+  const d = new Date(iso);
+  if (isNaN(d)) return (entry && entry.time) || '';
+  return d.toLocaleString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+    hour: 'numeric', minute: '2-digit'
+  });
+}

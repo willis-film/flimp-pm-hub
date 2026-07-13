@@ -3,7 +3,7 @@
 // Kept together because they share render() and the `ui` view state.
 
 import { STATUS_LABELS, PHASE_LABELS, STATUS_CYCLE, ALL_TAGS, AM_LIST, DESIGNER_LIST, ANIMATOR_LIST, VO_LIST, PRODUCT_TYPE_LIST, PRODUCT_STYLE_MAP, PRODUCT_TIER_MAP, CLOSEOUT_ITEMS } from './data/constants.js';
-import { esc, fmtDate, daysLeft, fmtNextActivity, tagColor, tagTextColor, statusBadge, phasePill, tagsHtml, df } from './utils.js';
+import { esc, fmtDate, daysLeft, fmtNextActivity, tagColor, tagTextColor, statusBadge, phasePill, tagsHtml, df, fmtRelTime, fmtAbsTime } from './utils.js';
 import { db, save } from './db.js';
 import { ui } from './state.js';
 import { A, register } from './bus.js';
@@ -13,6 +13,43 @@ import { A, register } from './bus.js';
 let _enteringId = null;
 
 function getChildren(pid){ return db.rows.filter(r=>r.parentId===pid); }
+
+// ── SIGNAL STRENGTH (staleness) ────────────────────────────────────────────
+// Reception bars showing how recently this project was touched. Derived from
+// real ISO timestamps: the newest entry in activityLog or comments.
+// 4 bars = touched in the last 2 days … 0 bars = 30+ days (or never).
+function lastTouched(row){
+  const stamps = [];
+  const log = row.activityLog || [];
+  if (log[0] && log[0].at) stamps.push(new Date(log[0].at).getTime());
+  const cs = row.comments || [];
+  const lastC = cs[cs.length - 1];
+  if (lastC && lastC.at) stamps.push(new Date(lastC.at).getTime());
+  const valid = stamps.filter(t => !isNaN(t));
+  return valid.length ? Math.max(...valid) : null;
+}
+
+function signalStrength(row){
+  const t = lastTouched(row);
+  if(!t) return { bars:0, days:null, label:'No signal — no recorded activity' };
+  const days = Math.floor((Date.now() - t) / 86400000);
+  let bars;
+  if(days <= 2) bars = 4;
+  else if(days <= 7) bars = 3;
+  else if(days <= 14) bars = 2;
+  else if(days <= 30) bars = 1;
+  else bars = 0;
+  const ago = days === 0 ? 'today' : days === 1 ? 'yesterday' : `${days}d ago`;
+  return { bars, days, label:`Last activity ${ago}` };
+}
+
+function signalBarsHTML(row){
+  const s = signalStrength(row);
+  const bars = [1,2,3,4].map(i =>
+    `<i class="sig-bar${i <= s.bars ? ' on' : ''}"></i>`
+  ).join('');
+  return `<span class="sig-strength sig-${s.bars}" title="${esc(s.label)}" aria-label="${esc(s.label)}">${bars}</span>`;
+}
 
 function latestComment(row){ return row.comments&&row.comments.length ? row.comments[row.comments.length-1] : null; }
 
@@ -84,12 +121,14 @@ function render(){
     strip.innerHTML=`
       <div class="fps-tab fps-tab-${parent.status}${parent.io?' io-checked':''}" onclick="toggleField('${parent.id}','io')" title="Toggle I/O" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleField('${parent.id}','io')}"><i class="fps-lamp"></i><i class="fps-lamp"></i><i class="fps-lamp"></i></div>
       <div class="fps-body">
+        <span class="fps-tailno">${esc((parent.id||'').toUpperCase())}</span>
         <div class="fps-top">
           <span class="fps-name-wrap">
             <span class="fps-name" onclick="openDetail('${parent.id}')">${esc(parent.name)}</span>
             <button class="fps-edit-icon" title="Edit project" aria-label="Edit project" onclick="event.stopPropagation();A.openParentModal('${parent.id}')">
               <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 2.5l2 2L6 12l-2.6.6.6-2.6 7.5-7.5z"/><path d="M10.5 3.5l2 2"/></svg>
             </button>
+            ${signalBarsHTML(parent)}
           </span>
           ${A.gmailLabelTags(parent)}
           <div class="fps-status-wrap" style="position:relative;flex-shrink:0">
@@ -758,7 +797,7 @@ function renderComments(row){
     <div class="comment-card">
       <div class="comment-head">
         <span class="comment-author">${esc(c.author)}</span>
-        <span class="comment-time">${esc(c.time)}</span>
+        <span class="comment-time" title="${esc(fmtAbsTime(c))}">${esc(fmtRelTime(c))}</span>
         <button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size: 11px;color:var(--ink-3);margin-left:auto" onclick="delComment('${row.id}',${i})">✕</button>
       </div>
       <div class="comment-text">${esc(c.text)}</div>
@@ -768,8 +807,7 @@ function renderComments(row){
 function stripPostComment(id, txt){
   const row=db.rows.find(r=>r.id===id); if(!row||!txt.trim())return;
   if(!row.comments) row.comments=[];
-  const now=new Date();
-  row.comments.push({author:'Willis',time:now.toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}),text:txt.trim()});
+  row.comments.push({author:'Willis',at:new Date().toISOString(),text:txt.trim()});
   save(); render();
   if(ui.detailId===id) openDetail(id);
 }
@@ -791,8 +829,7 @@ function postComment(id){
   const row=db.rows.find(r=>r.id===id); if(!row)return;
   const txt=document.getElementById('dp-comment-input').value.trim(); if(!txt)return;
   if(!row.comments) row.comments=[];
-  const now=new Date();
-  row.comments.push({author:'Willis',time:now.toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}),text:txt});
+  row.comments.push({author:'Willis',at:new Date().toISOString(),text:txt});
   document.getElementById('dp-comment-input').value='';
   save(); render(); openDetail(id);
 }
