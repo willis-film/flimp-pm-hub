@@ -83,12 +83,17 @@
      .fps-tab because the open panels indent by exactly this much — they hang off
      the spine like a submenu rather than sitting under the whole strip. One
      value, two consumers; they cannot drift apart.
-       --spine-w   the lamp rail itself
-       --spine-off rail + its 1px right border + the strip's 1px left border,
-                   i.e. the distance from the block's left edge to where the
-                   strip BODY starts. That is the line panels align to. */
+
+     NOTE on the arithmetic: box-sizing is border-box globally (see the reset at
+     the top of this file), so the tab's 1px right border is INSIDE its 20px, not
+     added to it. Likewise .fps's 1px left border is inside .fps. So the strip
+     BODY starts at 1px (.fps's own left border) + 20px (the tab) = 21px from the
+     block's left edge. Counting the tab's border a second time is the classic
+     content-box mistake and lands the panel 1px past the seam.
+       --spine-w   the lamp rail, border included
+       --spine-off .fps's left border + the rail = where .fps-body starts */
   --spine-w:   20px;
-  --spine-off: 22px;
+  --spine-off: 21px;
   --rail-w: 224px;
 
   /* ── type — Montserrat throughout (aligns with the Frequency Tower wordmark) ── */
@@ -568,6 +573,10 @@ body::before {
 
 .subtask-wrap, .inv-wrap, .email-wrap, .closeout-wrap, .info-wrap {
   margin-left: var(--spine-off);
+  /* .fps carries a 1px border on BOTH sides; the panel only indents past the
+     left one. Without this, the panel overhangs the strip's right edge by that
+     1px — flush on the left, proud on the right. */
+  margin-right: 1px;
   overflow-x: auto; border: 1px solid var(--line-2); border-top: none;
   border-radius: 0 0 var(--radius) var(--radius); background: var(--panel); margin-bottom: 11px;
 }
