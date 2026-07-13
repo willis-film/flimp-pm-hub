@@ -111,6 +111,16 @@ function group(title, inner, cls) {
 }
 
 // ── COMPUTED ─────────────────────────────────────────────────────────────────
+//
+// Gross profit and margin are DERIVED at both scopes — nothing about money is
+// typed twice. The only entered money figures are item revenue, the five vendor
+// costs, and the project's total revenue.
+//
+// Project total revenue is entered even though it is defined as the sum of its
+// line items, because the estimate exists before the items are broken out. The
+// roll-up therefore is not a competing number — it is a CHECK on the entry. A
+// disagreement means a missing item, a typo, or a line nobody costed. That is
+// worth surfacing; it is the one place a warning is load-bearing.
 
 const n = v => { const x = parseFloat(v); return isNaN(x) ? 0 : x; };
 
@@ -119,7 +129,32 @@ function vendorCostTotal(r) {
        + n(r.otherVendor1Cost) + n(r.otherVendor2Cost);
 }
 
-const usd = v => '$' + Math.round(v).toLocaleString('en-US');
+// Project scope rolls up from its items. This makes the project financials LIVE:
+// change one designer's cost on one subtask and the project's margin moves. That
+// is correct — but it means project scope is a readout that drifts as items get
+// costed, not a form filled once.
+function projectTotals(parent) {
+  const kids = A.getChildren(parent.id);
+  const cost      = kids.reduce((a, k) => a + vendorCostTotal(k), 0);
+  const revRollup = kids.reduce((a, k) => a + n(k.totalRevenue), 0);
+  const revEntered = n(parent.totalRevenue);
+  return {
+    kids, cost, revRollup, revEntered,
+    // GP is computed against the ENTERED revenue — that is the number the
+    // project is accountable to. The roll-up sits beside it as a check.
+    gp: revEntered - cost,
+    margin: revEntered ? (revEntered - cost) / revEntered * 100 : null,
+    // Only a real signal once items actually carry revenue.
+    gap: revEntered && revRollup ? revEntered - revRollup : 0
+  };
+}
+
+// Sign goes outside the sigil: -$1,800, never $-1,800. Round BEFORE testing the
+// sign, or a value that rounds to zero renders as -$0.
+const usd = v => {
+  const r = Math.round(v);
+  return (r < 0 ? '-$' : '$') + Math.abs(r).toLocaleString('en-US');
+};
 
 const well = (val, cls) => `<div class="info-well${cls ? ' ' + cls : ''}">${esc(val)}</div>`;
 
@@ -176,18 +211,13 @@ function itemForm(r) {
     ? sel(r.id, 'productTier', r.productTier, tiers)
     : well(r.productType ? 'No tiers for this product type' : 'Select a product type first', 'info-well-na');
 
-  const rev = n(r.totalRevenue), gp = n(r.grossProfit), costs = vendorCostTotal(r);
+  // Every money figure below the two entered ones is derived. Gross profit was
+  // briefly an input; it is not, and an input would let it contradict the vendor
+  // rows silently. Revenue and the five costs are the only things typed here.
+  const rev    = n(r.totalRevenue);
+  const costs  = vendorCostTotal(r);
+  const gp     = rev - costs;
   const margin = rev ? (gp / rev * 100).toFixed(1) + '%' : '—';
-
-  // GP is entered, not computed — it can disagree with revenue minus vendor
-  // costs. Surface the disagreement rather than carrying it silently.
-  const gap = (rev - costs) - gp;
-  const drift = rev && gp && Math.abs(gap) > 1;
-  const driftMsg = drift
-    ? `<div class="info-drift">Gross profit doesn't reconcile. Revenue minus vendor costs is
-       ${esc(usd(rev - costs))}; entered gross profit is ${esc(usd(gp))} —
-       ${esc(usd(Math.abs(gap)))} apart.</div>`
-    : '';
 
   return [
     group('Identity',
@@ -218,22 +248,35 @@ function itemForm(r) {
       f('Rounds of edits', num(r.id, 'roundsOfEdits', r.roundsOfEdits, '0'))
     ),
     vendorTable(r),
-    `<div class="info-g">
-      <div class="info-gh">Financials</div>
-      <div class="info-grid">
-        ${f('Total revenue', money(r.id, 'totalRevenue', r.totalRevenue))}
-        ${f('Gross profit',  money(r.id, 'grossProfit',  r.grossProfit))}
-        ${f('Margin',            well(margin),     'computed')}
-        ${f('Vendor cost total', well(usd(costs)), 'computed')}
-      </div>
-      ${driftMsg}
-    </div>`
+    group('Financials',
+      f('Total revenue',     money(r.id, 'totalRevenue', r.totalRevenue)) +
+      f('Vendor cost total', well(usd(costs)), 'computed') +
+      f('Gross profit',      well(usd(gp), gp < 0 ? 'info-well-neg' : ''), 'computed') +
+      f('Margin',            well(margin,  gp < 0 ? 'info-well-neg' : ''), 'computed')
+    )
   ].join('');
 }
 
 // ── PROJECT SCOPE ────────────────────────────────────────────────────────────
 
 function projectForm(r) {
+  const t = projectTotals(r);
+
+  // Roll-up vs. entry. You told me revenue IS the sum of its line items — so a
+  // gap is not a second opinion, it is an error: a missing item, a typo, or a
+  // line nobody costed. $1 tolerance absorbs rounding. Silent when the items
+  // carry no revenue yet, because then there is nothing to check against.
+  const mismatch = Math.abs(t.gap) > 1;
+  const check = mismatch
+    ? `<div class="info-drift">Entered revenue doesn't match the line items.
+       ${esc(usd(t.revEntered))} entered, ${esc(usd(t.revRollup))} across
+       ${t.kids.length} item${t.kids.length === 1 ? '' : 's'} —
+       ${esc(usd(Math.abs(t.gap)))} ${t.gap > 0 ? 'unaccounted for' : 'over'}.</div>`
+    : '';
+
+  const marginStr = t.margin === null ? '—' : t.margin.toFixed(1) + '%';
+  const negCls = t.gp < 0 ? 'info-well-neg' : '';
+
   return [
     group('Project',
       f('Flimp project name',  txt(r.id, 'name', r.name)) +
@@ -254,7 +297,22 @@ function projectForm(r) {
       f('Estimate',          link(r.id, 'estimateLink', r.estimateLink)) +
       f('Invoice',           txt(r.id,  'invoiceRef',   r.invoiceRef, 'INV-0000')),
       'info-g-wide'
-    )
+    ),
+    // LIVE readout, not a form. Every figure but the first is rolled up from the
+    // subtasks — cost a designer on one item and this whole group moves.
+    `<div class="info-g">
+      <div class="info-gh">Financials</div>
+      <div class="info-grid">
+        ${f('Total revenue', money(r.id, 'totalRevenue', r.totalRevenue))}
+        ${f('Total cost',    well(usd(t.cost)), `${t.kids.length} item${t.kids.length === 1 ? '' : 's'}`)}
+        ${f('Gross profit',  well(usd(t.gp), negCls),  'computed')}
+        ${f('Margin',        well(marginStr, negCls),  'computed')}
+      </div>
+      <div class="info-rollup">
+        ${f('Line-item revenue', well(usd(t.revRollup), mismatch ? 'info-well-flag' : ''), 'roll-up')}
+      </div>
+      ${check}
+    </div>`
   ].join('');
 }
 

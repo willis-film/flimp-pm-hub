@@ -35,7 +35,7 @@ const ITEM_FIELD_DEFAULTS = {
   itemOwner:'', startDate:'', distributionDate:'',
   previewLink:'', reportingLink:'', reviewStudioLink:'', boordsLink:'',
   roundsOfEdits:'', language:'', productTopic:'',
-  totalRevenue:'', grossProfit:'',
+  totalRevenue:'',
   designerCost:'', animatorCost:'', voCost:'',
   otherVendor1:'', otherVendor1Cost:'',
   otherVendor2:'', otherVendor2Cost:''
@@ -44,7 +44,8 @@ const ITEM_FIELD_DEFAULTS = {
 const PROJECT_FIELD_DEFAULTS = {
   projectOwner:'', clientAccount:'', clientContact:'',
   brokerAccount:'', brokerContact:'',
-  oeEnd:'', hubspotLink:'', estimateLink:'', invoiceRef:''
+  oeEnd:'', hubspotLink:'', estimateLink:'', invoiceRef:'',
+  totalRevenue:''
 };
 
 function backfillInfoFields() {

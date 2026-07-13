@@ -1218,6 +1218,20 @@ select.info-in { cursor: pointer; padding-right: 4px; }
    the disagreement be silent, which is the failure mode that makes a margin
    ledger useless a year later. */
 
+
+/* Negative gross profit / margin. Not an error state — a real result that must
+   read as one. Silent styling would let an underwater project look identical to
+   a healthy one at a glance. */
+.info-well-neg { color: var(--sig-production); font-weight: 600; }
+
+/* Line-item roll-up that disagrees with the entered project revenue. */
+.info-well-flag { border-color: var(--sig-limbo); border-style: solid; color: var(--ink); }
+
+/* The roll-up sits below the 4-up grid, not inside it — it is a check on the
+   entered revenue above, not a fifth peer figure. Constrained to one column
+   width so it lines up under Total revenue, the number it is checking. */
+.info-rollup { margin-top: 10px; max-width: 240px; }
+
 .info-drift {
   margin-top: 9px; padding: 7px 11px;
   font-family: var(--font); font-size: 11px; line-height: 1.5;

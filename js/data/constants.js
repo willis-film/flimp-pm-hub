@@ -101,7 +101,7 @@ export const ACTIVITY_FIELD_LABELS = {
   // Info panel — item scope
   itemOwner:'Item Owner', startDate:'Start Date', roundsOfEdits:'Rounds of Edits',
   language:'Language', productTopic:'Product Topic',
-  totalRevenue:'Total Revenue', grossProfit:'Gross Profit',
+  totalRevenue:'Total Revenue',
   designerCost:'Designer Cost', animatorCost:'Animator Cost', voCost:'VO Cost',
   otherVendor1:'Other Vendor 1', otherVendor1Cost:'Other Vendor 1 Cost',
   otherVendor2:'Writer / Other Vendor 2', otherVendor2Cost:'Writer / Other Vendor 2 Cost',
