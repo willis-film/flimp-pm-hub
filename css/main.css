@@ -571,7 +571,7 @@ body::before {
    · The left border stays. The panel is inset from the block, so its left edge
      is now a real exposed edge rather than a seam against the strip. */
 
-.subtask-wrap, .inv-wrap, .email-wrap, .closeout-wrap, .info-wrap {
+.subtask-wrap, .inv-wrap, .email-wrap, .closeout-wrap, .info-wrap, .timeline-wrap {
   margin-left: var(--spine-off);
   /* .fps carries a 1px border on BOTH sides; the panel only indents past the
      left one. Without this, the panel overhangs the strip's right edge by that
@@ -580,7 +580,7 @@ body::before {
   overflow-x: auto; border: 1px solid var(--line-2); border-top: none;
   border-radius: 0 0 var(--radius) var(--radius); background: var(--panel); margin-bottom: 11px;
 }
-.subtask-wrap.hidden, .inv-wrap.hidden, .email-wrap.hidden, .closeout-wrap.hidden, .info-wrap.hidden { display: none; }
+.subtask-wrap.hidden, .inv-wrap.hidden, .email-wrap.hidden, .closeout-wrap.hidden, .info-wrap.hidden, .timeline-wrap.hidden { display: none; }
 
 .sheet, .inv-sheet, .email-sheet { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; }
 
@@ -1285,7 +1285,10 @@ select.info-in { cursor: pointer; padding-right: 4px; }
    where the work actually is. Health is the distance between the two.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.timeline-wrap { padding: 0; }
+/* .timeline-wrap's box — background, borders, radius, spine indent — comes from
+   the shared panel rule alongside .subtask-wrap and the rest. It is not special.
+   (It was previously omitted from that selector, so it rendered as a transparent
+   box and the page's patterned background showed straight through.) */
 .tl-panel {
   /* One source for the column geometry. The TODAY rule is positioned inside the
      track column, so these must agree — a magic pixel offset would drift the
@@ -1346,7 +1349,10 @@ select.info-in { cursor: pointer; padding-right: 4px; }
 
 /* ── ROWS ───────────────────────────────────────────────────────────────── */
 
-.tl-row { display: flex; align-items: center; gap: var(--tl-gap); padding: 8px 0; }
+/* Extra TOP padding houses the bubble, which overflows upward out of the track.
+   Bottom stays tight — the asymmetry is deliberate, and it is what lets the
+   track's line sit on the row's true centre line rather than below it. */
+.tl-row { display: flex; align-items: center; gap: var(--tl-gap); padding: 23px 0 8px; }
 .tl-row + .tl-row { border-top: 1px solid var(--line-soft); }
 
 .tl-lbl { width: var(--tl-lbl); flex-shrink: 0; min-width: 0; }
@@ -1355,8 +1361,11 @@ select.info-in { cursor: pointer; padding-right: 4px; }
   font-size: 11.5px; font-weight: 500; color: var(--ink);
 }
 .tl-nmt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Indent past the lamp dot (6px) + its gap (6px) so the subtitle's left edge
+   lines up with the item NAME above it, not with the dot. */
 .tl-meta {
   font-size: 9px; color: var(--ink-4); margin-top: 1px;
+  padding-left: 12px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 /* Same is-<status> classes as the strip and the info rail. The palette cannot
@@ -1370,30 +1379,34 @@ select.info-in { cursor: pointer; padding-right: 4px; }
 
 /* ── TRACK ──────────────────────────────────────────────────────────────── */
 
-/* The track carries the bubble in its own band, so rows never overlap each
-   other. That headroom is the height cost of the feature: ~19px per row. */
-.tl-track { flex: 1; position: relative; height: 39px; min-width: 0; }
+/* The track is a NORMAL-height flex child, so it centres against the name block
+   and the dropdown like everything else in the row. An earlier version baked the
+   bubble's headroom into this height (39px, baseline at 28px), which pushed the
+   line visibly below the row's centre line.
+   The bubble instead overflows UPWARD out of the track box — see .tl-bub. The
+   row's top padding gives it somewhere to go. */
+.tl-track { flex: 1; position: relative; height: 20px; min-width: 0; }
 .tl-base {
-  position: absolute; left: 0; right: 0; top: 28px; height: 2px;
+  position: absolute; left: 0; right: 0; top: 9px; height: 2px;
   background: var(--panel-3); border-radius: 1px;
 }
 /* Fill runs to the SELECTED task, not to today. This is progress, not calendar —
    which is why an item can legitimately fill past the TODAY rule. That overhang
    IS the "ahead of schedule" signal, drawn. */
 .tl-fill {
-  position: absolute; left: 0; top: 28px; height: 2px;
+  position: absolute; left: 0; top: 9px; height: 2px;
   background: var(--ink-3); border-radius: 1px;
 }
 
 .tl-tick {
-  position: absolute; top: 24px; width: 2px; height: 10px;
+  position: absolute; top: 5px; width: 2px; height: 10px;
   border-radius: 1px; transform: translateX(-1px); cursor: default;
 }
 /* Party is encoded because half of a typical plan is the client's work — the
    half you cannot control. Solid Flimp, hollow client, brass shared. */
 .tk-flimp  { background: var(--ink-2); }
 .tk-client { background: var(--panel); border: 1px solid var(--ink-3); width: 5px; transform: translateX(-2.5px); }
-.tk-shared { background: var(--brass); width: 3px; height: 13px; top: 22.5px; transform: translateX(-1.5px); }
+.tk-shared { background: var(--brass); width: 3px; height: 13px; top: 3.5px; transform: translateX(-1.5px); }
 
 /* Not-yet-reached ticks fade — but "reached" means BEFORE YOUR SELECTION, not
    "the date passed". That is the whole correction this panel exists to make. */
@@ -1404,11 +1417,11 @@ select.info-in { cursor: pointer; padding-right: 4px; }
 .tl-tick.tk-cur {
   background: var(--sig-production) !important;
   border-color: var(--sig-production) !important;
-  width: 3px; height: 15px; top: 21.5px; transform: translateX(-1.5px); z-index: 3;
+  width: 3px; height: 15px; top: 2.5px; transform: translateX(-1.5px); z-index: 3;
 }
 
 .tl-none {
-  position: absolute; left: 0; top: 23px;
+  position: absolute; left: 0; top: 4px;
   font-size: 10px; color: var(--ink-4); font-style: italic;
 }
 .tl-row-empty .tl-lbl { opacity: 0.55; }
@@ -1425,7 +1438,7 @@ select.info-in { cursor: pointer; padding-right: 4px; }
    meaning, so it must not lie about which tick it means. */
 
 .tl-bub {
-  position: absolute; top: 0; z-index: 4;
+  position: absolute; top: -19px; z-index: 4;   /* hangs above the track */
   pointer-events: none; width: 0;
 }
 .tl-bub-b {
