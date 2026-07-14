@@ -1455,7 +1455,16 @@ select.info-in { cursor: pointer; padding-right: 4px; }
   background: var(--panel); border: 1px solid var(--line-2);
   border-radius: 4px; padding: 0 6px; cursor: pointer;
 }
-.tl-sel-none { width: var(--tl-sel); flex-shrink: 0; }
+/* Unmatched rows get a picker in the selector's slot, not an empty gap. The
+   fix for a failed join is offered right where the failure is visible. */
+.tl-sel-link { border-style: dashed; border-color: var(--sig-limbo); color: var(--ink-3); }
+.tl-sel-link:hover { border-color: var(--sig-limbo); background: rgba(201,154,46,0.05); }
+
+/* The matched deliverable, named under the item. Click to break the link and
+   re-pick — a join that is silently wrong is worse than one that fails, so what
+   the strip is actually reading is never hidden. */
+.tl-meta-link { cursor: pointer; }
+.tl-meta-link:hover { color: var(--brass); text-decoration: underline; }
 
 .tl-right {
   width: var(--tl-right); flex-shrink: 0;

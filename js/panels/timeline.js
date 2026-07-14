@@ -136,6 +136,7 @@ function parseExport(text) {
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const days = (a, b) => Math.round((new Date(a) - new Date(b)) / 864e5);
+const norm = s => (s || '').toLowerCase().trim();
 
 // Thresholds. Deliberately asymmetric: being a few days behind on a 54-day plan
 // is noise, so "on track" absorbs a small slip. Real trouble is a week-plus.
@@ -158,9 +159,32 @@ function buildStrips(parent, tl) {
   const span = Math.max(1, days(t1, t0));
   const pct = d => Math.max(0, Math.min(100, days(d, t0) / span * 100));
 
+  // ── THE JOIN ───────────────────────────────────────────────────────────────
+  // The export's DELIVERABLE column holds PRODUCT NAMES, so `productTier` is the
+  // dependable key. Subtask NAMES are client-prefixed free text ("Universal –
+  // PPT Conversion") and will essentially never equal a product name — an
+  // earlier version matched on name and every strip read "Not in this plan".
+  //
+  // Order matters. A manual override always wins, because it is the one signal
+  // that is certainly correct: a human said so. Then tier. Then name, purely as
+  // a courtesy for the case where an item happens to be named after its product.
+  const deliverables = [...new Set(dated.flatMap(t => t.deliverables))];
+
   const strips = A.getChildren(parent.id).map(kid => {
-    const key = kid.name.toLowerCase().trim();
-    const mine = dated.filter(t => t.deliverables.some(d => d.toLowerCase().trim() === key));
+    const override = tl.link ? tl.link[kid.id] : undefined;
+
+    let key = null, how = null;
+    if (override === '\u0000none') {
+      key = null; how = 'unlinked';        // user explicitly broke the link
+    } else if (override !== undefined && override !== '') {
+      key = norm(override); how = 'manual';
+    } else if (kid.productTier && deliverables.some(d => norm(d) === norm(kid.productTier))) {
+      key = norm(kid.productTier); how = 'tier';
+    } else if (kid.name && deliverables.some(d => norm(d) === norm(kid.name))) {
+      key = norm(kid.name); how = 'name';
+    }
+
+    const mine = key ? dated.filter(t => t.deliverables.some(d => norm(d) === key)) : [];
 
     // The selected task — the fact the tool cannot infer and had to ask for.
     const selIdx = tl.position ? tl.position[kid.id] : undefined;
@@ -174,6 +198,9 @@ function buildStrips(parent, tl) {
 
     return {
       kid, tasks: mine, selIdx: sel ? selIdx : null, sel, next, nextIdx,
+      // How this strip found its tasks — surfaced in the UI, because a silently
+      // wrong join is the worst outcome here.
+      how, matchedOn: key, deliverables,
       // The bubble points at the next tick, so it needs that tick's position on
       // the track — not just the task.
       nextPct: next ? pct(next.date) : null,
@@ -208,16 +235,22 @@ function stripRow(pid, s, todayPct) {
   const kid = s.kid;
 
   if (!s.tasks.length) {
-    // The 1%: an item the plan never mentions. Say so rather than drawing an
-    // empty track that looks like a rendering fault.
+    // No match. Rather than a dead end, offer the fix: pick the deliverable this
+    // item corresponds to. The tool cannot reliably guess when the tier is blank
+    // or spelled differently — so it asks, and the answer is authoritative.
+    const opts = s.deliverables.map(d =>
+      `<option value="${esc(d)}">${esc(d)}</option>`).join('');
     return `<div class="tl-row tl-row-empty">
       <div class="tl-lbl"><div class="tl-nm">
         <span class="tl-dot is-${esc(kid.status)}"></span>
         <span class="tl-nmt">${esc(kid.name)}</span></div>
         <div class="tl-meta">${esc(kid.productType || '—')}${kid.productTier ? ' · ' + esc(kid.productTier) : ''}</div>
       </div>
-      <div class="tl-sel-none"></div>
-      <div class="tl-track"><div class="tl-none">Not in this plan</div></div>
+      <select class="tl-sel tl-sel-link" onchange="A.tlSetLink('${pid}','${kid.id}',this.value)">
+        <option value="">Link to deliverable…</option>
+        ${opts}
+      </select>
+      <div class="tl-track"><div class="tl-none">Not matched to this plan</div></div>
       <div class="tl-right"></div>
     </div>`;
   }
@@ -275,13 +308,20 @@ function stripRow(pid, s, todayPct) {
     </div>`;
   }
 
+  // Show WHAT this strip is reading. A join that is silently wrong is worse than
+  // one that fails — so the matched deliverable is always named, and a manual
+  // link is marked as such so it never looks like the tool worked it out.
+  const linked = s.tasks[0].deliverables.find(d => norm(d) === s.matchedOn) || s.matchedOn;
+  const via = s.how === 'manual' ? ' · linked' : '';
+
   return `<div class="tl-row">
     <div class="tl-lbl">
       <div class="tl-nm">
         <span class="tl-dot is-${esc(kid.status)}"></span>
         <span class="tl-nmt">${esc(kid.name)}</span>
       </div>
-      <div class="tl-meta">${esc(kid.productType || '—')}${kid.productTier ? ' · ' + esc(kid.productTier) : ''}</div>
+      <div class="tl-meta tl-meta-link" title="Reading the plan's &quot;${esc(linked)}&quot; tasks"
+           onclick="A.tlRelink('${pid}','${kid.id}')">${esc(linked)}${via}</div>
     </div>
 
     <select class="tl-sel" onchange="A.tlSetPos('${pid}','${kid.id}',this.value)">
@@ -372,10 +412,39 @@ function tlSetPos(pid, kidId, val) {
   save(); A.render();
 }
 
-function tlClear(pid) {
-  const r = db.rows.find(x => x.id === pid); if (!r) return;
-  r.timeline = null;                         // positions die with the plan
+// Manual override for the join. Stored beside `position` on the timeline object,
+// so it dies with the plan too — a link is a claim about THIS export's
+// deliverable list, and would dangle against a different one.
+function tlSetLink(pid, kidId, val) {
+  const r = db.rows.find(x => x.id === pid);
+  if (!r || !r.timeline) return;
+  if (!r.timeline.link) r.timeline.link = {};
+  if (val === '') delete r.timeline.link[kidId];
+  else r.timeline.link[kidId] = val;
+  // A link changes which task list the item reads, so any existing position now
+  // points into the wrong list. Drop it rather than silently mis-indexing.
+  if (r.timeline.position) delete r.timeline.position[kidId];
   save(); A.render();
 }
 
-register({ timelinePanelHtml, tlImport, tlSetPos, tlClear, parseTimelineExport: parseExport });
+// Clicking the matched-deliverable label clears the link, dropping the strip
+// back to "unmatched" so the picker reappears.
+function tlRelink(pid, kidId) {
+  const r = db.rows.find(x => x.id === pid);
+  if (!r || !r.timeline) return;
+  if (!r.timeline.link) r.timeline.link = {};
+  // Sentinel: an explicit empty link beats the tier auto-match, forcing the
+  // picker. Without it, clearing would just fall back to the tier again.
+  r.timeline.link[kidId] = '\u0000none';
+  if (r.timeline.position) delete r.timeline.position[kidId];
+  save(); A.render();
+}
+
+function tlClear(pid) {
+  const r = db.rows.find(x => x.id === pid); if (!r) return;
+  r.timeline = null;              // positions AND links die with the plan
+  save(); A.render();
+}
+
+register({ timelinePanelHtml, tlImport, tlSetPos, tlSetLink, tlRelink, tlClear,
+           parseTimelineExport: parseExport });
