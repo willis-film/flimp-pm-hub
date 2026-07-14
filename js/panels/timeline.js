@@ -1,19 +1,37 @@
 // timeline.js — Timeline panel.
 //
-// A RECEIVER, not a builder. The Timeline Tool is a separate, complete app with
-// its own scheduling engine; reimplementing that engine here would guarantee two
-// diverging sources of truth for the same dates. So this panel takes the Tool's
-// final copyable export, parses it, and displays it.
+// A RECEIVER, not a builder. The Timeline Tool is a separate app with its own
+// scheduling engine; reimplementing it here would guarantee two diverging
+// sources of truth for the same dates. This panel takes the Tool's final
+// copyable export, parses it, and reads it back as a per-item progress board.
 //
-// WHAT THIS IS NOT: it does not write dates onto subtasks. The export is the
-// PLAN — generated at kickoff, hypothetical. The dates on the rows are the
-// RECORD — filled in as things get confirmed. Those are different facts and must
-// not overwrite one another. The panel therefore compares them and shows the gap
-// rather than resolving it.
+// ── THE CENTRAL PROBLEM THIS SOLVES ──────────────────────────────────────────
+// A pasted plan tells you where you are SUPPOSED to be. It cannot tell you where
+// you ARE. Nothing in the export knows what has actually shipped, and the
+// subtask phases are generic — they do not map 1:1 onto the plan's task list.
 //
-// A pasted export is also frozen at paste time. The Tool moves on; this does
-// not. The panel timestamps every paste and says so, because presenting a stale
-// plan as current would be the dishonest move.
+// An earlier version of this panel drew ticks left of TODAY as "past" and
+// counted them as though they were done. That was a lie: a tick left of TODAY
+// means the DATE passed, not that the WORK happened. Ahead-of-schedule was
+// literally unrepresentable — the strip had no way to know.
+//
+// So the tool stops guessing and asks. Each item gets a dropdown of its own plan
+// tasks; you select the one you are actually on. THAT is the fact. Health is
+// then a straight comparison of two dates:
+//
+//     the planned date of the task you selected   vs.   today
+//
+//   selected task is scheduled in the FUTURE  → you are AHEAD of the plan
+//   selected task is scheduled around TODAY   → ON TRACK
+//   selected task is scheduled in the PAST    → BEHIND
+//
+// No phase mapping, no inference, no false precision. The number is real because
+// you supplied the half the tool could not know.
+//
+// ── STORAGE ──────────────────────────────────────────────────────────────────
+// Selections live on the timeline object (tl.position[subtaskId] = taskIndex),
+// NOT on the subtask row. They are a claim about THIS plan, so they die with it
+// on re-paste rather than dangling against a task list that no longer exists.
 
 import { esc, fmtDate } from '../utils.js';
 import { db, save } from '../db.js';
@@ -21,37 +39,32 @@ import { A, register } from '../bus.js';
 
 // ── PARSER ───────────────────────────────────────────────────────────────────
 //
-// The export is tab-delimited, four columns: PARTY · DELIVERABLE · TASK · DUE.
-// Three things in it defeat a naive line-by-line split, all verified against a
-// real clipboard capture:
+// Tab-delimited: PARTY · DELIVERABLE · TASK · DUE. Three things in the real
+// clipboard bytes defeat a naive line split — all verified against a capture:
 //
-//   1. MERGED CELLS. When two tasks share a date the exporter merges them into
-//      one visual row, stacking values inside the DELIVERABLE and TASK cells
-//      with a raw \n. That newline is INSIDE the cell, so one logical record
-//      spills across three physical lines with the tabs scattered:
+//   1. MERGED CELLS hold a raw \n INSIDE the cell. When two tasks share a date
+//      the exporter stacks them, so ONE logical record spills across THREE
+//      physical lines with the tabs scattered:
 //
 //        Flimp<TAB>Customized Explainer
 //        Digital Postcard<TAB>Animation Revisions Rd 2
 //        Design Updates Rd 2<TAB>Oct 15
 //
-//      Lines are therefore NOT record boundaries. Tab count is: every record has
-//      exactly 4 fields = 3 tabs. Accumulate physical lines until 3 tabs.
+//      Lines are NOT record boundaries. Tab count is: 4 fields = 3 tabs.
 //
-//   2. TITLE AND FOOTER HAVE NO TABS. Feed them to that accumulator and they get
-//      absorbed into the neighbouring record — the title silently merges with
-//      the column header and disappears. Peel them off by position FIRST.
+//   2. TITLE AND FOOTER HAVE NO TABS, so feeding them to that accumulator
+//      silently merges the title into the header row and it vanishes. Peel them
+//      off by position first.
 //
-//   3. THE FOOTER USES NBSP (U+00A0) AND · (U+00B7), not plain spaces. Splitting
-//      on / +/ fails. Normalise before touching it.
+//   3. THE FOOTER USES NBSP (U+00A0) and · (U+00B7), not plain spaces.
 
 const NBSP = /\u00a0/g;
 const clean = s => (s || '').replace(NBSP, ' ').trim();
-
 const MONTHS = { jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11 };
 
-// Export dates carry no year ("Aug 27"). Anchor on the project start and walk
-// forward: when a date goes BACKWARDS relative to the previous one, the year has
-// rolled. Matters for OE work, which routinely runs Nov → Jan.
+// Export dates carry no year ("Aug 27"). Anchor on the title's year and walk
+// forward; when a date goes BACKWARDS, the year rolled. OE work routinely runs
+// Nov → Jan, so this is not hypothetical.
 function resolveDates(list, startYear) {
   let year = startYear, prev = -1;
   return list.map(d => {
@@ -60,23 +73,20 @@ function resolveDates(list, startYear) {
     const mo = MONTHS[m[1].toLowerCase()];
     if (mo === undefined) return null;
     const ord = mo * 31 + (+m[2]);
-    if (prev >= 0 && ord < prev) year++;   // wrapped into the next year
+    if (prev >= 0 && ord < prev) year++;
     prev = ord;
     return new Date(Date.UTC(year, mo, +m[2]));
   });
 }
-
 const iso = d => d ? d.toISOString().slice(0, 10) : '';
 
 function parseExport(text) {
   const lines = (text || '').replace(/\r\n/g, '\n').split('\n');
 
-  // Peel the untabbed title and footer off the ends BEFORE reassembling.
   let title = null, summary = null, a = 0, b = lines.length;
   while (a < b && !lines[a].includes('\t')) { const t = clean(lines[a]); if (t && !title) title = t; a++; }
   while (b > a && !lines[b-1].includes('\t')) { const t = clean(lines[b-1]); if (t && !summary) summary = t; b--; }
 
-  // Reassemble records by tab count, not by line.
   const recs = []; let buf = '';
   for (const line of lines.slice(a, b)) {
     buf = buf ? buf + '\n' + line : line;
@@ -87,7 +97,7 @@ function parseExport(text) {
   for (const rec of recs) {
     const fld = rec.split('\t');
     if (fld.length < 4) continue;
-    if (/^party$/i.test(clean(fld[0]))) continue;              // column header
+    if (/^party$/i.test(clean(fld[0]))) continue;
 
     const party = clean(fld[0]), deliv = clean(fld[1]),
           task  = clean(fld[2]), due   = clean(fld[3]);
@@ -95,89 +105,201 @@ function parseExport(text) {
     const tl = task .split('\n').map(s => s.trim()).filter(Boolean);
 
     if (dl.length > 1 || tl.length > 1) {
-      // STACKED — distinct tasks that happened to land the same day. Zip
-      // positionally: deliverable[i] belongs to task[i]. Unpack into real,
-      // separate tasks; they are not one thing.
+      // STACKED — distinct tasks that happened to share a date, merged into one
+      // visual row by the exporter. Zip positionally; they are not one thing.
       const n = Math.max(dl.length, tl.length);
       for (let i = 0; i < n; i++)
-        tasks.push({ party, deliverables: [dl[i] ?? dl[0]], task: tl[i] ?? tl[0], due, shape: 'stacked' });
+        tasks.push({ party, deliverables: [dl[i] ?? dl[0]], task: tl[i] ?? tl[0], due });
     } else if (deliv.includes(',')) {
-      // JOINED — ONE task spanning every deliverable. Kickoff and Distribution
-      // only, and both have an empty PARTY cell.
-      tasks.push({ party, deliverables: deliv.split(',').map(s => s.trim()).filter(Boolean), task, due, shape: 'joined' });
+      // JOINED — ONE task spanning every deliverable. Kickoff and Distribution.
+      tasks.push({ party, deliverables: deliv.split(',').map(s => s.trim()).filter(Boolean), task, due });
     } else {
-      tasks.push({ party, deliverables: [deliv], task, due, shape: 'simple' });
+      tasks.push({ party, deliverables: [deliv], task, due });
     }
   }
 
-  // Footer → { 'Project Start':'Jul 13', 'Working Days':'69', ... }
   const meta = {};
   if (summary) for (const part of summary.split('·')) {
     const i = part.indexOf(':');
     if (i > 0) meta[part.slice(0, i).trim()] = part.slice(i + 1).trim();
   }
 
-  // Year-resolve every date, anchored on the title's year if it has one.
   const ty = title && /\b(20\d{2})\b/.exec(title);
-  const startYear = ty ? +ty[1] : new Date().getUTCFullYear();
-  const resolved = resolveDates(tasks.map(t => t.due), startYear);
+  const resolved = resolveDates(tasks.map(t => t.due), ty ? +ty[1] : new Date().getUTCFullYear());
   tasks.forEach((t, i) => { t.date = iso(resolved[i]); });
 
-  return { title, tasks, meta, pastedAt: new Date().toISOString() };
+  return { title, tasks, meta, position: {}, pastedAt: new Date().toISOString() };
 }
 
-// ── DERIVED ──────────────────────────────────────────────────────────────────
-// The point of the readout: facts the pasted table does not state.
+// ── HEALTH ───────────────────────────────────────────────────────────────────
+// The whole point. Two dates, one subtraction.
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
+const days = (a, b) => Math.round((new Date(a) - new Date(b)) / 864e5);
 
-function analyse(tl, parent) {
-  const t = tl.tasks || [];
+// Thresholds. Deliberately asymmetric: being a few days behind on a 54-day plan
+// is noise, so "on track" absorbs a small slip. Real trouble is a week-plus.
+function healthOf(drift) {
+  if (drift === null)  return { key:'none',    label:'No position set', cls:'tl-h-none' };
+  if (drift >=  3)     return { key:'ahead',   label:`${drift}d ahead`,  cls:'tl-h-ahead' };
+  if (drift >= -2)     return { key:'ontrack', label:'On track',         cls:'tl-h-ontrack' };
+  if (drift >= -7)     return { key:'slipping',label:`${-drift}d behind`,cls:'tl-h-slipping' };
+  return                      { key:'behind',  label:`${-drift}d behind`,cls:'tl-h-behind' };
+}
+
+// Build one strip per SUBTASK. Tasks are matched to a subtask by NAME — the
+// export's deliverables are the item names ~99% of the time. Kickoff and
+// Distribution name every deliverable, so they land on every strip, correctly.
+function buildStrips(parent, tl) {
   const today = todayISO();
+  const dated = tl.tasks.filter(t => t.date);
+  const all   = dated.map(t => t.date).sort();
+  const t0 = all[0], t1 = all[all.length - 1];
+  const span = Math.max(1, days(t1, t0));
+  const pct = d => Math.max(0, Math.min(100, days(d, t0) / span * 100));
 
-  const parties = {};
-  t.forEach(x => { const k = x.party || 'Shared'; parties[k] = (parties[k] || 0) + 1; });
+  const strips = A.getChildren(parent.id).map(kid => {
+    const key = kid.name.toLowerCase().trim();
+    const mine = dated.filter(t => t.deliverables.some(d => d.toLowerCase().trim() === key));
 
-  const delivs = {};
-  t.forEach(x => x.deliverables.forEach(d => {
-    (delivs[d] = delivs[d] || { name: d, tasks: [] }).tasks.push(x);
-  }));
-  Object.values(delivs).forEach(d => {
-    const ds = d.tasks.map(x => x.date).filter(Boolean).sort();
-    d.first = ds[0]; d.last = ds[ds.length - 1]; d.count = d.tasks.length;
+    // The selected task — the fact the tool cannot infer and had to ask for.
+    const selIdx = tl.position ? tl.position[kid.id] : undefined;
+    const sel = (selIdx !== undefined && mine[selIdx]) ? mine[selIdx] : null;
+
+    // Drift: is the task you are ON scheduled ahead of today, or behind it?
+    // Positive = the plan did not expect you here yet = you are ahead.
+    const drift = sel ? days(sel.date, today) : null;
+    const nextIdx = sel ? selIdx + 1 : mine.findIndex(t => t.date >= today);
+    const next = (nextIdx >= 0 && mine[nextIdx]) ? mine[nextIdx] : null;
+
+    return {
+      kid, tasks: mine, selIdx: sel ? selIdx : null, sel, next, nextIdx,
+      // The bubble points at the next tick, so it needs that tick's position on
+      // the track — not just the task.
+      nextPct: next ? pct(next.date) : null,
+      drift, health: healthOf(drift),
+      ticks: mine.map((t, i) => ({
+        i, pct: pct(t.date), task: t.task, date: t.date,
+        party: t.party || '',
+        shared: !t.party,
+        done: sel ? i < selIdx : false,   // DONE means before your selection —
+        cur:  sel ? i === selIdx : false  // not "the date passed". That distinction
+      }))                                  // is the entire point of the selector.
+    };
   });
 
-  const dated = t.filter(x => x.date).sort((p, q) => p.date < q.date ? -1 : 1);
-  const past  = dated.filter(x => x.date <  today);
-  const next  = dated.find(x  => x.date >= today);
-
-  // The plan's end vs. the project's actual due field. Two different facts —
-  // one hypothetical, one committed. If they disagree, that IS the finding.
-  const planEnd = dated.length ? dated[dated.length - 1].date : '';
-  const realDue = parent.due || '';
-  let slip = null;
-  if (planEnd && realDue) {
-    const d = Math.round((new Date(planEnd) - new Date(realDue)) / 864e5);
-    if (d !== 0) slip = d;   // + = plan runs past the committed due date
-  }
-
-  return { parties, delivs: Object.values(delivs), dated, past, next, planEnd, realDue, slip, today };
+  return { strips, t0, t1, span, todayPct: pct(today), today };
 }
 
 // ── VIEW ─────────────────────────────────────────────────────────────────────
 
-const stat = (label, val, cls) =>
-  `<div class="tl-stat"><div class="tl-stat-l">${esc(label)}</div>
-   <div class="tl-stat-v${cls ? ' ' + cls : ''}">${esc(val)}</div></div>`;
-
 function emptyView(pid) {
   return `<div class="tl-empty">
     <div class="tl-empty-h">Paste the Timeline Tool export</div>
-    <div class="tl-empty-b">Copy the final table out of the Timeline Tool and paste it below.
-      This panel reads that plan — it does not write dates back onto subtasks.</div>
+    <div class="tl-empty-b">Copy the final table out of the Timeline Tool and paste it here.
+      This panel reads the plan — it never writes dates back onto items.</div>
     <textarea class="tl-paste" id="tl-paste-${pid}"
       placeholder="PARTY&#9;DELIVERABLE&#9;TASK&#9;DUE DATE&#10;…"></textarea>
     <button class="tl-btn" onclick="A.tlImport('${pid}')">Import timeline</button>
+  </div>`;
+}
+
+function stripRow(pid, s, todayPct) {
+  const kid = s.kid;
+
+  if (!s.tasks.length) {
+    // The 1%: an item the plan never mentions. Say so rather than drawing an
+    // empty track that looks like a rendering fault.
+    return `<div class="tl-row tl-row-empty">
+      <div class="tl-lbl"><div class="tl-nm">
+        <span class="tl-dot is-${esc(kid.status)}"></span>
+        <span class="tl-nmt">${esc(kid.name)}</span></div>
+        <div class="tl-meta">${esc(kid.productType || '—')}${kid.productTier ? ' · ' + esc(kid.productTier) : ''}</div>
+      </div>
+      <div class="tl-sel-none"></div>
+      <div class="tl-track"><div class="tl-none">Not in this plan</div></div>
+      <div class="tl-right"></div>
+    </div>`;
+  }
+
+  const ticks = s.ticks.map(t => {
+    let cls = t.shared ? 'tk-shared' : (t.party === 'Flimp' ? 'tk-flimp' : 'tk-client');
+    if (t.cur) cls += ' tk-cur';
+    else if (t.done) cls += ' tk-done';
+    else cls += ' tk-todo';
+    const who = t.party || 'Shared';
+    return `<div class="tl-tick ${cls}" style="left:${t.pct.toFixed(2)}%"
+      title="${esc(t.task)} · ${esc(fmtDate(t.date))} · ${esc(who)}"></div>`;
+  }).join('');
+
+  // Fill runs to where YOU are, not to today. Progress, not calendar.
+  const fill = s.sel ? `<div class="tl-fill" style="width:${s.ticks[s.selIdx].pct.toFixed(2)}%"></div>` : '';
+
+  const opts = s.tasks.map((t, i) =>
+    `<option value="${i}"${i === s.selIdx ? ' selected' : ''}>${esc(t.task)} · ${esc(fmtDate(t.date))}</option>`
+  ).join('');
+
+  const nextCell = s.next
+    ? `<div class="tl-next-t">${esc(s.next.task)}</div>
+       <div class="tl-next-m">${esc(fmtDate(s.next.date))} · ${esc(s.next.party || 'Shared')}</div>`
+    : (s.sel ? `<div class="tl-next-t tl-next-done">Complete</div>` : `<div class="tl-next-m">—</div>`);
+
+  // The bubble names the next task's DATE only. The task NAME already lives in
+  // the right-hand column — putting it in the bubble too would be the same fact
+  // twice, and wide enough to collide with its neighbours on a busy track.
+  //
+  // CLAMPING. The wrapper is anchored ON the tick (left:%). The body is then
+  // shifted by a transform. Centred (-50%) is right for the middle of the track,
+  // but near either end the body would hang past the panel's edge.
+  //
+  // The fix: at the extremes the shift must equal the POSITION. A tick at 100%
+  // needs shift -100% (body's right edge lands on the track's right edge); a
+  // tick at 0% needs shift 0% (body's left edge on the track's left edge). In
+  // between, ramp linearly. An earlier version clamped to a fixed -92% and the
+  // body still overhung by 3px at 100% — measured, not guessed.
+  //
+  // The POINTER never moves. It is the part that carries meaning, so it must not
+  // lie about which tick it names.
+  let bubble = '';
+  if (s.next && s.nextPct !== null) {
+    const p = s.nextPct;
+    // Ramp from 0% shift at the left edge, through -50% in the middle, to -100%
+    // at the right edge — but only inside the end zones. The middle stays -50%.
+    const EDGE = 12;                     // % of track treated as an end zone
+    let shift = -50;
+    if (p < EDGE)          shift = -(p / EDGE) * 50;
+    else if (p > 100-EDGE) shift = -50 - ((p - (100-EDGE)) / EDGE) * 50;
+    bubble = `<div class="tl-bub" style="left:${p.toFixed(2)}%">
+      <span class="tl-bub-b" style="transform:translateX(${shift.toFixed(1)}%)">${esc(fmtDate(s.next.date))}</span>
+      <i class="tl-bub-p"></i>
+    </div>`;
+  }
+
+  return `<div class="tl-row">
+    <div class="tl-lbl">
+      <div class="tl-nm">
+        <span class="tl-dot is-${esc(kid.status)}"></span>
+        <span class="tl-nmt">${esc(kid.name)}</span>
+      </div>
+      <div class="tl-meta">${esc(kid.productType || '—')}${kid.productTier ? ' · ' + esc(kid.productTier) : ''}</div>
+    </div>
+
+    <select class="tl-sel" onchange="A.tlSetPos('${pid}','${kid.id}',this.value)">
+      <option value="">Where are we?</option>
+      ${opts}
+    </select>
+
+    <div class="tl-track">
+      ${bubble}
+      <div class="tl-base"></div>
+      ${fill}
+      ${ticks}
+    </div>
+
+    <div class="tl-right">
+      <div class="tl-next">${nextCell}</div>
+      <div class="tl-health ${s.health.cls}">${esc(s.health.label)}</div>
+    </div>
   </div>`;
 }
 
@@ -185,70 +307,38 @@ function timelinePanelHtml(parent) {
   const tl = parent.timeline;
   if (!tl || !tl.tasks || !tl.tasks.length) return emptyView(parent.id);
 
-  const an = analyse(tl, parent);
-
-  // A pasted plan is a snapshot. Say when it was taken — presenting a stale plan
-  // as current is the one genuinely dishonest thing this panel could do.
+  const b = buildStrips(parent, tl);
   const stamp = tl.pastedAt ? fmtDate(tl.pastedAt.slice(0, 10)) : '—';
 
-  const partyRow = Object.entries(an.parties)
-    .sort((a, b) => b[1] - a[1])
-    .map(([p, n]) => `<span class="tl-party"><span class="tl-party-n">${n}</span>${esc(p)}</span>`)
-    .join('');
+  // Column geometry lives in one place so the TODAY rule can be positioned
+  // against the track column honestly instead of by a magic pixel offset.
+  const rows = b.strips.map(s => stripRow(parent.id, s, b.todayPct)).join('');
 
-  const slipCell = an.slip === null
-    ? stat('Vs. project due', an.realDue ? 'On the day' : 'No due date set')
-    : stat('Vs. project due',
-        (an.slip > 0 ? '+' : '') + an.slip + ' day' + (Math.abs(an.slip) === 1 ? '' : 's'),
-        an.slip > 0 ? 'tl-bad' : 'tl-good');
-
-  const rows = an.dated.map(x => {
-    const overdue = x.date < an.today;
-    const isNext  = x === an.next;
-    return `<tr class="${overdue ? 'tl-r-past' : ''}${isNext ? ' tl-r-next' : ''}">
-      <td class="tl-c-party">${x.party ? esc(x.party) : '<span class="tl-shared">Shared</span>'}</td>
-      <td class="tl-c-deliv">${x.deliverables.map(d => `<span class="tl-chip">${esc(d)}</span>`).join('')}</td>
-      <td class="tl-c-task">${esc(x.task)}</td>
-      <td class="tl-c-due">${esc(fmtDate(x.date) || x.due)}</td>
-    </tr>`;
-  }).join('');
-
-  return `<div class="tl-body">
+  return `<div class="tl-panel">
     <div class="tl-head">
       <div>
         <div class="tl-title">${esc(tl.title || 'Timeline')}</div>
-        <div class="tl-stamp">Plan as pasted ${esc(stamp)} · not linked to the Timeline Tool</div>
+        <div class="tl-stamp">Plan as pasted ${esc(stamp)} · ${tl.tasks.length} tasks · not linked to the Timeline Tool</div>
       </div>
       <button class="tl-btn tl-btn-ghost" onclick="A.tlClear('${parent.id}')">Replace</button>
     </div>
 
-    <div class="tl-stats">
-      ${stat('Tasks', String(an.dated.length))}
-      ${stat('Working days', tl.meta['Working Days'] || '—')}
-      ${stat('Plan start', an.dated.length ? fmtDate(an.dated[0].date) : '—')}
-      ${stat('Plan end', an.planEnd ? fmtDate(an.planEnd) : '—')}
-      ${slipCell}
-      ${stat('Next up', an.next ? fmtDate(an.next.date) : 'Complete')}
+    <div class="tl-grid">
+      <!-- The rule's left% must resolve against the TRACK, not the whole grid.
+           This span has exactly the track's geometry, so the percentage is true. -->
+      <div class="tl-track-span">
+        <div class="tl-now" style="left:${b.todayPct.toFixed(2)}%"><span>TODAY</span></div>
+      </div>
+      ${rows}
+      <div class="tl-ax"><span>${esc(fmtDate(b.t0))}</span><span>${esc(fmtDate(b.t1))}</span></div>
     </div>
 
-    <div class="tl-split">
-      <div class="tl-sub">Who owes what</div>
-      <div class="tl-parties">${partyRow}</div>
+    <div class="tl-key">
+      <span><i class="tl-k tk-flimp tk-done"></i>Flimp</span>
+      <span><i class="tl-k tk-client tk-done"></i>Client</span>
+      <span><i class="tl-k tk-shared tk-done"></i>Shared</span>
+      <span><i class="tl-k tk-cur"></i>Current</span>
     </div>
-
-    <div class="tl-split">
-      <div class="tl-sub">Deliverables</div>
-      <div class="tl-delivs">${an.delivs.map(d => `
-        <div class="tl-deliv">
-          <span class="tl-chip">${esc(d.name)}</span>
-          <span class="tl-deliv-m">${d.count} tasks · ${esc(fmtDate(d.first))} → ${esc(fmtDate(d.last))}</span>
-        </div>`).join('')}</div>
-    </div>
-
-    <table class="tl-table">
-      <thead><tr><th>Party</th><th>Deliverable</th><th>Task</th><th>Due</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
   </div>`;
 }
 
@@ -262,20 +352,30 @@ function tlImport(pid) {
 
   const parsed = parseExport(raw);
   if (!parsed.tasks.length) {
-    // Fail loudly. A silent no-op here would look like the paste worked.
+    // Fail loudly. A silent no-op looks exactly like a successful paste.
     ta.classList.add('tl-paste-err');
     ta.placeholder = "Couldn't find any task rows — is this the tab-delimited export?";
     return;
   }
-  r.timeline = parsed;
+  r.timeline = parsed;                       // positions start empty, by design
   A.logActivity(r, 'timeline', '', `${parsed.tasks.length} tasks`);
+  save(); A.render();
+}
+
+// The one thing the tool cannot infer: where you actually are.
+function tlSetPos(pid, kidId, val) {
+  const r = db.rows.find(x => x.id === pid);
+  if (!r || !r.timeline) return;
+  if (!r.timeline.position) r.timeline.position = {};
+  if (val === '') delete r.timeline.position[kidId];
+  else r.timeline.position[kidId] = +val;
   save(); A.render();
 }
 
 function tlClear(pid) {
   const r = db.rows.find(x => x.id === pid); if (!r) return;
-  r.timeline = null;
+  r.timeline = null;                         // positions die with the plan
   save(); A.render();
 }
 
-register({ timelinePanelHtml, tlImport, tlClear, parseTimelineExport: parseExport });
+register({ timelinePanelHtml, tlImport, tlSetPos, tlClear, parseTimelineExport: parseExport });

@@ -1275,135 +1275,246 @@ select.info-in { cursor: pointer; padding-right: 4px; }
   border-radius: 3px;
 }
 
+
 /* ═══════════════════════════════════════════════════════════════════════════
    TIMELINE PANEL
-   A readout of the pasted Timeline Tool export. Display only — this panel
-   never writes dates back onto rows. The plan is hypothetical; the row dates
-   are the record. Keeping them visually distinct is the point.
+   One strip per project item, all sharing a single x-axis so the TODAY rule is
+   one true vertical line through every row.
+
+   The strip shows the PLAN. The selector supplies what the plan cannot know —
+   where the work actually is. Health is the distance between the two.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .timeline-wrap { padding: 0; }
-.tl-body { padding: 15px 20px 18px; }
+.tl-panel {
+  /* One source for the column geometry. The TODAY rule is positioned inside the
+     track column, so these must agree — a magic pixel offset would drift the
+     moment a column width changed. */
+  --tl-lbl: 146px;
+  --tl-sel: 178px;   /* the "where are we" dropdown, now LEFT of the track */
+  --tl-right: 176px;
+  --tl-gap: 11px;
+  padding: 13px 17px 14px;
+}
 
 .tl-head {
   display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
-  padding-bottom: 11px; margin-bottom: 14px; border-bottom: 1px solid var(--line);
+  padding-bottom: 9px; margin-bottom: 2px; border-bottom: 1px solid var(--line);
 }
 .tl-title {
-  font-family: var(--font-display, var(--font)); font-size: 16px; font-weight: 600;
+  font-family: var(--font-display, var(--font)); font-size: 14px; font-weight: 600;
   color: var(--ink); letter-spacing: 0.1px;
 }
-/* The stamp is load-bearing, not a footnote. A pasted plan is frozen; the
-   Timeline Tool moves on. Presenting a stale plan as live would be the one
-   dishonest thing this panel could do. */
-.tl-stamp { font-size: 10.5px; color: var(--ink-3); margin-top: 2px; }
+/* A pasted plan is frozen; the Timeline Tool moves on. Presenting a stale plan
+   as live would be the one genuinely dishonest thing this panel could do. */
+.tl-stamp { font-size: 10px; color: var(--ink-4); margin-top: 2px; }
 
 .tl-btn {
   font-family: var(--font); font-size: 11.5px; font-weight: 500;
-  padding: 6px 13px; border-radius: 4px; cursor: pointer;
+  padding: 5px 12px; border-radius: 4px; cursor: pointer; flex-shrink: 0;
   background: var(--brass); color: #fff; border: 1px solid var(--brass-deep);
-  transition: background .13s;
 }
 .tl-btn:hover { background: var(--brass-deep); }
-.tl-btn-ghost {
-  background: var(--panel); color: var(--ink-2); border-color: var(--line-2);
-  flex-shrink: 0;
-}
+.tl-btn-ghost { background: var(--panel); color: var(--ink-2); border-color: var(--line-2); }
 .tl-btn-ghost:hover { background: var(--panel-2); color: var(--ink); }
 
-/* ── STATS ──────────────────────────────────────────────────────────────── */
+/* ── GRID + TODAY RULE ──────────────────────────────────────────────────── */
 
-.tl-stats {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
-  gap: 1px; background: var(--line); border: 1px solid var(--line);
-  border-radius: 5px; overflow: hidden; margin-bottom: 16px;
-}
-.tl-stat { background: var(--panel-2); padding: 9px 12px; }
-.tl-stat-l {
-  font-family: var(--font-mono); font-size: 8.5px; letter-spacing: 1.1px;
-  text-transform: uppercase; color: var(--ink-4); margin-bottom: 3px;
-}
-.tl-stat-v {
-  font-family: var(--font); font-size: 14px; font-weight: 600; color: var(--ink);
-  font-variant-numeric: tabular-nums;
-}
-/* The plan running past the committed due date is the single most important
-   thing this panel can tell you. It gets signal red. */
-.tl-stat-v.tl-bad  { color: var(--sig-production); }
-.tl-stat-v.tl-good { color: var(--sig-closed); }
+.tl-grid { position: relative; padding-top: 15px; }
 
-/* ── SPLITS ─────────────────────────────────────────────────────────────── */
-
-.tl-split { margin-bottom: 14px; }
-.tl-sub {
-  font-family: var(--font-mono); font-size: 8.5px; letter-spacing: 1.3px;
-  text-transform: uppercase; color: var(--ink-3); margin-bottom: 7px;
+/* Spans every strip. The inline `left` is a PERCENTAGE OF THE TRACK, but this
+   element is positioned against .tl-grid, which is wider than the track by the
+   label and right-hand columns. So the percentage is resolved against a nested
+   box that has exactly the track's geometry — inset by the two gutters — and
+   the rule rides inside it. No magic pixel offset; if the column widths change,
+   this follows. */
+.tl-now {
+  position: absolute; top: 1px; bottom: 17px; width: 1px;
+  background: var(--sig-production); z-index: 2; pointer-events: none;
 }
-.tl-parties { display: flex; gap: 8px; flex-wrap: wrap; }
-.tl-party {
-  display: flex; align-items: center; gap: 7px;
-  font-size: 12px; color: var(--ink-2);
-  background: var(--panel-2); border: 1px solid var(--line);
-  border-radius: 4px; padding: 5px 11px 5px 6px;
+.tl-track-span {
+  position: absolute; top: 0; bottom: 0;
+  left: calc(var(--tl-lbl) + var(--tl-sel) + var(--tl-gap) * 2);
+  right: calc(var(--tl-right) + var(--tl-gap));
+  pointer-events: none;
 }
-.tl-party-n {
-  font-family: var(--font-mono); font-size: 11px; font-weight: 600; color: var(--ink);
-  background: var(--panel); border: 1px solid var(--line-2); border-radius: 3px;
-  min-width: 20px; text-align: center; padding: 1px 4px;
+.tl-now span {
+  position: absolute; top: -1px; left: 4px;
+  font-family: var(--font-mono); font-size: 7px; letter-spacing: 0.9px;
+  color: var(--sig-production); white-space: nowrap;
 }
 
-.tl-delivs { display: flex; flex-direction: column; gap: 5px; }
-.tl-deliv { display: flex; align-items: center; gap: 9px; }
-.tl-deliv-m {
-  font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums;
+/* ── ROWS ───────────────────────────────────────────────────────────────── */
+
+.tl-row { display: flex; align-items: center; gap: var(--tl-gap); padding: 8px 0; }
+.tl-row + .tl-row { border-top: 1px solid var(--line-soft); }
+
+.tl-lbl { width: var(--tl-lbl); flex-shrink: 0; min-width: 0; }
+.tl-nm {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11.5px; font-weight: 500; color: var(--ink);
 }
-.tl-chip {
-  display: inline-block; font-size: 10.5px; color: var(--ink-2);
-  background: var(--brass-tint); border: 1px solid rgba(52,120,223,0.22);
-  border-radius: 3px; padding: 2px 7px; margin-right: 3px; white-space: nowrap;
+.tl-nmt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tl-meta {
+  font-size: 9px; color: var(--ink-4); margin-top: 1px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Same is-<status> classes as the strip and the info rail. The palette cannot
+   drift because there is only one of it. */
+.tl-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; background: var(--ink-4); }
+.tl-dot.is-kickoff    { background: var(--sig-kickoff); }
+.tl-dot.is-production { background: var(--sig-production); }
+.tl-dot.is-limbo      { background: var(--sig-limbo); }
+.tl-dot.is-done       { background: var(--sig-done); }
+.tl-dot.is-closed     { background: var(--sig-closed); }
+
+/* ── TRACK ──────────────────────────────────────────────────────────────── */
+
+/* The track carries the bubble in its own band, so rows never overlap each
+   other. That headroom is the height cost of the feature: ~19px per row. */
+.tl-track { flex: 1; position: relative; height: 39px; min-width: 0; }
+.tl-base {
+  position: absolute; left: 0; right: 0; top: 28px; height: 2px;
+  background: var(--panel-3); border-radius: 1px;
+}
+/* Fill runs to the SELECTED task, not to today. This is progress, not calendar —
+   which is why an item can legitimately fill past the TODAY rule. That overhang
+   IS the "ahead of schedule" signal, drawn. */
+.tl-fill {
+  position: absolute; left: 0; top: 28px; height: 2px;
+  background: var(--ink-3); border-radius: 1px;
 }
 
-/* ── TABLE ──────────────────────────────────────────────────────────────── */
-
-.tl-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 4px; }
-.tl-table thead th {
-  background: var(--panel-2); border-top: 1px solid var(--line-2);
-  border-bottom: 1px solid var(--line-2);
-  font-family: var(--font-mono); font-size: 8.5px; letter-spacing: 1.1px;
-  text-transform: uppercase; color: var(--ink-3); font-weight: 500;
-  text-align: left; padding: 6px 11px; height: 28px;
+.tl-tick {
+  position: absolute; top: 24px; width: 2px; height: 10px;
+  border-radius: 1px; transform: translateX(-1px); cursor: default;
 }
-.tl-table tbody td {
-  border-bottom: 1px solid var(--line-soft); padding: 7px 11px;
-  font-size: 12px; color: var(--ink); vertical-align: middle;
+/* Party is encoded because half of a typical plan is the client's work — the
+   half you cannot control. Solid Flimp, hollow client, brass shared. */
+.tk-flimp  { background: var(--ink-2); }
+.tk-client { background: var(--panel); border: 1px solid var(--ink-3); width: 5px; transform: translateX(-2.5px); }
+.tk-shared { background: var(--brass); width: 3px; height: 13px; top: 22.5px; transform: translateX(-1.5px); }
+
+/* Not-yet-reached ticks fade — but "reached" means BEFORE YOUR SELECTION, not
+   "the date passed". That is the whole correction this panel exists to make. */
+.tl-tick.tk-todo.tk-flimp  { background: var(--line-2); }
+.tl-tick.tk-todo.tk-client { border-color: var(--line-2); }
+.tl-tick.tk-todo.tk-shared { background: rgba(52,120,223,0.3); }
+
+.tl-tick.tk-cur {
+  background: var(--sig-production) !important;
+  border-color: var(--sig-production) !important;
+  width: 3px; height: 15px; top: 21.5px; transform: translateX(-1.5px); z-index: 3;
 }
-.tl-table tbody tr:hover td { background: var(--panel-2); }
-.tl-c-party { width: 108px; color: var(--ink-2); }
-.tl-c-deliv { width: 210px; }
-.tl-c-due   { width: 92px; font-variant-numeric: tabular-nums; color: var(--ink-2); }
-.tl-shared  { color: var(--ink-4); font-style: italic; font-size: 11px; }
 
-/* A task whose planned date has already passed. Muted rather than alarmed —
-   this is a hypothetical plan, so a passed date is expected, not an error. */
-.tl-r-past td { color: var(--ink-4); }
-.tl-r-past .tl-c-due { color: var(--ink-4); }
-.tl-r-past .tl-chip { opacity: 0.55; }
+.tl-none {
+  position: absolute; left: 0; top: 23px;
+  font-size: 10px; color: var(--ink-4); font-style: italic;
+}
+.tl-row-empty .tl-lbl { opacity: 0.55; }
 
-/* The next task the plan expects. The one row worth finding at a glance. */
-.tl-r-next td { background: var(--brass-tint); }
-.tl-r-next td:first-child { box-shadow: inset 3px 0 0 var(--brass); }
-.tl-r-next:hover td { background: var(--brass-tint); }
+
+/* ── NEXT-DATE BUBBLE ────────────────────────────────────────────────────
+   Sits in the track's headroom, pointing at the next tick. Date only — the
+   task NAME is already in the right-hand column, and repeating it here would
+   be the same fact twice AND wide enough to collide with neighbours.
+
+   The wrapper is anchored ON the tick (left:%). The BODY is then shifted by a
+   transform, and near the track's edges that shift changes so the body stays
+   inside the panel. The POINTER never moves: it is the part that carries the
+   meaning, so it must not lie about which tick it means. */
+
+.tl-bub {
+  position: absolute; top: 0; z-index: 4;
+  pointer-events: none; width: 0;
+}
+.tl-bub-b {
+  position: absolute; top: 0; left: 0;
+  display: block; white-space: nowrap;
+  font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
+  color: var(--ink); background: var(--panel);
+  border: 1px solid var(--line-2); border-radius: 3px;
+  padding: 2px 6px; line-height: 1.35;
+  box-shadow: 0 1px 2px rgba(21,35,58,0.06);
+}
+/* The pointer: a hairline dropping from the bubble to the tick it names. */
+.tl-bub-p {
+  position: absolute; top: 19px; left: 0;
+  width: 1px; height: 6px;
+  background: var(--line-2);
+  transform: translateX(-0.5px);
+}
+
+/* ── RIGHT: NEXT · HEALTH ───────────────────────────────────────────────── */
+
+/* The selector sits BEFORE the track — you say where you are, then read the
+   consequence to the right of it. Reading order matches causal order. */
+.tl-sel {
+  width: var(--tl-sel); flex-shrink: 0; box-sizing: border-box; height: 27px;
+  font-family: var(--font); font-size: 11px; color: var(--ink);
+  background: var(--panel); border: 1px solid var(--line-2);
+  border-radius: 4px; padding: 0 6px; cursor: pointer;
+}
+.tl-sel-none { width: var(--tl-sel); flex-shrink: 0; }
+
+.tl-right {
+  width: var(--tl-right); flex-shrink: 0;
+  display: grid; grid-template-columns: 1fr 84px; gap: 9px;
+  align-items: center;
+}
+.tl-sel:hover { border-color: var(--ink-4); }
+.tl-sel:focus { outline: none; border-color: var(--brass); box-shadow: 0 0 0 2px var(--brass-glow); }
+
+.tl-next { grid-column: 1; min-width: 0; }
+.tl-next-t {
+  font-size: 10.5px; color: var(--ink); font-weight: 500;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tl-next-m { font-size: 9.5px; color: var(--ink-4); }
+.tl-next-done { color: var(--sig-closed); }
+
+.tl-health {
+  grid-column: 2;
+  display: flex; align-items: center; justify-content: center;
+  min-height: 38px; border-radius: 4px;
+  font-family: var(--font); font-size: 11px; font-weight: 600;
+  text-align: center; padding: 0 6px; line-height: 1.25;
+}
+/* Signal code, same vocabulary as everything else in the tool. */
+.tl-h-ahead    { background: rgba(47,145,89,0.10);  color: var(--sig-closed);     border: 1px solid rgba(47,145,89,0.28); }
+.tl-h-ontrack  { background: var(--panel-2);        color: var(--ink-3);          border: 1px solid var(--line-2); }
+.tl-h-slipping { background: rgba(201,154,46,0.11); color: #8A6410;               border: 1px solid rgba(201,154,46,0.32); }
+.tl-h-behind   { background: rgba(195,47,56,0.09);  color: var(--sig-production); border: 1px solid rgba(195,47,56,0.28); }
+.tl-h-none     { background: transparent;           color: var(--ink-4);          border: 1px dashed var(--line-2); font-weight: 400; }
+
+/* ── AXIS + KEY ─────────────────────────────────────────────────────────── */
+
+.tl-ax {
+  display: flex; justify-content: space-between; margin-top: 2px;
+  padding-left: calc(var(--tl-lbl) + var(--tl-sel) + var(--tl-gap) * 2);
+  padding-right: calc(var(--tl-right) + var(--tl-gap));
+  font-family: var(--font-mono); font-size: 8.5px; color: var(--ink-4);
+}
+.tl-key {
+  display: flex; gap: 13px; align-items: center;
+  margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line);
+  font-size: 9.5px; color: var(--ink-4);
+}
+.tl-key span { display: flex; align-items: center; gap: 5px; }
+.tl-k { display: inline-block; position: static; transform: none; width: 3px; height: 10px; border-radius: 1px; }
+.tl-k.tk-client { width: 5px; }
+.tl-k.tk-cur { background: var(--sig-production); width: 3px; height: 10px; }
 
 /* ── EMPTY / PASTE ──────────────────────────────────────────────────────── */
 
-.tl-empty { padding: 26px 22px; max-width: 640px; }
+.tl-empty { padding: 24px 20px; max-width: 620px; }
 .tl-empty-h {
-  font-family: var(--font-display, var(--font)); font-size: 15px; font-weight: 600;
+  font-family: var(--font-display, var(--font)); font-size: 14px; font-weight: 600;
   color: var(--ink); margin-bottom: 5px;
 }
-.tl-empty-b { font-size: 12px; color: var(--ink-3); line-height: 1.65; margin-bottom: 12px; }
+.tl-empty-b { font-size: 11.5px; color: var(--ink-3); line-height: 1.6; margin-bottom: 11px; }
 .tl-paste {
-  width: 100%; box-sizing: border-box; min-height: 116px; resize: vertical;
+  width: 100%; box-sizing: border-box; min-height: 110px; resize: vertical;
   font-family: var(--font-mono); font-size: 11px; line-height: 1.55;
   color: var(--ink); background: var(--panel-2);
   border: 1px solid var(--line-2); border-radius: 5px; padding: 9px 11px;
@@ -1413,7 +1524,6 @@ select.info-in { cursor: pointer; padding-right: 4px; }
   outline: none; border-color: var(--brass); background: var(--panel);
   box-shadow: 0 0 0 2px var(--brass-glow);
 }
-.tl-paste::placeholder { color: var(--ink-4); }
-/* Fail loudly. A silent no-op on a bad paste looks like it worked. */
+/* Fail loudly — a silent no-op on a bad paste looks like it worked. */
 .tl-paste-err { border-color: var(--sig-production); }
 .tl-paste-err::placeholder { color: var(--sig-production); }
