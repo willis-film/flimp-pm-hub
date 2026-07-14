@@ -1323,7 +1323,31 @@ select.info-in { cursor: pointer; padding-right: 4px; }
 
 /* ── GRID + TODAY RULE ──────────────────────────────────────────────────── */
 
+/* padding-top houses the TODAY label, which sits above the header row. */
 .tl-grid { position: relative; padding-top: 15px; }
+
+/* ── COLUMN HEADERS ───────────────────────────────────────────────────────
+   Mirrors .tl-row's flex structure exactly, using the same width variables, so
+   the headers cannot drift out of alignment with the columns they name.
+
+   The TRACK column has NO header. It is not a column of values — it is a date
+   axis, and it already labels itself with its endpoints and the TODAY rule. A
+   header reading "Timeline" over it would be furniture, not information. */
+.tl-hdr {
+  display: flex; align-items: center; gap: var(--tl-gap);
+  padding: 0 0 7px;
+  border-bottom: 1px solid var(--line);
+}
+.tl-hdr > * {
+  font-family: var(--font-mono); font-size: 8.5px; letter-spacing: 1.2px;
+  text-transform: uppercase; color: var(--ink-4); font-weight: 500;
+}
+/* The selector's own placeholder already reads "Where are we?", so this header
+   names the column rather than repeating the prompt. */
+.tl-sel-h { width: var(--tl-sel); flex-shrink: 0; }
+/* Health is centred because its chip is. */
+.tl-hdr-health { text-align: center; }
+.tl-hdr .tl-track { height: auto; }
 
 /* Spans every strip. The inline `left` is a PERCENTAGE OF THE TRACK, but this
    element is positioned against .tl-grid, which is wider than the track by the
@@ -1331,18 +1355,27 @@ select.info-in { cursor: pointer; padding-right: 4px; }
    box that has exactly the track's geometry — inset by the two gutters — and
    the rule rides inside it. No magic pixel offset; if the column widths change,
    this follows. */
+/* The rule spans the STRIPS, not the header — a header is not part of the
+   timeline, and a rule running through it would imply otherwise.
+   It is positioned against .tl-track-span, which starts where the strips start.
+   That is why there is no magic offset here: change the header's font or padding
+   and the rule still lands correctly, because it never knew about the header. */
 .tl-now {
-  position: absolute; top: 1px; bottom: 17px; width: 1px;
+  position: absolute; top: 0; bottom: 0; width: 1px;
   background: var(--sig-production); z-index: 2; pointer-events: none;
 }
+/* Has exactly the TRACK column's geometry, and spans only the strips — from the
+   bottom of the header row to the top of the axis. The TODAY rule lives inside
+   it, so the rule's left% resolves against the track (true), and its vertical
+   extent is the strips (also true). Both facts come free from this one box. */
 .tl-track-span {
-  position: absolute; top: 0; bottom: 0;
+  position: absolute; top: 33px; bottom: 17px;
   left: calc(var(--tl-lbl) + var(--tl-sel) + var(--tl-gap) * 2);
   right: calc(var(--tl-right) + var(--tl-gap));
   pointer-events: none;
 }
 .tl-now span {
-  position: absolute; top: -1px; left: 4px;
+  position: absolute; top: -11px; left: 4px;
   font-family: var(--font-mono); font-size: 7px; letter-spacing: 0.9px;
   color: var(--sig-production); white-space: nowrap;
 }
@@ -1352,6 +1385,9 @@ select.info-in { cursor: pointer; padding-right: 4px; }
 /* Extra TOP padding houses the bubble, which overflows upward out of the track.
    Bottom stays tight — the asymmetry is deliberate, and it is what lets the
    track's line sit on the row's true centre line rather than below it. */
+/* Extra TOP padding houses the next-due bubble, which overflows upward out of
+   the track. Bottom stays tight — the asymmetry is what lets the track's line
+   sit on the row's true centre rather than below it. */
 .tl-row { display: flex; align-items: center; gap: var(--tl-gap); padding: 23px 0 8px; }
 .tl-row + .tl-row { border-top: 1px solid var(--line-soft); }
 
@@ -1386,38 +1422,60 @@ select.info-in { cursor: pointer; padding-right: 4px; }
    The bubble instead overflows UPWARD out of the track box — see .tl-bub. The
    row's top padding gives it somewhere to go. */
 .tl-track { flex: 1; position: relative; height: 20px; min-width: 0; }
+/* The route. --line is set per-strip on .tl-track — each deliverable owns a
+   colour and holds it the whole way, like a subway line. */
 .tl-base {
-  position: absolute; left: 0; right: 0; top: 9px; height: 2px;
-  background: var(--panel-3); border-radius: 1px;
+  position: absolute; left: 0; right: 0; top: 9px; height: 4px;
+  background: var(--panel-3); border-radius: 2px;
 }
 /* Fill runs to the SELECTED task, not to today. This is progress, not calendar —
-   which is why an item can legitimately fill past the TODAY rule. That overhang
-   IS the "ahead of schedule" signal, drawn. */
+   which is why a strip can legitimately fill PAST the TODAY rule. That overhang
+   IS the "ahead of schedule" signal, drawn, and it needs no number to read. */
 .tl-fill {
-  position: absolute; left: 0; top: 9px; height: 2px;
-  background: var(--ink-3); border-radius: 1px;
+  position: absolute; left: 0; top: 6px; height: 10px;
+  background: var(--line); border-radius: 5px;
 }
 
-.tl-tick {
-  position: absolute; top: 5px; width: 2px; height: 10px;
-  border-radius: 1px; transform: translateX(-1px); cursor: default;
+/* ── STATIONS ─────────────────────────────────────────────────────────────
+   Transit vocabulary. A task is a STATION on its deliverable's line.
+
+   Every ordinary station is the SAME BOX — 2×10, same top, same radius. An
+   earlier version varied width (2/5/3px) and height (10/13px) to encode party,
+   which broke the row's rhythm for a distinction that shape should not carry.
+   Shape is now reserved for STRUCTURE:
+
+     tick  → an ordinary stop
+     ring  → an interchange. Kickoff and Distribution are the only tasks on
+             EVERY deliverable's line. That is structural, and a ring says it.
+     disc  → where you are. A task is a station, so "you are here" is a PLACE.
+
+   That last one resolved a collision: the current marker used to be a red
+   VERTICAL BAR — the same object as the TODAY rule, two red verticals meaning
+   different things, sometimes nearly touching. Now only TODAY is a vertical,
+   because only TODAY is a moment in time. */
+
+.tl-st { position: absolute; z-index: 4; }
+
+/* Done stations are KNOCKED OUT of the completed bar — notches cut into it,
+   not marks drawn on it. The bar is consumed track. */
+.st-done { top: 6px; width: 2px; height: 10px; background: var(--panel); transform: translateX(-1px); }
+.st-todo { top: 6px; width: 2px; height: 10px; background: var(--line-2);  transform: translateX(-1px); }
+
+/* Interchange. Takes the line's colour when passed, grey when still ahead. */
+.st-xchg.st-done, .st-xchg.st-todo {
+  top: 5px; width: 12px; height: 12px; border-radius: 50%;
+  background: var(--panel); border: 2.5px solid var(--line);
+  transform: translateX(-6px); box-sizing: border-box;
 }
-/* Party is encoded because half of a typical plan is the client's work — the
-   half you cannot control. Solid Flimp, hollow client, brass shared. */
-.tk-flimp  { background: var(--ink-2); }
-.tk-client { background: var(--panel); border: 1px solid var(--ink-3); width: 5px; transform: translateX(-2.5px); }
-.tk-shared { background: var(--brass); width: 3px; height: 13px; top: 3.5px; transform: translateX(-1.5px); }
+.st-xchg.st-todo { border-color: var(--line-2); }
 
-/* Not-yet-reached ticks fade — but "reached" means BEFORE YOUR SELECTION, not
-   "the date passed". That is the whole correction this panel exists to make. */
-.tl-tick.tk-todo.tk-flimp  { background: var(--line-2); }
-.tl-tick.tk-todo.tk-client { border-color: var(--line-2); }
-.tl-tick.tk-todo.tk-shared { background: rgba(52,120,223,0.3); }
-
-.tl-tick.tk-cur {
-  background: var(--sig-production) !important;
-  border-color: var(--sig-production) !important;
-  width: 3px; height: 15px; top: 2.5px; transform: translateX(-1.5px); z-index: 3;
+/* Current: a filled disc with a white halo, so it reads clearly whether it sits
+   on the completed bar or the faint track ahead of it. */
+.st-cur {
+  top: 4px; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--sig-production); border: 2.5px solid var(--panel);
+  transform: translateX(-7px); box-sizing: border-box; z-index: 6;
+  box-shadow: 0 0 0 1px var(--sig-production);
 }
 
 .tl-none {
@@ -1523,9 +1581,11 @@ select.info-in { cursor: pointer; padding-right: 4px; }
   font-size: 9.5px; color: var(--ink-4);
 }
 .tl-key span { display: flex; align-items: center; gap: 5px; }
-.tl-k { display: inline-block; position: static; transform: none; width: 3px; height: 10px; border-radius: 1px; }
-.tl-k.tk-client { width: 5px; }
-.tl-k.tk-cur { background: var(--sig-production); width: 3px; height: 10px; }
+.tl-k { display: inline-block; position: static; transform: none; box-sizing: border-box; }
+.tl-k.k-done { width: 3px; height: 11px; border-radius: 1px; background: var(--ink-3); }
+.tl-k.k-todo { width: 3px; height: 11px; border-radius: 1px; background: var(--line-2); }
+.tl-k.k-cur  { width: 10px; height: 10px; border-radius: 50%; background: var(--sig-production); }
+.tl-k.k-xchg { width: 10px; height: 10px; border-radius: 50%; background: var(--panel); border: 2px solid var(--ink-3); }
 
 /* ── EMPTY / PASTE ──────────────────────────────────────────────────────── */
 

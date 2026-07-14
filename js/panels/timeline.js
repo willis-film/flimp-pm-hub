@@ -138,6 +138,11 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 const days = (a, b) => Math.round((new Date(a) - new Date(b)) / 864e5);
 const norm = s => (s || '').toLowerCase().trim();
 
+// Each deliverable owns a LINE COLOUR, held for its whole route. Assigned by the
+// deliverable's order in the plan, so it is stable across re-renders and the same
+// product is always the same colour within one project.
+const LINE_COLOURS = ['#3478DF', '#7B5EA7', '#2F9159', '#C97A2E', '#4A9BD8', '#9B4A6E'];
+
 // Thresholds. Deliberately asymmetric: being a few days behind on a 54-day plan
 // is noise, so "on track" absorbs a small slip. Real trouble is a week-plus.
 function healthOf(drift) {
@@ -201,6 +206,8 @@ function buildStrips(parent, tl) {
       // How this strip found its tasks — surfaced in the UI, because a silently
       // wrong join is the worst outcome here.
       how, matchedOn: key, deliverables,
+      // Route colour, by the deliverable's position in the plan.
+      lineColour: LINE_COLOURS[Math.max(0, deliverables.findIndex(dv => norm(dv) === key)) % LINE_COLOURS.length],
       // The bubble points at the next tick, so it needs that tick's position on
       // the track — not just the task.
       nextPct: next ? pct(next.date) : null,
@@ -255,14 +262,28 @@ function stripRow(pid, s, todayPct) {
     </div>`;
   }
 
+  // ── STATIONS ─────────────────────────────────────────────────────────────
+  // Transit vocabulary. A task is a STATION on this deliverable's line.
+  //
+  //   ordinary station  → a tick across the line
+  //   interchange       → a RING. Kickoff and Distribution are the only tasks
+  //                       that appear on EVERY deliverable's line — a structural
+  //                       fact, and a ring says it structurally. Encoding it as
+  //                       a slightly-different-coloured tick (the old design)
+  //                       said nothing.
+  //   current           → a filled red disc. You are AT a task, and a task is a
+  //                       station, so "you are here" is a PLACE, not a rule.
+  //
+  // That last one resolved a real ambiguity: the current marker used to be a red
+  // VERTICAL BAR, which is the same object as the TODAY rule — two red verticals
+  // meaning different things, sometimes nearly touching. Now only TODAY is a
+  // vertical, because only TODAY is a moment in time.
   const ticks = s.ticks.map(t => {
-    let cls = t.shared ? 'tk-shared' : (t.party === 'Flimp' ? 'tk-flimp' : 'tk-client');
-    if (t.cur) cls += ' tk-cur';
-    else if (t.done) cls += ' tk-done';
-    else cls += ' tk-todo';
-    const who = t.party || 'Shared';
-    return `<div class="tl-tick ${cls}" style="left:${t.pct.toFixed(2)}%"
-      title="${esc(t.task)} · ${esc(fmtDate(t.date))} · ${esc(who)}"></div>`;
+    const state = t.cur ? 'st-cur' : (t.done ? 'st-done' : 'st-todo');
+    const kind  = t.shared ? 'st-xchg' : 'st-stop';
+    const who   = t.party || 'Interchange — on every deliverable';
+    return `<i class="tl-st ${state} ${kind}" style="left:${t.pct.toFixed(2)}%"
+      title="${esc(t.task)} · ${esc(fmtDate(t.date))} · ${esc(who)}"></i>`;
   }).join('');
 
   // Fill runs to where YOU are, not to today. Progress, not calendar.
@@ -329,7 +350,7 @@ function stripRow(pid, s, todayPct) {
       ${opts}
     </select>
 
-    <div class="tl-track">
+    <div class="tl-track" style="--line:${s.lineColour}">
       ${bubble}
       <div class="tl-base"></div>
       ${fill}
@@ -364,6 +385,22 @@ function timelinePanelHtml(parent) {
     </div>
 
     <div class="tl-grid">
+      <!-- Column headers. The TRACK column gets none: it is not a column of
+           values, it is a date axis, and it already labels itself with its
+           endpoints and the TODAY rule. A header reading "Timeline" over it
+           would be pure furniture.
+           This row mirrors the strip row's flex structure exactly, so the
+           headers cannot drift out of alignment with what they name. -->
+      <div class="tl-hdr">
+        <div class="tl-lbl">Project item</div>
+        <div class="tl-sel-h">Current step</div>
+        <div class="tl-track"></div>
+        <div class="tl-right">
+          <div>Next due</div>
+          <div class="tl-hdr-health">Health</div>
+        </div>
+      </div>
+
       <!-- The rule's left% must resolve against the TRACK, not the whole grid.
            This span has exactly the track's geometry, so the percentage is true. -->
       <div class="tl-track-span">
@@ -374,10 +411,10 @@ function timelinePanelHtml(parent) {
     </div>
 
     <div class="tl-key">
-      <span><i class="tl-k tk-flimp tk-done"></i>Flimp</span>
-      <span><i class="tl-k tk-client tk-done"></i>Client</span>
-      <span><i class="tl-k tk-shared tk-done"></i>Shared</span>
-      <span><i class="tl-k tk-cur"></i>Current</span>
+      <span><i class="tl-k k-done"></i>Done</span>
+      <span><i class="tl-k k-cur"></i>Current</span>
+      <span><i class="tl-k k-todo"></i>Upcoming</span>
+      <span><i class="tl-k k-xchg"></i>All deliverables</span>
     </div>
   </div>`;
 }
