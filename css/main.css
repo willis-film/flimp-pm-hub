@@ -1610,15 +1610,23 @@ select.info-in { cursor: pointer; padding-right: 4px; }
 .tl-paste-err { border-color: var(--sig-production); }
 .tl-paste-err::placeholder { color: var(--sig-production); }
 
+
 /* ═══════════════════════════════════════════════════════════════════════════
-   DISTRIBUTION PANEL
-   A template kit → filled email → clean copy for Gmail. Stepped: template,
-   deliverables, methods (video only), fill, preview + copy.
+   DISTRIBUTION PANEL — wizard + sticky preview
+   Left: a stepped form where completed steps collapse to summary bars and later
+   steps lock until reached. Right: a live email preview, sticky on scroll.
+   Uses horizontal space so the panel never grows tall.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.ds-panel { padding: 16px 20px 20px; max-width: 900px; }
+.ds-split {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px; padding: 16px 20px 20px; align-items: start;
+}
+.ds-form { min-width: 0; }
 
-.ds-step { margin-bottom: 18px; }
+/* ── STEP FRAMES ──────────────────────────────────────────────────────────── */
+
+.ds-step { margin-bottom: 14px; }
 .ds-step-h {
   display: flex; align-items: center; gap: 8px;
   font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.1px;
@@ -1631,21 +1639,65 @@ select.info-in { cursor: pointer; padding-right: 4px; }
   background: var(--brass); color: #fff; font-size: 10px; font-weight: 600;
   letter-spacing: 0; flex-shrink: 0;
 }
+.ds-num-off { background: var(--line-2); color: var(--ink-4); }
 .ds-step-note { margin-left: auto; text-transform: none; letter-spacing: 0; color: var(--ink-4); font-family: var(--font); font-size: 10px; }
 
-/* Template picker — two big choices */
-.ds-tpls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.ds-tpl {
-  text-align: left; padding: 12px 14px; cursor: pointer;
-  background: var(--panel); border: 1px solid var(--line-2); border-radius: 6px;
+/* Collapsed summary — a completed step, one line, click to reopen. */
+.ds-sum {
+  display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
+  padding: 9px 12px; margin-bottom: 8px; cursor: pointer;
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px;
   transition: border-color .12s, background .12s;
+}
+.ds-sum:hover { border-color: var(--brass); background: var(--brass-tint); }
+.ds-sum-check {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
+  background: var(--sig-closed); color: #fff; font-size: 10px;
+}
+.ds-sum-label {
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--ink-3); flex-shrink: 0;
+}
+.ds-sum-value {
+  font-size: 11.5px; color: var(--ink); min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ds-sum-edit {
+  margin-left: auto; flex-shrink: 0;
+  font-size: 10.5px; color: var(--brass); font-weight: 500;
+}
+
+/* Locked — a step not yet reached. Dimmed, not interactive. */
+.ds-locked {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px; margin-bottom: 8px;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.1px;
+  text-transform: uppercase; color: var(--ink-4);
+  border: 1px dashed var(--line-2); border-radius: 6px; opacity: 0.7;
+}
+
+.ds-advance { margin-top: 12px; }
+.ds-next {
+  font-family: var(--font); font-size: 12px; font-weight: 500;
+  padding: 7px 16px; border-radius: 5px; cursor: pointer;
+  background: var(--brass); color: #fff; border: 1px solid var(--brass-deep);
+}
+.ds-next:hover { background: var(--brass-deep); }
+.ds-next:disabled { background: var(--line-2); border-color: var(--line-2); color: var(--ink-4); cursor: not-allowed; }
+
+/* ── STEP BODIES ──────────────────────────────────────────────────────────── */
+
+.ds-tpls { display: flex; flex-direction: column; gap: 9px; }
+.ds-tpl {
+  text-align: left; padding: 11px 13px; cursor: pointer;
+  background: var(--panel); border: 1px solid var(--line-2); border-radius: 6px;
 }
 .ds-tpl:hover { border-color: var(--ink-4); }
 .ds-tpl.on { border-color: var(--brass); background: var(--brass-tint); }
 .ds-tpl-h { font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 3px; }
 .ds-tpl-s { font-size: 11px; color: var(--ink-3); line-height: 1.4; }
 
-/* Checklists — deliverables and methods */
 .ds-checks { display: flex; flex-direction: column; gap: 6px; }
 .ds-check {
   display: flex; align-items: center; gap: 10px; cursor: pointer;
@@ -1662,15 +1714,12 @@ select.info-in { cursor: pointer; padding-right: 4px; }
 .ds-check.on .ds-check-box { background: var(--brass); border-color: var(--brass); }
 .ds-check.on .ds-check-box:after {
   content: ''; position: absolute; left: 4px; top: 1px;
-  width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
+  width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
 }
 .ds-check-nm { font-size: 12.5px; color: var(--ink); }
 .ds-check-m { margin-left: auto; font-size: 10.5px; color: var(--ink-4); }
 
-/* Field fill */
-.ds-fgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px 14px; }
-.ds-f { display: block; }
+.ds-fgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 12px; }
 .ds-f-l { display: block; font-size: 10.5px; color: var(--ink-2); margin-bottom: 3px; }
 .ds-in {
   width: 100%; box-sizing: border-box; height: 30px;
@@ -1679,36 +1728,55 @@ select.info-in { cursor: pointer; padding-right: 4px; }
 }
 .ds-in:focus { outline: none; border-color: var(--brass); box-shadow: 0 0 0 2px var(--brass-glow); }
 .ds-asset {
-  margin-top: 11px; padding: 11px 12px;
+  margin-top: 10px; padding: 10px 12px;
   background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px;
 }
-.ds-asset-h { font-size: 11.5px; font-weight: 600; color: var(--ink); margin-bottom: 9px; }
+.ds-asset-h { font-size: 11.5px; font-weight: 600; color: var(--ink); margin-bottom: 8px; }
+.ds-empty { font-size: 12px; color: var(--ink-4); font-style: italic; padding: 8px 0; }
 
-/* Actions + preview */
-.ds-actions { display: flex; align-items: center; gap: 12px; margin: 4px 0 16px; }
+/* ── PREVIEW COLUMN — sticky ──────────────────────────────────────────────── */
+
+.ds-preview-col {
+  position: sticky; top: 12px; min-width: 0;
+  border: 1px solid var(--line); border-radius: 7px; overflow: hidden;
+  background: var(--panel);
+}
+.ds-pv-bar {
+  display: flex; align-items: center; gap: 11px;
+  padding: 10px 13px; background: var(--panel-2); border-bottom: 1px solid var(--line);
+}
 .ds-copy {
   font-family: var(--font); font-size: 12.5px; font-weight: 500;
-  padding: 8px 18px; border-radius: 5px; cursor: pointer;
+  padding: 7px 16px; border-radius: 5px; cursor: pointer;
   background: var(--brass); color: #fff; border: 1px solid var(--brass-deep);
 }
 .ds-copy:hover { background: var(--brass-deep); }
-.ds-copy-note { font-size: 11px; color: var(--ink-4); }
+.ds-copy-note { font-size: 10.5px; color: var(--ink-4); }
 
-.ds-preview-wrap { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
-.ds-preview-h {
-  font-family: var(--font-mono); font-size: 9px; letter-spacing: 1.1px;
-  text-transform: uppercase; color: var(--ink-4);
-  padding: 7px 12px; background: var(--panel-2); border-bottom: 1px solid var(--line);
+.ds-pv-scroll { max-height: 560px; overflow-y: auto; }
+.ds-pv-subject {
+  padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel-2);
+  font-size: 12.5px; color: var(--ink); font-weight: 500;
+}
+.ds-pv-subject span {
+  display: block; font-family: var(--font-mono); font-size: 8.5px; letter-spacing: 1.1px;
+  text-transform: uppercase; color: var(--ink-4); font-weight: 400; margin-bottom: 2px;
 }
 .ds-preview {
-  padding: 16px 18px; background: var(--panel); font-size: 13px; line-height: 1.6; color: var(--ink);
-  max-height: 420px; overflow-y: auto;
+  padding: 16px 18px; background: var(--panel);
+  font-size: 13px; line-height: 1.6; color: var(--ink);
 }
 .ds-preview p { margin: 0 0 11px; }
 .ds-preview a { color: var(--brass); }
-.ds-preview pre { white-space: pre-wrap; word-break: break-all; font-size: 11px; }
+.ds-preview pre { white-space: pre-wrap; word-break: break-all; font-size: 11px; background: var(--panel-2); padding: 8px; border-radius: 4px; }
 
-.ds-hint, .ds-empty {
-  font-size: 12px; color: var(--ink-4); font-style: italic;
-  padding: 10px 0;
+.ds-pv-empty { padding: 40px 24px; text-align: center; }
+.ds-pv-empty-h { font-size: 13px; font-weight: 600; color: var(--ink-3); margin-bottom: 5px; }
+.ds-pv-empty-b { font-size: 11.5px; color: var(--ink-4); line-height: 1.5; }
+
+/* Stack on narrow panels — but the whole point is horizontal space, so this is
+   only a safety net. */
+@media (max-width: 720px) {
+  .ds-split { grid-template-columns: 1fr; }
+  .ds-preview-col { position: static; }
 }

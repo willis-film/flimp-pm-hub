@@ -56,11 +56,22 @@ function distroState(parent) {
       template: '',            // 'video' | 'guide'
       subtaskIds: [],          // which deliverables are in this send
       options: {},             // video only: which of the 6 methods are kept
-      fields: {}               // the few confirmed/edited variables
+      fields: {},              // the few confirmed/edited variables
+      step: 1                  // wizard: which step is currently expanded
     };
   }
+  if (parent.distro.step === undefined) parent.distro.step = 1;
   return parent.distro;
 }
+
+// Video has a methods step (3) that guide skips, so step numbers are not fixed
+// to a template — they are resolved through the active step list.
+function stepList(st) {
+  return st.template === 'video'
+    ? ['template', 'subtasks', 'options', 'fields']
+    : ['template', 'subtasks', 'fields'];
+}
+function stepIndex(st, name) { return stepList(st).indexOf(name) + 1; }
 
 // The six Video distribution methods. `perAsset` ones repeat for each selected
 // subtask; the rest are single. `field` names the variable the user pastes in.
@@ -97,31 +108,68 @@ function assetFields(kid, st) {
   };
 }
 
-// ── VIEW: the builder ────────────────────────────────────────────────────────
+// ── VIEW: wizard shell ───────────────────────────────────────────────────────
+// One step expanded at a time. Completed steps collapse to a one-line summary
+// you can click to reopen; later steps are locked until reached. Form on the
+// left, live preview sticky on the right — horizontal space, not vertical.
 
-function templatePick(pid, st) {
+// A collapsed summary bar. Clicking it makes that step active again.
+function summaryBar(pid, n, label, value) {
+  return `<button class="ds-sum" onclick="A.dsGoStep('${pid}',${n})">
+    <span class="ds-sum-check">✓</span>
+    <span class="ds-sum-label">${esc(label)}</span>
+    <span class="ds-sum-value">${esc(value)}</span>
+    <span class="ds-sum-edit">Edit</span>
+  </button>`;
+}
+
+// A step frame: renders expanded body, collapsed summary, or a locked stub,
+// depending on where the wizard currently is.
+function stepFrame(pid, st, name, label, n, bodyFn, summaryFn) {
+  const active = stepIndex(st, name);
+  const cur = st.step;
+  if (active < cur)  return summaryBar(pid, active, label, summaryFn());
+  if (active > cur)  return `<div class="ds-locked"><span class="ds-num ds-num-off">${active}</span>${esc(label)}</div>`;
+  return `<div class="ds-step">
+    <div class="ds-step-h"><span class="ds-num">${active}</span>${esc(label)}
+      ${name === 'options' ? '<span class="ds-step-note">kept methods renumber automatically</span>' : ''}</div>
+    ${bodyFn()}
+    ${stepAdvance(pid, st, name)}
+  </div>`;
+}
+
+// Steps with no natural "done" signal (you might add another deliverable or
+// method) get an explicit advance button rather than auto-collapsing on a click.
+function stepAdvance(pid, st, name) {
+  if (name === 'fields') return '';   // last step, nothing to advance to
+  const canAdvance =
+    name === 'template' ? !!st.template :
+    name === 'subtasks' ? st.subtaskIds.length > 0 :
+    true;                              // options can be empty (all cut)
+  if (name === 'template') return '';  // template auto-advances on pick
+  return `<div class="ds-advance">
+    <button class="ds-next" ${canAdvance ? '' : 'disabled'} onclick="A.dsGoStep('${pid}',${stepIndex(st,name)+1})">
+      Continue</button>
+  </div>`;
+}
+
+function templateBody(pid, st) {
   const opt = (val, label, sub) => `
     <button class="ds-tpl${st.template === val ? ' on' : ''}"
       onclick="A.dsSet('${pid}','template','${val}')">
       <div class="ds-tpl-h">${esc(label)}</div>
       <div class="ds-tpl-s">${esc(sub)}</div>
     </button>`;
-  return `<div class="ds-step">
-    <div class="ds-step-h"><span class="ds-num">1</span>Template</div>
-    <div class="ds-tpls">
-      ${opt('video', 'Microsite / Video', 'Full distribution toolkit — six delivery methods')}
-      ${opt('guide', 'Benefits Guide / Companion Piece', 'Short — download links and resolution key')}
-    </div>
+  return `<div class="ds-tpls">
+    ${opt('video', 'Microsite / Video', 'Full toolkit — six delivery methods')}
+    ${opt('guide', 'Benefits Guide / Companion Piece', 'Short — download links + resolution key')}
   </div>`;
 }
 
-function subtaskPick(pid, parent, st) {
+function subtaskBody(pid, parent, st) {
   const kids = A.getChildren(parent.id);
-  if (!kids.length) {
-    return `<div class="ds-step"><div class="ds-step-h"><span class="ds-num">2</span>Deliverables</div>
-      <div class="ds-empty">This project has no subtasks to distribute.</div></div>`;
-  }
-  const rows = kids.map(k => {
+  if (!kids.length) return `<div class="ds-empty">This project has no subtasks to distribute.</div>`;
+  return `<div class="ds-checks">${kids.map(k => {
     const on = st.subtaskIds.includes(k.id);
     return `<label class="ds-check${on ? ' on' : ''}">
       <input type="checkbox" ${on ? 'checked' : ''} onchange="A.dsToggleSub('${pid}','${k.id}')">
@@ -129,16 +177,11 @@ function subtaskPick(pid, parent, st) {
       <span class="ds-check-nm">${esc(k.name)}</span>
       <span class="ds-check-m">${esc(k.productTier || k.productType || '')}</span>
     </label>`;
-  }).join('');
-  return `<div class="ds-step">
-    <div class="ds-step-h"><span class="ds-num">2</span>Deliverables in this email</div>
-    <div class="ds-checks">${rows}</div>
-  </div>`;
+  }).join('')}</div>`;
 }
 
-function optionPick(pid, st) {
-  if (st.template !== 'video') return '';   // guide has no options
-  const rows = VIDEO_OPTIONS.map(o => {
+function optionBody(pid, st) {
+  return `<div class="ds-checks">${VIDEO_OPTIONS.map(o => {
     const on = !!st.options[o.id];
     return `<label class="ds-check${on ? ' on' : ''}">
       <input type="checkbox" ${on ? 'checked' : ''} onchange="A.dsToggleOpt('${pid}','${o.id}')">
@@ -146,26 +189,17 @@ function optionPick(pid, st) {
       <span class="ds-check-nm">${esc(o.label)}</span>
       <span class="ds-check-m">${esc(o.hint)}</span>
     </label>`;
-  }).join('');
-  return `<div class="ds-step">
-    <div class="ds-step-h"><span class="ds-num">3</span>Distribution methods
-      <span class="ds-step-note">kept methods renumber automatically</span></div>
-    <div class="ds-checks">${rows}</div>
-  </div>`;
+  }).join('')}</div>`;
 }
 
-// The few real variables. Project-level first, then per-asset for each selected
-// subtask (that is where the "repeat per deliverable" lives).
-function fieldFill(pid, parent, st) {
-  const stepNo = st.template === 'video' ? 4 : 3;
+function fieldBody(pid, parent, st) {
   const pf = projectFields(parent, st);
   const inp = (scope, key, label, val, ph = '') =>
     `<label class="ds-f"><span class="ds-f-l">${esc(label)}</span>
       <input class="ds-in" value="${esc(val)}" placeholder="${esc(ph)}"
-        onchange="A.dsField('${pid}','${scope}','${key}',this.value)"></label>`;
+        oninput="A.dsField('${pid}','${scope}','${key}',this.value)"></label>`;
 
-  const project = `
-    <div class="ds-fgrid">
+  const project = `<div class="ds-fgrid">
       ${inp('_', 'clientName', 'Client name', pf.clientName)}
       ${inp('_', 'yourName', 'Your name', pf.yourName)}
       ${inp('_', 'reportLink', 'Reporting link', pf.reportLink, 'https://flimp.cloud/…')}
@@ -178,7 +212,6 @@ function fieldFill(pid, parent, st) {
     if (st.template === 'guide') {
       rows.push(inp(k.id, 'download', 'Download link', af.download, 'Dropbox / files URL'));
     } else {
-      // Video: only show the fields the KEPT options actually need.
       if (st.options.url)   rows.push(inp(k.id, 'customUrl', 'Custom URL', st.fields[k.id]?.customUrl ?? af.preview));
       if (st.options.email) rows.push(inp(k.id, 'emailUrl', 'Email URL', st.fields[k.id]?.emailUrl ?? af.preview));
       if (st.options.embed) rows.push(inp(k.id, 'embedCode', 'Embed code', st.fields[k.id]?.embedCode ?? ''));
@@ -196,31 +229,56 @@ function fieldFill(pid, parent, st) {
         </div></div>`
     : '';
 
-  return `<div class="ds-step">
-    <div class="ds-step-h"><span class="ds-num">${stepNo}</span>Fill &amp; confirm</div>
-    ${project}
-    ${perAsset}
-    ${aiField}
-  </div>`;
+  return project + perAsset + aiField;
 }
+
+// Summaries shown when a step is collapsed.
+function subtaskSummary(parent, st) {
+  const names = A.getChildren(parent.id).filter(k => st.subtaskIds.includes(k.id)).map(k => k.name);
+  return names.length ? `${names.length} deliverable${names.length > 1 ? 's' : ''} · ${names.join(', ')}` : 'None selected';
+}
+function optionSummary(st) {
+  const kept = VIDEO_OPTIONS.filter(o => st.options[o.id]).map(o => o.label);
+  return kept.length ? `${kept.length} method${kept.length > 1 ? 's' : ''} · ${kept.join(', ')}` : 'No methods';
+}
+const TPL_LABEL = { video: 'Microsite / Video', guide: 'Benefits Guide / Companion Piece' };
 
 function distroPanelHtml(parent) {
   const st = distroState(parent);
+  const pid = parent.id;
   const ready = st.template && st.subtaskIds.length;
 
-  return `<div class="ds-panel">
-    ${templatePick(parent.id, st)}
-    ${st.template ? subtaskPick(parent.id, parent, st) : ''}
-    ${st.template ? optionPick(parent.id, st) : ''}
-    ${ready ? fieldFill(parent.id, parent, st) : ''}
-    ${ready ? `<div class="ds-actions">
-      <button class="ds-copy" onclick="A.dsCopy('${parent.id}')">Copy for Gmail</button>
-      <span class="ds-copy-note">Paste into a new Gmail message. Formatting and links carry over.</span>
-    </div>
-    <div class="ds-preview-wrap">
-      <div class="ds-preview-h">Preview</div>
-      <div class="ds-preview" id="ds-preview-${parent.id}">${buildEmail(parent, st).html}</div>
-    </div>` : `<div class="ds-hint">Pick a template and at least one deliverable to build the email.</div>`}
+  // Left column — the wizard.
+  const steps = [
+    stepFrame(pid, st, 'template', 'Template', 1,
+      () => templateBody(pid, st), () => TPL_LABEL[st.template] || ''),
+    st.template ? stepFrame(pid, st, 'subtasks', 'Deliverables', 2,
+      () => subtaskBody(pid, parent, st), () => subtaskSummary(parent, st)) : '',
+    st.template === 'video' ? stepFrame(pid, st, 'options', 'Distribution methods', 3,
+      () => optionBody(pid, st), () => optionSummary(st)) : '',
+    st.template ? stepFrame(pid, st, 'fields', 'Fill & confirm', stepIndex(st, 'fields'),
+      () => fieldBody(pid, parent, st), () => 'Filled') : ''
+  ].join('');
+
+  // Right column — sticky live preview.
+  const email = ready ? buildEmail(parent, st) : null;
+  const preview = ready
+    ? `<div class="ds-pv-bar">
+         <button class="ds-copy" onclick="A.dsCopy('${pid}')">Copy for Gmail</button>
+         <span class="ds-copy-note">Paste into a new Gmail message.</span>
+       </div>
+       <div class="ds-pv-scroll">
+         <div class="ds-pv-subject"><span>Subject</span>${esc(email.subject)}</div>
+         <div class="ds-preview">${email.html}</div>
+       </div>`
+    : `<div class="ds-pv-empty">
+         <div class="ds-pv-empty-h">Your email will appear here</div>
+         <div class="ds-pv-empty-b">Pick a template and at least one deliverable to start building.</div>
+       </div>`;
+
+  return `<div class="ds-split">
+    <div class="ds-form">${steps}</div>
+    <div class="ds-preview-col">${preview}</div>
   </div>`;
 }
 
@@ -323,8 +381,15 @@ function dsSet(pid, key, val) {
   const r = db.rows.find(x => x.id === pid); if (!r) return;
   const st = distroState(r);
   st[key] = val;
-  // Switching template invalidates option/field choices tied to the old one.
-  if (key === 'template') { st.options = {}; }
+  if (key === 'template') {
+    st.options = {};
+    st.step = 2;               // picking a template advances the wizard
+  }
+  save(); A.render();
+}
+function dsGoStep(pid, n) {
+  const r = db.rows.find(x => x.id === pid); if (!r) return;
+  distroState(r).step = n;
   save(); A.render();
 }
 function dsToggleSub(pid, kidId) {
@@ -340,13 +405,25 @@ function dsToggleOpt(pid, optId) {
   st.options[optId] = !st.options[optId];
   save(); A.render();
 }
+
+// Live field edits update the PREVIEW only — never a full re-render. A full
+// re-render on every keystroke would destroy and recreate the input the user is
+// typing into, and the caret would jump to a fresh element. So the value is
+// written to state, and only the preview subtree is patched in place.
 function dsField(pid, scope, key, val) {
   const r = db.rows.find(x => x.id === pid); if (!r) return;
   const st = distroState(r);
   if (scope === '_') st.fields[key] = val;
   else { st.fields[scope] = st.fields[scope] || {}; st.fields[scope][key] = val; }
-  // Re-render so the preview tracks the edit.
-  save(); A.render();
+  save();
+  // Patch just the preview, in place. No A.render(), so focus is preserved.
+  if (st.template && st.subtaskIds.length) {
+    const email = buildEmail(r, st);
+    const box = document.querySelector('.ds-preview');
+    const subj = document.querySelector('.ds-pv-subject');
+    if (box) box.innerHTML = email.html;
+    if (subj) subj.innerHTML = `<span>Subject</span>${esc(email.subject)}`;
+  }
 }
 
 function dsCopy(pid) {
@@ -365,4 +442,4 @@ function dsCopy(pid) {
   }
 }
 
-register({ distroPanelHtml, dsSet, dsToggleSub, dsToggleOpt, dsField, dsCopy });
+register({ distroPanelHtml, dsSet, dsGoStep, dsToggleSub, dsToggleOpt, dsField, dsCopy });
