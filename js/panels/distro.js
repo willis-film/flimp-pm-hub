@@ -76,8 +76,8 @@ function stepIndex(st, name) { return stepList(st).indexOf(name) + 1; }
 // The six Video distribution methods. `perAsset` ones repeat for each selected
 // subtask; the rest are single. `field` names the variable the user pastes in.
 const VIDEO_OPTIONS = [
-  { id:'url',    label:'Custom URL',            perAsset:true,  field:'customUrl',  hint:'Paste distribution URL' },
-  { id:'email',  label:'Distribute by email',   perAsset:true,  field:'emailUrl',   hint:'Paste URL + thumbnail' },
+  { id:'url',    label:'Custom URL',            perAsset:true,  field:'distUrl',    hint:'Paste distribution URL' },
+  { id:'email',  label:'Distribute by email',   perAsset:true,  field:'distUrl',    hint:'Uses the same URL · thumbnail pasted in Gmail' },
   { id:'embed',  label:'Embed (iFrame)',        perAsset:true,  field:'embedCode',  hint:'Paste embed code' },
   { id:'qr',     label:'QR Code',               perAsset:false, field:null,         hint:'Attached to the email' },
   { id:'mp4',    label:'MP4 download',          perAsset:true,  field:'mp4Link',    hint:'Paste MP4 link' },
@@ -93,6 +93,10 @@ function projectFields(parent, st) {
   const f = st.fields;
   return {
     clientName:  f.clientName  ?? (parent.clientAccount || parent.name || ''),
+    // The greeting addresses the PERSON, not the account — the client point of
+    // contact. Falls back to the account name, then a placeholder, so the
+    // greeting is never blank.
+    contact:     f.contact     ?? (parent.clientContact || parent.clientAccount || ''),
     yourName:    f.yourName    ?? (parent.projectOwner || ''),
     reportLink:  f.reportLink  ?? (parent.reportingLink || '')
   };
@@ -200,6 +204,7 @@ function fieldBody(pid, parent, st) {
         oninput="A.dsField('${pid}','${scope}','${key}',this.value)"></label>`;
 
   const project = `<div class="ds-fgrid">
+      ${inp('_', 'contact', 'Client contact (greeting)', pf.contact, 'Name in the greeting')}
       ${inp('_', 'clientName', 'Client name', pf.clientName)}
       ${inp('_', 'yourName', 'Your name', pf.yourName)}
       ${inp('_', 'reportLink', 'Reporting link', pf.reportLink, 'https://flimp.cloud/…')}
@@ -212,8 +217,11 @@ function fieldBody(pid, parent, st) {
     if (st.template === 'guide') {
       rows.push(inp(k.id, 'download', 'Download link', af.download, 'Dropbox / files URL'));
     } else {
-      if (st.options.url)   rows.push(inp(k.id, 'customUrl', 'Custom URL', st.fields[k.id]?.customUrl ?? af.preview));
-      if (st.options.email) rows.push(inp(k.id, 'emailUrl', 'Email URL', st.fields[k.id]?.emailUrl ?? af.preview));
+      // Custom URL and Email are the SAME link, shown two ways in the output —
+      // written out under Custom URL, hyperlinked under Email. So one field, not
+      // two. Shown if either option is kept.
+      if (st.options.url || st.options.email)
+        rows.push(inp(k.id, 'distUrl', 'Distribution URL', st.fields[k.id]?.distUrl ?? af.preview, 'flimp.live/…'));
       if (st.options.embed) rows.push(inp(k.id, 'embedCode', 'Embed code', st.fields[k.id]?.embedCode ?? ''));
       if (st.options.mp4)   rows.push(inp(k.id, 'mp4Link', 'MP4 link', st.fields[k.id]?.mp4Link ?? ''));
     }
@@ -301,20 +309,24 @@ function buildEmail(parent, st) {
 
   if (st.template === 'guide') {
     subject = `${clientName} Distribution Toolkit`;
+
+    // ONE email. The greeting, resolution key, and sign-off appear once; only
+    // the per-deliverable line (product name + download link) repeats, listed
+    // under a single Final Files heading. Repeating the whole body per
+    // deliverable — the old behaviour — was wrong.
     const items = selected.map(k => {
       const af = assetFields(k, st);
-      // Each deliverable gets its OWN named download link — the repeat rule for
-      // this template.
-      return `<p>Good news! Your <strong>${esc(clientName)} ${esc(af.productName)}</strong> is ready to be distributed.</p>
-        <p><strong style="color:#67E74E">&gt;&gt;</strong> <strong>Final Files</strong></p>
-        <p>${link(af.download, 'Click here')} to download your files.</p>`;
+      return `<p><strong>${esc(af.productName)}:</strong> ${link(af.download, 'Click here')} to download.</p>`;
     }).join('');
 
+    const productList = selected.map(k => esc(assetFields(k, st).productName)).join(', ');
     const key = BOILER.resolutionKey.map(([abbr, name, use]) =>
       `<div><strong style="color:#67E74E">${abbr}</strong> - ${esc(name)} - <em>${esc(use)}</em></div>`
     ).join('');
 
-    body = `<p>Hi ${esc(clientName)},</p>
+    body = `<p>Hi ${esc(pf.contact || '[Client Contact]')},</p>
+      <p>Good news! Your <strong>${esc(clientName)} ${productList}</strong> ${selected.length > 1 ? 'are' : 'is'} ready to be distributed.</p>
+      <p><strong style="color:#67E74E">&gt;&gt;</strong> <strong>Final Files</strong></p>
       ${items}
       <p>${key}</p>
       <p>Please let us know if you have any questions or need anything else.</p>
@@ -332,12 +344,22 @@ function buildEmail(parent, st) {
     const optionBlocks = kept.map(o => {
       n++;
       if (o.id === 'url')
-        return `<p><strong>Option ${n}: Custom URL</strong></p>` + selected.map(k =>
-          `<p>${esc(assetFields(k, st).productName)}: ${link(st.fields[k.id]?.customUrl || assetFields(k, st).preview, st.fields[k.id]?.customUrl || assetFields(k, st).preview || '[URL]')}</p>`).join('');
+        return `<p><strong>Option ${n}: Custom URL</strong></p>` + selected.map(k => {
+          const url = st.fields[k.id]?.distUrl || assetFields(k, st).preview;
+          return `<p>${esc(assetFields(k, st).productName)}: ${url ? link(url, url) : '[URL]'}</p>`;
+        }).join('');
       if (o.id === 'email')
         return `<p><strong>Option ${n}: Distribute by email</strong></p>
           <p>Copy and paste the image below to send from your email account with your own messaging, including the hyperlinked text in case the recipient's email doesn't display images.</p>` +
-          selected.map(k => `<p>${link(st.fields[k.id]?.emailUrl || assetFields(k,st).preview, `Open the ${clientName} ${assetFields(k,st).productName}`)}</p>`).join('');
+          selected.map(k => {
+            const url = st.fields[k.id]?.distUrl || assetFields(k, st).preview;
+            // The thumbnail is pasted into Gmail by hand — the panel can't hold
+            // the image and shouldn't try. It leaves an unmistakable marker in
+            // the right spot so the step is never forgotten or misplaced.
+            return `<p>${link(url, `Open the ${clientName} ${assetFields(k,st).productName}`)}</p>
+              <p style="border:1px dashed #C99A2E;background:#FBF4E3;color:#8A6410;padding:8px 12px;border-radius:4px;font-size:13px">
+              ⬇ Paste the ${esc(assetFields(k,st).productName)} thumbnail image here</p>`;
+          }).join('');
       if (o.id === 'embed')
         return `<p><strong>Option ${n}: Embed into a website, intranet or portal</strong></p>
           <p>Send the iFrame code below to your IT team to embed the content directly within a web page, intranet or portal.</p>` +
@@ -357,7 +379,7 @@ function buildEmail(parent, st) {
       return '';
     }).join('');
 
-    body = `<p>Hi ${esc(clientName)},</p>
+    body = `<p>Hi ${esc(pf.contact || '[Client Contact]')},</p>
       <p>Good news! Your <strong>${esc(clientName)} ${productList}</strong> is ready to be distributed.</p>
       ${H('Reporting')}
       <p>Here's your ${link(pf.reportLink, 'shareable, real-time tracking report to monitor engagement')}.</p>
@@ -382,8 +404,12 @@ function dsSet(pid, key, val) {
   const st = distroState(r);
   st[key] = val;
   if (key === 'template') {
-    st.options = {};
-    st.step = 2;               // picking a template advances the wizard
+    // Custom URL, Email, and Embed are on for nearly every video distribution,
+    // so default them on — you deselect the rare exception rather than select
+    // the common case every time. Still deselectable; a 95%-true rule should
+    // not remove the 5% escape hatch.
+    st.options = val === 'video' ? { url: true, email: true, embed: true } : {};
+    st.step = 2;
   }
   save(); A.render();
 }
