@@ -44,7 +44,9 @@ const BOILER = {
     ['LR', 'Low Resolution',  'Sending in emails, and quick site uploads'],
     ['PR', 'Print Ready',     'For professional printing']
   ],
-  signoffTeam: 'and The Flimp Team'
+  signoffTeam: 'and The Flimp Team',
+  // The signature is always the same person; never ask for it.
+  signoffName: 'Willis'
 };
 
 // ── PANEL STATE ──────────────────────────────────────────────────────────────
@@ -96,9 +98,9 @@ function projectFields(parent, st) {
     // The greeting addresses the PERSON, not the account — the client point of
     // contact. Falls back to the account name, then a placeholder, so the
     // greeting is never blank.
-    contact:     f.contact     ?? (parent.clientContact || parent.clientAccount || ''),
-    yourName:    f.yourName    ?? (parent.projectOwner || ''),
-    reportLink:  f.reportLink  ?? (parent.reportingLink || '')
+    contact:     f.contact     ?? (parent.clientContact || parent.clientAccount || '')
+    // yourName removed — the signature is always Willis (see SIGNOFF_NAME).
+    // reportLink removed — reporting is now per-deliverable, not project-level.
   };
 }
 
@@ -206,8 +208,6 @@ function fieldBody(pid, parent, st) {
   const project = `<div class="ds-fgrid">
       ${inp('_', 'contact', 'Client contact (greeting)', pf.contact, 'Name in the greeting')}
       ${inp('_', 'clientName', 'Client name', pf.clientName)}
-      ${inp('_', 'yourName', 'Your name', pf.yourName)}
-      ${inp('_', 'reportLink', 'Reporting link', pf.reportLink, 'https://flimp.cloud/…')}
     </div>`;
 
   const selected = A.getChildren(parent.id).filter(k => st.subtaskIds.includes(k.id));
@@ -224,6 +224,10 @@ function fieldBody(pid, parent, st) {
         rows.push(inp(k.id, 'distUrl', 'Distribution URL', st.fields[k.id]?.distUrl ?? af.preview, 'flimp.live/…'));
       if (st.options.embed) rows.push(inp(k.id, 'embedCode', 'Embed code', st.fields[k.id]?.embedCode ?? ''));
       if (st.options.mp4)   rows.push(inp(k.id, 'mp4Link', 'MP4 link', st.fields[k.id]?.mp4Link ?? ''));
+      // Reporting is per-deliverable (Video only). Pre-fills from the subtask's
+      // own reportingLink field. The output hyperlinks the item title, not the
+      // bare URL — see buildEmail.
+      rows.push(inp(k.id, 'reportLink', 'Reporting link', st.fields[k.id]?.reportLink ?? af.report, 'flimp.cloud/…'));
     }
     return `<div class="ds-asset"><div class="ds-asset-h">${esc(k.name)}</div>
       <div class="ds-fgrid">${rows.join('')}</div></div>`;
@@ -330,7 +334,7 @@ function buildEmail(parent, st) {
       ${items}
       <p>${key}</p>
       <p>Please let us know if you have any questions or need anything else.</p>
-      <p>Thank you!<br>${esc(pf.yourName || '[Your Name]')} ${BOILER.signoffTeam}</p>`;
+      <p>Thank you!<br>${BOILER.signoffName} ${BOILER.signoffTeam}</p>`;
   } else {
     // VIDEO — the option kit.
     const productList = selected.map(k => esc(assetFields(k, st).productName)).join(', ');
@@ -382,7 +386,13 @@ function buildEmail(parent, st) {
     body = `<p>Hi ${esc(pf.contact || '[Client Contact]')},</p>
       <p>Good news! Your <strong>${esc(clientName)} ${productList}</strong> is ready to be distributed.</p>
       ${H('Reporting')}
-      <p>Here's your ${link(pf.reportLink, 'shareable, real-time tracking report to monitor engagement')}.</p>
+      ${selected.map(k => {
+        const af = assetFields(k, st);
+        const url = st.fields[k.id]?.reportLink || af.report;
+        // The visible text is the item title + " Reporting Link"; the URL hides
+        // behind it. One line per deliverable.
+        return `<p>${link(url, `${af.productName} Reporting Link`)}</p>`;
+      }).join('')}
       ${H('Distribution Resource Center &amp; Reporting Metrics Explained')}
       <p>Visit our ${link(BOILER.resourceCenter, 'Distribution Resource Center')} and ${link(BOILER.metricsExplained, 'Reporting Metrics Explained')} for best practices, distribution methods, FAQs, and reporting dashboard explanations.</p>
       ${H('Distribution Options')}
@@ -391,7 +401,7 @@ function buildEmail(parent, st) {
       <p>All updates made to your content after sending will automatically update, so you do not have to resend. This includes videos and linked documents.</p>
       ${H('Questions')}
       <p>For distribution or reporting questions, please contact me. For project-specific needs or to scope a new project, contact your account manager directly.</p>
-      <p>Thank you!<br>${esc(pf.yourName || '[Your Name]')} ${BOILER.signoffTeam}</p>`;
+      <p>Thank you!<br>${BOILER.signoffName} ${BOILER.signoffTeam}</p>`;
   }
 
   return { subject, html: body };
