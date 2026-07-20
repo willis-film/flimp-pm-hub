@@ -577,11 +577,19 @@ function render(){
     if (activePanel === 'timeline') tlWrap.innerHTML = A.timelinePanelHtml(parent);
     block.appendChild(tlWrap);
 
+    // ── DISTRIBUTION PANEL ─────────────────────────────────────────────────
+    // Assembles a client-ready distribution email from a template kit and emits
+    // clean copy for Gmail. Copy path only — no auth yet.
+    const distroWrap = document.createElement('div');
+    distroWrap.className = 'distro-wrap' + (activePanel !== 'distro' ? ' hidden' : '');
+    distroWrap.id = 'distro-' + parent.id;
+    if (activePanel === 'distro') distroWrap.innerHTML = A.distroPanelHtml(parent);
+    block.appendChild(distroWrap);
+
     // ── STUB PANELS ────────────────────────────────────────────────────────
     const _stubDefs=[
       { id:'templates', label:'Templates',    body:'Email drafts and kickoff document generator — all fields pre-filled from client name, contacts, deliverables, and dates.' },
       { id:'metrics',   label:'Metrics',      body:'Activity log, days spent per phase, and project health summary.' },
-      { id:'distro',    label:'Distribution', body:'Build and send review link or final delivery emails. Contacts and deliverable links pre-fill from this project.' },
     ];
     _stubDefs.forEach(s=>{
       const w=document.createElement('div');

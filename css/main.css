@@ -571,7 +571,7 @@ body::before {
    · The left border stays. The panel is inset from the block, so its left edge
      is now a real exposed edge rather than a seam against the strip. */
 
-.subtask-wrap, .inv-wrap, .email-wrap, .closeout-wrap, .info-wrap, .timeline-wrap {
+.subtask-wrap, .inv-wrap, .email-wrap, .closeout-wrap, .info-wrap, .timeline-wrap, .distro-wrap {
   margin-left: var(--spine-off);
   /* .fps carries a 1px border on BOTH sides; the panel only indents past the
      left one. Without this, the panel overhangs the strip's right edge by that
@@ -580,7 +580,7 @@ body::before {
   overflow-x: auto; border: 1px solid var(--line-2); border-top: none;
   border-radius: 0 0 var(--radius) var(--radius); background: var(--panel); margin-bottom: 11px;
 }
-.subtask-wrap.hidden, .inv-wrap.hidden, .email-wrap.hidden, .closeout-wrap.hidden, .info-wrap.hidden, .timeline-wrap.hidden { display: none; }
+.subtask-wrap.hidden, .inv-wrap.hidden, .email-wrap.hidden, .closeout-wrap.hidden, .info-wrap.hidden, .timeline-wrap.hidden, .distro-wrap.hidden { display: none; }
 
 .sheet, .inv-sheet, .email-sheet { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; }
 
@@ -1609,3 +1609,106 @@ select.info-in { cursor: pointer; padding-right: 4px; }
 /* Fail loudly — a silent no-op on a bad paste looks like it worked. */
 .tl-paste-err { border-color: var(--sig-production); }
 .tl-paste-err::placeholder { color: var(--sig-production); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DISTRIBUTION PANEL
+   A template kit → filled email → clean copy for Gmail. Stepped: template,
+   deliverables, methods (video only), fill, preview + copy.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.ds-panel { padding: 16px 20px 20px; max-width: 900px; }
+
+.ds-step { margin-bottom: 18px; }
+.ds-step-h {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.1px;
+  text-transform: uppercase; color: var(--ink-3);
+  padding-bottom: 8px; margin-bottom: 11px; border-bottom: 1px solid var(--line);
+}
+.ds-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 17px; height: 17px; border-radius: 50%;
+  background: var(--brass); color: #fff; font-size: 10px; font-weight: 600;
+  letter-spacing: 0; flex-shrink: 0;
+}
+.ds-step-note { margin-left: auto; text-transform: none; letter-spacing: 0; color: var(--ink-4); font-family: var(--font); font-size: 10px; }
+
+/* Template picker — two big choices */
+.ds-tpls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ds-tpl {
+  text-align: left; padding: 12px 14px; cursor: pointer;
+  background: var(--panel); border: 1px solid var(--line-2); border-radius: 6px;
+  transition: border-color .12s, background .12s;
+}
+.ds-tpl:hover { border-color: var(--ink-4); }
+.ds-tpl.on { border-color: var(--brass); background: var(--brass-tint); }
+.ds-tpl-h { font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 3px; }
+.ds-tpl-s { font-size: 11px; color: var(--ink-3); line-height: 1.4; }
+
+/* Checklists — deliverables and methods */
+.ds-checks { display: flex; flex-direction: column; gap: 6px; }
+.ds-check {
+  display: flex; align-items: center; gap: 10px; cursor: pointer;
+  padding: 8px 11px; border-radius: 5px;
+  background: var(--panel-2); border: 1px solid transparent;
+}
+.ds-check:hover { background: var(--panel-3); }
+.ds-check.on { background: var(--brass-tint); border-color: rgba(52,120,223,0.25); }
+.ds-check input { position: absolute; opacity: 0; width: 0; height: 0; }
+.ds-check-box {
+  width: 15px; height: 15px; border-radius: 4px; flex-shrink: 0;
+  border: 1.5px solid var(--ink-4); background: var(--panel); position: relative;
+}
+.ds-check.on .ds-check-box { background: var(--brass); border-color: var(--brass); }
+.ds-check.on .ds-check-box:after {
+  content: ''; position: absolute; left: 4px; top: 1px;
+  width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.ds-check-nm { font-size: 12.5px; color: var(--ink); }
+.ds-check-m { margin-left: auto; font-size: 10.5px; color: var(--ink-4); }
+
+/* Field fill */
+.ds-fgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px 14px; }
+.ds-f { display: block; }
+.ds-f-l { display: block; font-size: 10.5px; color: var(--ink-2); margin-bottom: 3px; }
+.ds-in {
+  width: 100%; box-sizing: border-box; height: 30px;
+  font-family: var(--font); font-size: 12px; color: var(--ink);
+  background: var(--panel); border: 1px solid var(--line-2); border-radius: 4px; padding: 0 8px;
+}
+.ds-in:focus { outline: none; border-color: var(--brass); box-shadow: 0 0 0 2px var(--brass-glow); }
+.ds-asset {
+  margin-top: 11px; padding: 11px 12px;
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px;
+}
+.ds-asset-h { font-size: 11.5px; font-weight: 600; color: var(--ink); margin-bottom: 9px; }
+
+/* Actions + preview */
+.ds-actions { display: flex; align-items: center; gap: 12px; margin: 4px 0 16px; }
+.ds-copy {
+  font-family: var(--font); font-size: 12.5px; font-weight: 500;
+  padding: 8px 18px; border-radius: 5px; cursor: pointer;
+  background: var(--brass); color: #fff; border: 1px solid var(--brass-deep);
+}
+.ds-copy:hover { background: var(--brass-deep); }
+.ds-copy-note { font-size: 11px; color: var(--ink-4); }
+
+.ds-preview-wrap { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.ds-preview-h {
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 1.1px;
+  text-transform: uppercase; color: var(--ink-4);
+  padding: 7px 12px; background: var(--panel-2); border-bottom: 1px solid var(--line);
+}
+.ds-preview {
+  padding: 16px 18px; background: var(--panel); font-size: 13px; line-height: 1.6; color: var(--ink);
+  max-height: 420px; overflow-y: auto;
+}
+.ds-preview p { margin: 0 0 11px; }
+.ds-preview a { color: var(--brass); }
+.ds-preview pre { white-space: pre-wrap; word-break: break-all; font-size: 11px; }
+
+.ds-hint, .ds-empty {
+  font-size: 12px; color: var(--ink-4); font-style: italic;
+  padding: 10px 0;
+}
