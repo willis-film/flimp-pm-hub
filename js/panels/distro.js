@@ -280,7 +280,6 @@ function distroPanelHtml(parent) {
          <span class="ds-copy-note">Paste into a new Gmail message.</span>
        </div>
        <div class="ds-pv-scroll">
-         <div class="ds-pv-subject"><span>Subject</span>${esc(email.subject)}</div>
          <div class="ds-preview">${email.html}</div>
        </div>`
     : `<div class="ds-pv-empty">
@@ -304,20 +303,24 @@ function link(href, text) {
   return h ? `<a href="${esc(h)}">${esc(text)}</a>` : esc(text);
 }
 
+// A deliverable is a GUIDE item if its product type is Benefit Guide or
+// Companion Piece; everything else is a VIDEO item. This is what lets a single
+// distribution mix both — the video template stays the frame, and guide items
+// fold into their own section rather than being forced through video treatment.
+const GUIDE_TYPES = new Set(['Benefit Guide', 'Companion Piece']);
+const isGuideItem = kid => GUIDE_TYPES.has(kid.productType);
+
 function buildEmail(parent, st) {
   const pf = projectFields(parent, st);
   const selected = A.getChildren(parent.id).filter(k => st.subtaskIds.includes(k.id));
   const clientName = pf.clientName || '[Client Name]';
 
-  let subject, body;
+  let body;
 
   if (st.template === 'guide') {
-    subject = `${clientName} Distribution Toolkit`;
-
     // ONE email. The greeting, resolution key, and sign-off appear once; only
     // the per-deliverable line (product name + download link) repeats, listed
-    // under a single Final Files heading. Repeating the whole body per
-    // deliverable — the old behaviour — was wrong.
+    // under a single Final Files heading.
     const items = selected.map(k => {
       const af = assetFields(k, st);
       return `<p><strong>${esc(af.productName)}:</strong> ${link(af.download, 'Click here')} to download.</p>`;
@@ -336,26 +339,35 @@ function buildEmail(parent, st) {
       <p>Please let us know if you have any questions or need anything else.</p>
       <p>Thank you!<br>${BOILER.signoffName} ${BOILER.signoffTeam}</p>`;
   } else {
-    // VIDEO — the option kit.
+    // VIDEO — the option kit, and the frame for mixed sends.
+    // Split the selection: video items drive the main body; guide items (Benefit
+    // Guide / Companion Piece) fold into a dedicated section below.
+    const videoItems = selected.filter(k => !isGuideItem(k));
+    const guideItems = selected.filter(k => isGuideItem(k));
+
+    // "Good news!" lists only the PRODUCT NAMES of the included deliverables — no
+    // client/project name. Uses the full selection so a mixed send names
+    // everything going out, videos and guides alike.
     const productList = selected.map(k => esc(assetFields(k, st).productName)).join(', ');
-    subject = `${clientName} ${productList} Distribution Toolkit`;
 
     const H = t => `<p><strong style="color:#67E74E">&gt;&gt;</strong> <strong>${t}</strong></p>`;
 
-    // Kept options only, renumbered 1..n.
+    // Kept options only, renumbered 1..n. These are VIDEO concerns, so they
+    // iterate videoItems, not the full selection — a guide has no embed code.
     const kept = VIDEO_OPTIONS.filter(o => st.options[o.id]);
     let n = 0;
     const optionBlocks = kept.map(o => {
       n++;
+      const forAssets = videoItems;
       if (o.id === 'url')
-        return `<p><strong>Option ${n}: Custom URL</strong></p>` + selected.map(k => {
+        return `<p><strong>Option ${n}: Custom URL</strong></p>` + forAssets.map(k => {
           const url = st.fields[k.id]?.distUrl || assetFields(k, st).preview;
           return `<p>${esc(assetFields(k, st).productName)}: ${url ? link(url, url) : '[URL]'}</p>`;
         }).join('');
       if (o.id === 'email')
         return `<p><strong>Option ${n}: Distribute by email</strong></p>
           <p>Copy and paste the image below to send from your email account with your own messaging, including the hyperlinked text in case the recipient's email doesn't display images.</p>` +
-          selected.map(k => {
+          forAssets.map(k => {
             const url = st.fields[k.id]?.distUrl || assetFields(k, st).preview;
             // The thumbnail is pasted into Gmail by hand — the panel can't hold
             // the image and shouldn't try. It leaves an unmistakable marker in
@@ -367,13 +379,13 @@ function buildEmail(parent, st) {
       if (o.id === 'embed')
         return `<p><strong>Option ${n}: Embed into a website, intranet or portal</strong></p>
           <p>Send the iFrame code below to your IT team to embed the content directly within a web page, intranet or portal.</p>` +
-          selected.map(k => `<pre style="background:#f4f6f8;padding:8px;border-radius:4px">${esc(st.fields[k.id]?.embedCode || '[Embed code]')}</pre>`).join('') +
+          forAssets.map(k => `<pre style="background:#f4f6f8;padding:8px;border-radius:4px">${esc(st.fields[k.id]?.embedCode || '[Embed code]')}</pre>`).join('') +
           `<p><em>Note on Resizing: You can adjust the height and width of the content in the code but be sure to maintain proportions to avoid distortion.</em></p>`;
       if (o.id === 'qr')
         return `<p><strong>Option ${n}: QR Code</strong> (attached to this email)</p>`;
       if (o.id === 'mp4')
         return `<p><strong>Option ${n}: Download the MP4 file</strong></p>` +
-          selected.map(k => `<p>${link(st.fields[k.id]?.mp4Link, 'Click here')} to download.</p>`).join('') +
+          forAssets.map(k => `<p>${link(st.fields[k.id]?.mp4Link, 'Click here')} to download.</p>`).join('') +
           `<p><em>Please note that by using the MP4 file, you forgo the engagement metrics tracked by the Flimp URL and embed code.</em></p>`;
       if (o.id === 'ai')
         return `<p><strong>Option ${n}: Employee Benefits AI Agent</strong></p>
@@ -383,20 +395,34 @@ function buildEmail(parent, st) {
       return '';
     }).join('');
 
+    // Guide items fold into their own section — same shape as the standalone
+    // guide template (heading + download link + resolution key), one block per
+    // guide deliverable, placed after the video Options.
+    const guideSection = guideItems.length ? `
+      ${guideItems.map(k => {
+        const af = assetFields(k, st);
+        const keyBlock = BOILER.resolutionKey.map(([abbr, name, use]) =>
+          `<div><strong style="color:#67E74E">${abbr}</strong> - ${esc(name)} - <em>${esc(use)}</em></div>`
+        ).join('');
+        return `${H(`${esc(af.productName)} Final Files`)}
+          <p>${link(af.download, 'Click here')} to download the ${esc(af.productName)}.</p>
+          <p>${keyBlock}</p>`;
+      }).join('')}` : '';
+
     body = `<p>Hi ${esc(pf.contact || '[Client Contact]')},</p>
-      <p>Good news! Your <strong>${esc(clientName)} ${productList}</strong> is ready to be distributed.</p>
-      ${H('Reporting')}
-      ${selected.map(k => {
+      <p>Good news! Your <strong>${productList}</strong> ${selected.length > 1 ? 'are' : 'is'} ready to be distributed.</p>
+      ${videoItems.length ? H('Reporting') : ''}
+      ${videoItems.map(k => {
         const af = assetFields(k, st);
         const url = st.fields[k.id]?.reportLink || af.report;
         // The visible text is the item title + " Reporting Link"; the URL hides
-        // behind it. One line per deliverable.
+        // behind it. One line per video deliverable.
         return `<p>${link(url, `${af.productName} Reporting Link`)}</p>`;
       }).join('')}
       ${H('Distribution Resource Center &amp; Reporting Metrics Explained')}
       <p>Visit our ${link(BOILER.resourceCenter, 'Distribution Resource Center')} and ${link(BOILER.metricsExplained, 'Reporting Metrics Explained')} for best practices, distribution methods, FAQs, and reporting dashboard explanations.</p>
-      ${H('Distribution Options')}
-      ${optionBlocks || '<p><em>No distribution methods selected.</em></p>'}
+      ${videoItems.length ? H('Distribution Options') + (optionBlocks || '<p><em>No distribution methods selected.</em></p>') : ''}
+      ${guideSection}
       ${H('Real-Time Updates')}
       <p>All updates made to your content after sending will automatically update, so you do not have to resend. This includes videos and linked documents.</p>
       ${H('Questions')}
@@ -404,7 +430,7 @@ function buildEmail(parent, st) {
       <p>Thank you!<br>${BOILER.signoffName} ${BOILER.signoffTeam}</p>`;
   }
 
-  return { subject, html: body };
+  return { html: body };
 }
 
 // ── MUTATORS ─────────────────────────────────────────────────────────────────
@@ -456,17 +482,15 @@ function dsField(pid, scope, key, val) {
   if (st.template && st.subtaskIds.length) {
     const email = buildEmail(r, st);
     const box = document.querySelector('.ds-preview');
-    const subj = document.querySelector('.ds-pv-subject');
     if (box) box.innerHTML = email.html;
-    if (subj) subj.innerHTML = `<span>Subject</span>${esc(email.subject)}`;
   }
 }
 
 function dsCopy(pid) {
   const r = db.rows.find(x => x.id === pid); if (!r) return;
-  const { subject, html } = buildEmail(r, distroState(r));
+  const { html } = buildEmail(r, distroState(r));
   // Rich copy: write HTML so Gmail keeps links and formatting on paste.
-  const full = `<p><strong>Subject:</strong> ${esc(subject)}</p><hr>${html}`;
+  const full = html;
   try {
     const blob = new Blob([full], { type: 'text/html' });
     const plain = new Blob([full.replace(/<[^>]+>/g, '')], { type: 'text/plain' });
