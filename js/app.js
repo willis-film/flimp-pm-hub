@@ -45,8 +45,8 @@ document.getElementById('clickup-manage-overlay').addEventListener('click',funct
 // init() loads persisted state, applies the daily I/O reset, then does the first
 // full render of the list, sidebar lists, and banners. Called by Alpine via
 // x-init on <body> (see alpine.js), so Alpine owns startup ordering.
-export function init() {
-  load();
+export async function init() {
+  await load();
   dailyIOReset();
   A.render();
   A.renderGmailSidebar();

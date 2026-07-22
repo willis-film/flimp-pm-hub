@@ -1,25 +1,60 @@
 // db.js — application state + persistence layer.
 //
 // This wraps the single `db` state object and all read/write persistence.
-// Today it persists to localStorage (key `flimp_pm14`), exactly as the
-// original single-file build did. When the Supabase migration happens, only
-// the bodies of save()/load() need to change — every caller already goes
-// through these functions, so the rest of the app is storage-agnostic.
+// Persists via the /api/db Supabase proxy (see api/db.js) — every caller
+// throughout the app still just calls save() and load() the same way; that
+// contract hasn't changed, only what's behind it.
 
 import { SEED_DB } from './data/seed.js';
 
-const STORAGE_KEY = 'flimp_pm14';
-const LAST_OPEN_KEY = 'flimp_last_open';
+const LAST_OPEN_KEY = 'flimp_last_open'; // per-device marker, not project data — stays local, see dailyIOReset() below.
+const API = '/api/db';
 
 // Live, mutable state singleton. Imported by every module; mutated in place,
-// then persisted via save(). Deep-cloned from SEED_DB so the seed stays pristine.
+// then persisted via save(). Deep-cloned from SEED_DB so the seed stays
+// pristine — this clone now also serves as the offline/fetch-failure
+// fallback (see load()).
 export const db = structuredClone(SEED_DB);
 
 // ── PERSISTENCE ──────────────────────────────────────────────────────────────
-// save(): currently localStorage. Swap this body for a Supabase upsert later.
-export function save() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); } catch (e) {}
+// save(): POSTs the whole `db` object to the Supabase proxy. All ~48 call
+// sites across the app call this fire-and-forget (`save(); render();`) and
+// none of them await it — that contract is preserved here on purpose, so
+// none of those call sites needed to change. Failures are logged, not
+// thrown; a network hiccup shouldn't break the UI someone's actively
+// working in.
+//
+// Debounced (400ms trailing): rapid edits — typing, drag-reordering,
+// repeated toggles — would otherwise fire one full-table POST per
+// keystroke. Collapsing bursts into one call after things settle also
+// narrows (doesn't eliminate) the window where two in-flight POSTs could
+// resolve out of order and let an older save clobber a newer one.
+let saveTimer = null;
+
+function flushSave() {
+  saveTimer = null;
+  fetch(API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(db)
+  }).catch(e => console.error('db.js save() failed:', e));
 }
+
+export function save() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(flushSave, 400);
+}
+
+// Catches a pending debounced save if the tab closes before the 400ms timer
+// fires. sendBeacon is used instead of fetch specifically because it's
+// designed to survive page unload — a normal fetch can get cancelled
+// mid-flight when the tab actually closes.
+window.addEventListener('beforeunload', () => {
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    navigator.sendBeacon(API, new Blob([JSON.stringify(db)], { type: 'application/json' }));
+  }
+});
 
 // ── INFO PANEL FIELD DEFAULTS ────────────────────────────────────────────────
 // The Info panel introduced columns that predate no row in seed.js and exist in
@@ -48,7 +83,15 @@ const PROJECT_FIELD_DEFAULTS = {
   totalRevenue:'',
   // Pasted Timeline Tool export. Null until imported. Project scope only —
   // the plan is authored per project, not per item.
-  timeline: null
+  timeline: null,
+  // Closeout checklist state. Null until the Closeout panel is opened once —
+  // closeout.js lazily creates { [itemIndex]: boolean } on first toggle.
+  // Backfilled here so a Supabase row always has the key, even untouched.
+  closeout: null,
+  // Distribution panel draft state. Null until the Distro panel is opened —
+  // distro.js lazily creates { template, subtaskIds, options, fields, step }.
+  // Working state for the current draft, not a record of what was sent.
+  distro: null
 };
 
 function backfillInfoFields() {
@@ -60,18 +103,28 @@ function backfillInfoFields() {
   });
 }
 
-// load(): currently localStorage. Swap this body for a Supabase select later.
-// Mirrors the original Object.assign merge so missing keys fall back to seed.
-export function load() {
+// load(): fetches the whole db shape from the Supabase proxy. Mirrors the
+// original Object.assign merge, so a missing/unreachable server falls back
+// to the SEED_DB clone already sitting in `db` rather than crashing —
+// logged loudly, though, so a real outage is visible in the console instead
+// of quietly looking like an empty board.
+//
+// NOTE — first call after cutover: an empty `rows` table is a valid, real
+// response (shape-wise identical to "nothing saved yet"), so it WILL
+// replace the seed demo rows with an empty board. That's expected, not data
+// loss — the seed data was always just local demo content, and it's now
+// only the offline fallback rather than the first-run default.
+export async function load() {
   try {
-    const s = localStorage.getItem(STORAGE_KEY);
-    if (s) {
-      const saved = JSON.parse(s);
-      // Mutate the existing object in place so the exported reference stays valid.
-      Object.assign(db, saved);
-    }
-  } catch (e) {}
-  // Runs unconditionally — covers both the fresh-seed and hydrated-save paths.
+    const res = await fetch(API);
+    if (!res.ok) throw new Error(`GET ${API} -> ${res.status}`);
+    const saved = await res.json();
+    // Mutate the existing object in place so the exported reference stays valid.
+    Object.assign(db, saved);
+  } catch (e) {
+    console.error('db.js load() failed, falling back to seed data:', e);
+  }
+  // Runs unconditionally — covers both the fresh-seed and hydrated-load paths.
   backfillInfoFields();
 }
 
