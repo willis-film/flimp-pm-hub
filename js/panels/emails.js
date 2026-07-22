@@ -53,15 +53,19 @@ function openGmailLabelModal(){
     const displayName=lbl.name.includes('/')?lbl.name.split('/').pop():lbl.name;
     const assigned=parents.filter(r=>(r.gmailLabels||[]).includes(lbl.id));
     const isAssigned=assigned.length>0;
-    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
-      <div style="width:10px;height:10px;border-radius:50%;background:${lbl.bgColor||'#dcfce7'};flex-shrink:0"></div>
-      <span style="flex:1;font-size:13px">${esc(displayName)}</span>
-      <span style="font-size:11px;color:var(--text3)">${isAssigned?'→ '+assigned.map(r=>r.name.split('–')[0].trim()).join(', '):'unassigned'}</span>
+    // Split on the first real separator (–, —, or " - "); hyphenated names
+    // previously slipped through an en-dash-only split and rendered in full.
+    const assignedNames=assigned.map(r=>r.name.split(/\s[–—-]\s|[–—]/)[0].trim()).join(', ');
+    const assignedLabel=isAssigned?('→ '+assignedNames):'unassigned';
+    return `<div class="mrow">
+      <div class="mrow-dot" style="background:${lbl.bgColor||'#dcfce7'}"></div>
+      <span class="mrow-name" title="${esc(lbl.name)}">${esc(displayName)}</span>
+      <span class="mrow-assigned${isAssigned?'':' is-unassigned'}"${isAssigned?` title="${esc(assigned.map(r=>r.name).join(', '))}"`:''}>${esc(assignedLabel)}</span>
       ${isAssigned
-        ? `<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 7px;color:#b91c1c" onclick="unassignLabelAndRefresh('${lbl.id}')">Unassign</button>`
-        : `<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 7px;color:#4f5de8" onclick="closeGmailLabelModal();openAssignLabelModal('${lbl.id}')">Assign</button>`}
+        ? `<button class="btn btn-ghost btn-sm mrow-btn mrow-btn-unassign" onclick="unassignLabelAndRefresh('${lbl.id}')">Unassign</button>`
+        : `<button class="btn btn-ghost btn-sm mrow-btn mrow-btn-assign" onclick="closeGmailLabelModal();openAssignLabelModal('${lbl.id}')">Assign</button>`}
     </div>`;
-  }).join('')||`<div style="font-size:13px;color:var(--text3);font-style:italic">No labels match the current prefix.</div>`;
+  }).join('')||`<div class="mrow-empty">No labels match the current prefix.</div>`;
   document.getElementById('gmail-label-overlay').classList.add('open');
 }
 

@@ -59,17 +59,23 @@ function openClickUpManageModal(){
   const cuStatusColors={'to do':'#6b7280','in progress':'#d97706','in review':'#2563eb','complete':'#16a34a'};
   document.getElementById('cum-body').innerHTML=allTasks.map(t=>{
     const assignedRow=db.rows.find(r=>r.clickupId===t.id);
-    const assignedToName=assignedRow?(db.rows.find(r=>r.id===assignedRow.parentId)||{name:'Unknown'}).name.split('–')[0].trim():'';
+    // shortName(): take the first segment of the project name for the compact
+    // "→ project" column. Original split only on en-dash (–); real project
+    // names use hyphens (-) and other separators, so it never fired and the
+    // whole long name rendered. Split on the first of –, —, or " - ".
+    const rawName=assignedRow?(db.rows.find(r=>r.id===assignedRow.parentId)||{name:'Unknown'}).name:'';
+    const assignedToName=rawName.split(/\s[–—-]\s|[–—]/)[0].trim();
     const isAssigned=!!assignedRow;
-    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">'+
-      '<div style="width:8px;height:8px;border-radius:50%;background:'+(cuStatusColors[t.status]||'#6b7280')+';flex-shrink:0"></div>'+
-      '<span style="flex:1;font-size:13px">'+esc(t.name)+'</span>'+
-      '<span style="font-size:11px;color:var(--text3)">'+(assignedToName?'→ '+assignedToName:'unassigned')+'</span>'+
+    const assignedLabel=isAssigned?('→ '+assignedToName):'unassigned';
+    return '<div class="mrow">'+
+      '<div class="mrow-dot" style="background:'+(cuStatusColors[t.status]||'#6b7280')+'"></div>'+
+      '<span class="mrow-name" title="'+esc(t.name)+'">'+esc(t.name)+'</span>'+
+      '<span class="mrow-assigned'+(isAssigned?'':' is-unassigned')+'"'+(isAssigned?' title="'+esc(rawName)+'"':'')+'>'+esc(assignedLabel)+'</span>'+
       (isAssigned
-        ? '<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 7px;color:#b91c1c" onclick="unassignCuTaskAll(\''+t.id+'\')">Unassign</button>'
-        : '<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 7px;color:#4f5de8" onclick="closeClickUpManageModal();openAssignCuTaskModal(\''+t.id+'\')">Assign</button>')+
+        ? '<button class="btn btn-ghost btn-sm mrow-btn mrow-btn-unassign" onclick="unassignCuTaskAll(\''+t.id+'\')">Unassign</button>'
+        : '<button class="btn btn-ghost btn-sm mrow-btn mrow-btn-assign" onclick="closeClickUpManageModal();openAssignCuTaskModal(\''+t.id+'\')">Assign</button>')+
     '</div>';
-  }).join('')||'<div style="font-size:13px;color:var(--text3);font-style:italic">No ClickUp tasks defined yet.</div>';
+  }).join('')||'<div class="mrow-empty">No ClickUp tasks defined yet.</div>';
   document.getElementById('clickup-manage-overlay').classList.add('open');
 }
 
