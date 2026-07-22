@@ -2,7 +2,7 @@
 // cascade, the New/Edit Project modal, and the New/Edit Task modal.
 
 import { PRODUCT_TIER_MAP, PHASE_LABELS } from '../data/constants.js';
-import { esc, fmtDate, fmtNextActivity } from '../utils.js';
+import { esc, fmtDate, fmtNextActivity, newId } from '../utils.js';
 import { db, save } from '../db.js';
 import { A, register } from '../bus.js';
 
@@ -92,7 +92,7 @@ function submitParent(){
   const name=document.getElementById('pm-name').value.trim(); if(!name)return;
   const fields={name,status:document.getElementById('pm-status').value,due:document.getElementById('pm-due').value,oeStart:document.getElementById('pm-oestart').value,am:document.getElementById('pm-am').value};
   if(editingParentId){ Object.assign(db.rows.find(r=>r.id===editingParentId),fields); }
-  else { db.rows.push({id:'r'+Date.now(),parentId:null,collapsed:false,phase:'',tags:[],io:false,branding:false,newOrUpdate:'',productType:'',productTier:'',productStyle:'',zohoLink:'',estimateLink:'',dropboxLink:'',nextActivity:null,closeout:{},comments:[],...fields}); }
+  else { db.rows.push({id:newId('r'),parentId:null,collapsed:false,activePanel:'none',phase:'',tags:[],io:false,branding:false,newOrUpdate:'',productType:'',productTier:'',productStyle:'',zohoLink:'',estimateLink:'',dropboxLink:'',nextActivity:null,closeout:{},comments:[],...fields}); }
   save(); A.render(); closeParentModal();
 }
 
@@ -126,7 +126,7 @@ function submitSubtask(){
   const parentId=document.getElementById('sm-parent').value||null;
   const fields={name,parentId,status:document.getElementById('sm-status').value,phase:document.getElementById('sm-phase').value||null,tags:[],due:document.getElementById('sm-due').value,io:false,branding:false,oeStart:'',am:document.getElementById('sm-am').value,newOrUpdate:document.getElementById('sm-update').value,productType:document.getElementById('sm-type').value,productTier:document.getElementById('sm-tier').value,productStyle:'',zohoLink:'',dropboxLink:'',nextActivity:null,comments:[]};
   if(editingSubtaskId){ Object.assign(db.rows.find(r=>r.id===editingSubtaskId),fields); }
-  else { db.rows.push({id:'r'+Date.now(),collapsed:false,...fields}); }
+  else { db.rows.push({id:newId('r'),collapsed:false,activePanel:'none',...fields}); }
   save(); A.render(); closeSubtaskModal();
 }
 

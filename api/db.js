@@ -70,6 +70,21 @@ const DATE_COLUMNS = new Set([
   'start_date', 'due', 'oe_start', 'oe_end', 'distribution_date'
 ]);
 
+// Columns the schema declares NOT NULL. New rows created via the modal don't
+// set every one of these (e.g. activePanel is never set on creation — the UI
+// tolerates it everywhere via `row.activePanel||'none'`, but a missing key
+// reaches Postgres as null and trips the NOT NULL constraint, failing the whole
+// save). We backfill a safe default here — the same value the UI falls back to —
+// for any required column that arrives null/undefined. Add a column here if a
+// future NOT NULL constraint starts rejecting saves. Values mirror the seed row.
+const NOT_NULL_DEFAULTS = {
+  active_panel: 'none',
+  collapsed: false,
+  status: 'kickoff',
+  io: false,
+  branding: false
+};
+
 // Every KNOWN_FIELDS entry happens to be a mechanical camelCase<->snake_case
 // pair with its schema.sql column (activityLog <-> activity_log, etc.) — so
 // one generic converter handles all of them; nothing needs a manual map.
@@ -91,6 +106,10 @@ function rowToRecord(r) {
     }
   }
   if (!('parent_id' in record)) record.parent_id = null; // explicit null, not missing, for project rows
+  // Backfill NOT NULL columns the client left unset/null. See note above.
+  for (const col in NOT_NULL_DEFAULTS) {
+    if (record[col] === undefined || record[col] === null) record[col] = NOT_NULL_DEFAULTS[col];
+  }
   return record;
 }
 
