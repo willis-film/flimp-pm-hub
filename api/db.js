@@ -70,6 +70,17 @@ const DATE_COLUMNS = new Set([
   'start_date', 'due', 'oe_start', 'oe_end', 'distribution_date'
 ]);
 
+// Postgres `numeric` columns. Same trap as dates: "" is not a valid number, so
+// Postgres rejects the whole save with `invalid input syntax for type numeric:
+// ""`. The Info panel's cost/revenue inputs return "" when blank, so an empty
+// cost field would torpedo the save exactly as an empty date did. Verified
+// against the live schema — these are every numeric column in `rows`. Coerced
+// to null (a real "no value") right alongside the date coercion below.
+const NUMERIC_COLUMNS = new Set([
+  'total_revenue', 'designer_cost', 'animator_cost', 'vo_cost',
+  'other_vendor1_cost', 'other_vendor2_cost'
+]);
+
 // Columns the schema declares NOT NULL. New rows created via the modal don't
 // set every one of these, and a missing key reaches Postgres as null and trips
 // the NOT NULL constraint, failing the whole save — one column at a time, which
@@ -90,7 +101,10 @@ const NOT_NULL_DEFAULTS = {
   comments: [],
   invoices: [],
   activity_log: [],
-  tags: [],
+  // NOTE: `tags` is NOT here — it's not a real column; it lives in the `data`
+  //   JSONB catch-all (it's absent from KNOWN_FIELDS). Defaulting it as a
+  //   top-level column makes Postgres reject the write with "could not find
+  //   the 'tags' column". Only columns in KNOWN_FIELDS belong in this map.
   // JSONB columns — object-shaped
   closeout: {},
   distro: {}
@@ -115,6 +129,8 @@ function rowToRecord(r) {
       let val = r[key];
       // Blank date -> null, never "". See DATE_COLUMNS note above.
       if (DATE_COLUMNS.has(col) && (val === '' || val === undefined)) val = null;
+      // Blank numeric -> null, never "". See NUMERIC_COLUMNS note above.
+      if (NUMERIC_COLUMNS.has(col) && (val === '' || val === undefined)) val = null;
       record[col] = val;
     } else {
       record.data[key] = r[key];
