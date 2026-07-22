@@ -2,11 +2,12 @@
 
 import { db, save } from '../db.js';
 import { A, register } from '../bus.js';
+import { newId } from '../utils.js';
 
 function addInvoice(parentId){
   const r=db.rows.find(x=>x.id===parentId); if(!r)return;
   if(!r.invoices) r.invoices=[];
-  r.invoices.push({id:'inv'+Date.now(),sent:'',vendor:'',number:'',amount:'',tasks:[],status:'received'});
+  r.invoices.push({id:newId('inv'),sent:'',vendor:'',number:'',amount:'',tasks:[],status:'received'});
   save(); A.render();
 }
 

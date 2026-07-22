@@ -6,6 +6,28 @@ import {
   STATUS_LABELS, PHASE_LABELS, PRODUCT_TIER_MAP, PRODUCT_STYLE_MAP,
 } from './data/constants.js';
 
+// ── ID GENERATION ────────────────────────────────────────────────────────────
+// newId(prefix): collision-proof unique ID. The old pattern — `'r'+Date.now()`
+// — used millisecond resolution, so two rows created in the same millisecond
+// (bulk entry, fast clicks, a paste-driven loop) got the SAME id. On save that
+// was catastrophic: the /api/db upsert is keyed onConflict:'id', so duplicate
+// ids overwrite each other down to one row, and the delete-what's-missing step
+// then keeps only that survivor. Multiple new projects would collapse into one.
+//
+// The fix keeps a readable, roughly time-ordered prefix (so ids still sort and
+// scan sensibly in the DB) but appends real entropy from crypto.randomUUID(),
+// which is guaranteed unique. A monotonic counter guards the theoretical case
+// where randomUUID is somehow unavailable, so same-ms creates still differ.
+let _idCounter = 0;
+export function newId(prefix = 'r') {
+  const t = Date.now().toString(36);
+  const rand = (typeof crypto !== 'undefined' && crypto.randomUUID)
+    ? crypto.randomUUID().slice(0, 8)
+    : Math.random().toString(36).slice(2, 10);
+  const seq = (_idCounter++).toString(36);
+  return `${prefix}${t}-${rand}-${seq}`;
+}
+
 // ── ESCAPING / FORMATTING ────────────────────────────────────────────────────
 export function esc(s) {
   if (!s) return '';

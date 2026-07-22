@@ -1,6 +1,6 @@
 // clickup.js — ClickUp integration: assign / unassign tasks to projects.
 
-import { esc } from './utils.js';
+import { esc, newId } from './utils.js';
 import { db, save } from './db.js';
 import { A, register } from './bus.js';
 
@@ -24,7 +24,7 @@ function submitAssignCuTask(){
   // Map ClickUp status to internal status
   const statusMap={'to do':'kickoff','in progress':'production','in review':'done','complete':'closed'};
   const newRow={
-    id:'r'+Date.now(),
+    id:newId('r'),
     parentId:projectId,
     clickupId:cuTask.id,
     collapsed:false,
