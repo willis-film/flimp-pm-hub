@@ -71,18 +71,33 @@ const DATE_COLUMNS = new Set([
 ]);
 
 // Columns the schema declares NOT NULL. New rows created via the modal don't
-// set every one of these (e.g. activePanel is never set on creation — the UI
-// tolerates it everywhere via `row.activePanel||'none'`, but a missing key
-// reaches Postgres as null and trips the NOT NULL constraint, failing the whole
-// save). We backfill a safe default here — the same value the UI falls back to —
-// for any required column that arrives null/undefined. Add a column here if a
-// future NOT NULL constraint starts rejecting saves. Values mirror the seed row.
+// set every one of these, and a missing key reaches Postgres as null and trips
+// the NOT NULL constraint, failing the whole save — one column at a time, which
+// is why these errors surfaced sequentially (invalid date, then active_panel,
+// then invoices...). Rather than fix them one by one, we default EVERY column
+// that could reasonably be NOT NULL to a safe empty value here, at the single
+// write choke point. Scalars mirror the seed row; the JSONB columns get their
+// correct empty shape (array vs object). An empty []/{}/'none'/false is always
+// a harmless default for these, so defaulting a column that's actually nullable
+// costs nothing. Values match what the UI already falls back to when reading.
 const NOT_NULL_DEFAULTS = {
   active_panel: 'none',
   collapsed: false,
   status: 'kickoff',
   io: false,
-  branding: false
+  branding: false,
+  // JSONB columns — array-shaped
+  comments: [],
+  invoices: [],
+  activity_log: [],
+  tags: [],
+  // JSONB columns — object-shaped
+  closeout: {},
+  distro: {}
+  // NOTE: `timeline` is intentionally NOT defaulted — it's nullable by design
+  //   (null until a Timeline export is pasted). If Postgres ever rejects a null
+  //   timeline, it means that column is NOT NULL in the schema; add `timeline: {}`
+  //   here and redeploy.
 };
 
 // Every KNOWN_FIELDS entry happens to be a mechanical camelCase<->snake_case
