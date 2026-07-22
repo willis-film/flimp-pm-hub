@@ -59,6 +59,17 @@ const KNOWN_FIELDS = [
 ];
 const KNOWN_SET = new Set(KNOWN_FIELDS);
 
+// Postgres `date` columns. Empty string "" is NOT a valid date to Postgres —
+// it rejects the whole INSERT with `invalid input syntax for type date: ""`,
+// which fails the entire save (every row, not just the offending one). The
+// HTML date inputs return "" when left blank, so any project created without
+// a due/OE date would send "" and torpedo the save. We coerce "" (and
+// undefined) to null here, at the one choke point every write passes through,
+// so no form anywhere can reproduce this. null is a real "no date" to Postgres.
+const DATE_COLUMNS = new Set([
+  'start_date', 'due', 'oe_start', 'oe_end', 'distribution_date'
+]);
+
 // Every KNOWN_FIELDS entry happens to be a mechanical camelCase<->snake_case
 // pair with its schema.sql column (activityLog <-> activity_log, etc.) — so
 // one generic converter handles all of them; nothing needs a manual map.
@@ -69,8 +80,15 @@ const toCamel = s => s.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase());
 function rowToRecord(r) {
   const record = { data: {} };
   for (const key in r) {
-    if (KNOWN_SET.has(key)) record[toSnake(key)] = r[key];
-    else record.data[key] = r[key];
+    if (KNOWN_SET.has(key)) {
+      const col = toSnake(key);
+      let val = r[key];
+      // Blank date -> null, never "". See DATE_COLUMNS note above.
+      if (DATE_COLUMNS.has(col) && (val === '' || val === undefined)) val = null;
+      record[col] = val;
+    } else {
+      record.data[key] = r[key];
+    }
   }
   if (!('parent_id' in record)) record.parent_id = null; // explicit null, not missing, for project rows
   return record;
@@ -136,7 +154,26 @@ export default async function handler(req, res) {
       });
       if (wErr) throw wErr;
 
-      // 2. rows — one INSERT ... ON CONFLICT statement carrying every row,
+      // 2a. Reject payloads with duplicate row ids. A duplicate id means the
+      //    client generated colliding ids (the 'r'+Date.now() bug) — upserting
+      //    such a payload silently collapses distinct rows into one via
+      //    onConflict:'id', and then step 3 deletes the "missing" originals.
+      //    Far safer to fail loudly here than to let a malformed save destroy
+      //    data. The client can regenerate ids and retry.
+      const allIds = body.rows.map(r => r.id);
+      const seen = new Set();
+      const dupes = new Set();
+      for (const id of allIds) {
+        if (seen.has(id)) dupes.add(id);
+        seen.add(id);
+      }
+      if (dupes.size > 0) {
+        return res.status(409).json({
+          error: `Duplicate row id(s) in payload — refusing to save to avoid data loss: ${[...dupes].join(', ')}`
+        });
+      }
+
+      // 2b. rows — one INSERT ... ON CONFLICT statement carrying every row,
       //    so parent/child order inside the batch doesn't matter: Postgres
       //    checks the parent_id FK at end-of-statement, not row-by-row as it
       //    goes, so a child can appear before its parent in the array.
@@ -148,8 +185,8 @@ export default async function handler(req, res) {
 
       // 3. Delete anything the client no longer has. Guarded on a non-empty
       //    incoming list — an accidental empty save should never be able to
-      //    wipe the whole table.
-      const incomingIds = body.rows.map(r => r.id);
+      //    wipe the whole table. `seen` is the deduplicated id set from 2a.
+      const incomingIds = [...seen];
       if (incomingIds.length > 0) {
         const list = incomingIds.map(id => `"${id}"`).join(',');
         const { error: delErr } = await supabase.from('rows').delete().not('id', 'in', `(${list})`);
