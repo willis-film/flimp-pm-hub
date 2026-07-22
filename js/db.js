@@ -1,168 +1,140 @@
-// api/db.js — Supabase proxy. Runs ONLY on Vercel's servers. This is the one
-// place SUPABASE_URL / SUPABASE_SERVICE_KEY are allowed to exist — the browser
-// never sees this file's contents, only its JSON responses.
+// db.js — application state + persistence layer.
 //
-// Mirrors the load()/save() contract js/db.js already has, so the eventual
-// cutover is: replace localStorage.getItem/setItem with fetch('/api/db').
-//
-//   GET  /api/db  -> { gmailClientPrefix, clickupTasks, gmailLabelDefs,
-//                      gmailEmails, rows: [...] }   — same shape as SEED_DB.
-//   POST /api/db  -> body is that same shape MINUS clickupTasks. Upserts
-//                     workspace's settings (currently just gmail_client_prefix)
-//                     and full-replace-syncs rows: whatever's in the payload
-//                     is truth, same semantics as the old localStorage.setItem
-//                     of the whole blob. Anything missing from the payload
-//                     gets deleted — that's how row deletion (e.g.
-//                     unassignCuTaskAll) reaches the database at all, since
-//                     there's no separate "delete" endpoint.
-//
-//   clickupTasks is read here but never WRITTEN here — it's synced
-//   separately by api/sync-clickup.js, into its own table. clickup.js never
-//   mutates this list client-side (see clickup_tasks table comment in
-//   schema.sql), so there's nothing for the browser's save() to persist.
+// This wraps the single `db` state object and all read/write persistence.
+// Persists via the /api/db Supabase proxy (see api/db.js) — every caller
+// throughout the app still just calls save() and load() the same way; that
+// contract hasn't changed, only what's behind it.
 
-import { createClient } from '@supabase/supabase-js';
+import { SEED_DB } from './data/seed.js';
 
-// Deliberately NOT created at module load. createClient() throws
-// synchronously on a missing/malformed URL — if that happened up here,
-// outside any try/catch, it crashes the whole function process before
-// `handler` ever runs, and Vercel reports a bare FUNCTION_INVOCATION_FAILED
-// instead of a real error message. Creating it inside the handler, after an
-// explicit check, means a config problem is just a normal 500 with a
-// message that says what's actually wrong.
-function getClient() {
-  const { SUPABASE_URL, SUPABASE_SERVICE_KEY } = process.env;
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-    throw new Error(
-      `Missing env var(s): ${!SUPABASE_URL ? 'SUPABASE_URL ' : ''}${!SUPABASE_SERVICE_KEY ? 'SUPABASE_SERVICE_KEY' : ''}`.trim()
-    );
-  }
-  return createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+const LAST_OPEN_KEY = 'flimp_last_open'; // per-device marker, not project data — stays local, see dailyIOReset() below.
+const API = '/api/db';
+
+// Live, mutable state singleton. Imported by every module; mutated in place,
+// then persisted via save(). Deep-cloned from SEED_DB so the seed stays
+// pristine — this clone now also serves as the offline/fetch-failure
+// fallback (see load()).
+export const db = structuredClone(SEED_DB);
+
+// ── PERSISTENCE ──────────────────────────────────────────────────────────────
+// save(): POSTs the whole `db` object to the Supabase proxy. All ~48 call
+// sites across the app call this fire-and-forget (`save(); render();`) and
+// none of them await it — that contract is preserved here on purpose, so
+// none of those call sites needed to change. Failures are logged, not
+// thrown; a network hiccup shouldn't break the UI someone's actively
+// working in.
+//
+// Debounced (400ms trailing): rapid edits — typing, drag-reordering,
+// repeated toggles — would otherwise fire one full-table POST per
+// keystroke. Collapsing bursts into one call after things settle also
+// narrows (doesn't eliminate) the window where two in-flight POSTs could
+// resolve out of order and let an older save clobber a newer one.
+let saveTimer = null;
+
+function flushSave() {
+  saveTimer = null;
+  fetch(API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(db)
+  }).catch(e => console.error('db.js save() failed:', e));
 }
 
-// Every field that got its own real Postgres column — scalar columns AND the
-// dedicated JSONB columns (comments, invoices, activityLog, timeline,
-// closeout, distro). Anything on a row NOT in this list falls into the
-// general `data` catch-all JSONB. This list is the map of schema.sql — if a
-// field is ever promoted out of `data` into its own column there, add it here
-// too, or this proxy will keep filing it under `data` and the column will
-// silently stay empty.
-const KNOWN_FIELDS = [
-  'id', 'parentId', 'clickupId', 'name', 'status', 'phase',
-  'collapsed', 'activePanel',
-  'productType', 'productTier', 'productStyle', 'newOrUpdate', 'am',
-  'startDate', 'due', 'oeStart', 'oeEnd', 'distributionDate',
-  'io', 'branding',
-  'totalRevenue', 'designerCost', 'animatorCost', 'voCost',
-  'otherVendor1Cost', 'otherVendor2Cost',
-  'comments', 'invoices', 'activityLog', 'timeline', 'closeout', 'distro'
-];
-const KNOWN_SET = new Set(KNOWN_FIELDS);
-
-// Every KNOWN_FIELDS entry happens to be a mechanical camelCase<->snake_case
-// pair with its schema.sql column (activityLog <-> activity_log, etc.) — so
-// one generic converter handles all of them; nothing needs a manual map.
-const toSnake = s => s.replace(/[A-Z]/g, c => '_' + c.toLowerCase());
-const toCamel = s => s.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase());
-
-// ── app row (camelCase) -> Postgres record (named columns + data blob) ─────
-function rowToRecord(r) {
-  const record = { data: {} };
-  for (const key in r) {
-    if (KNOWN_SET.has(key)) record[toSnake(key)] = r[key];
-    else record.data[key] = r[key];
-  }
-  if (!('parent_id' in record)) record.parent_id = null; // explicit null, not missing, for project rows
-  return record;
+export function save() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(flushSave, 400);
 }
 
-// ── Postgres record -> app row (camelCase, data blob flattened back in) ────
-function recordToRow(rec) {
-  const row = {};
-  for (const col in rec) {
-    if (col === 'data' || col === 'created_at' || col === 'updated_at') continue;
-    row[toCamel(col)] = rec[col];
+// Catches a pending debounced save if the tab closes before the 400ms timer
+// fires. sendBeacon is used instead of fetch specifically because it's
+// designed to survive page unload — a normal fetch can get cancelled
+// mid-flight when the tab actually closes.
+window.addEventListener('beforeunload', () => {
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    navigator.sendBeacon(API, new Blob([JSON.stringify(db)], { type: 'application/json' }));
   }
-  Object.assign(row, rec.data || {});
-  return row;
+});
+
+// ── INFO PANEL FIELD DEFAULTS ────────────────────────────────────────────────
+// The Info panel introduced columns that predate no row in seed.js and exist in
+// nobody's saved localStorage. Because load() does an Object.assign merge of the
+// SAVED state over the seed, a saved db wholesale replaces `rows` — so seeding
+// these keys in seed.js alone would not reach an existing user's data. They are
+// backfilled here instead, after the merge, on every load.
+//
+// Item scope (subtask rows) and project scope (parent rows) take different sets.
+// Missing keys are added; existing values are never overwritten.
+
+const ITEM_FIELD_DEFAULTS = {
+  itemOwner:'', startDate:'', distributionDate:'',
+  previewLink:'', reportingLink:'', reviewStudioLink:'', boordsLink:'',
+  roundsOfEdits:'', language:'', productTopic:'',
+  totalRevenue:'',
+  designerCost:'', animatorCost:'', voCost:'',
+  otherVendor1:'', otherVendor1Cost:'',
+  otherVendor2:'', otherVendor2Cost:''
+};
+
+const PROJECT_FIELD_DEFAULTS = {
+  projectOwner:'', clientAccount:'', clientContact:'',
+  brokerAccount:'', brokerContact:'',
+  oeEnd:'', hubspotLink:'', estimateLink:'', invoiceRef:'',
+  totalRevenue:'',
+  // Pasted Timeline Tool export. Null until imported. Project scope only —
+  // the plan is authored per project, not per item.
+  timeline: null,
+  // Closeout checklist state. Null until the Closeout panel is opened once —
+  // closeout.js lazily creates { [itemIndex]: boolean } on first toggle.
+  // Backfilled here so a Supabase row always has the key, even untouched.
+  closeout: null,
+  // Distribution panel draft state. Null until the Distro panel is opened —
+  // distro.js lazily creates { template, subtaskIds, options, fields, step }.
+  // Working state for the current draft, not a record of what was sent.
+  distro: null
+};
+
+function backfillInfoFields() {
+  (db.rows || []).forEach(r => {
+    const defaults = r.parentId ? ITEM_FIELD_DEFAULTS : PROJECT_FIELD_DEFAULTS;
+    for (const k in defaults) {
+      if (!(k in r)) r[k] = defaults[k];
+    }
+  });
 }
 
-export default async function handler(req, res) {
+// load(): fetches the whole db shape from the Supabase proxy. Mirrors the
+// original Object.assign merge, so a missing/unreachable server falls back
+// to the SEED_DB clone already sitting in `db` rather than crashing —
+// logged loudly, though, so a real outage is visible in the console instead
+// of quietly looking like an empty board.
+//
+// NOTE — first call after cutover: an empty `rows` table is a valid, real
+// response (shape-wise identical to "nothing saved yet"), so it WILL
+// replace the seed demo rows with an empty board. That's expected, not data
+// loss — the seed data was always just local demo content, and it's now
+// only the offline fallback rather than the first-run default.
+export async function load() {
   try {
-    const supabase = getClient();
+    const res = await fetch(API);
+    if (!res.ok) throw new Error(`GET ${API} -> ${res.status}`);
+    const saved = await res.json();
+    // Mutate the existing object in place so the exported reference stays valid.
+    Object.assign(db, saved);
+  } catch (e) {
+    console.error('db.js load() failed, falling back to seed data:', e);
+  }
+  // Runs unconditionally — covers both the fresh-seed and hydrated-load paths.
+  backfillInfoFields();
+}
 
-    if (req.method === 'GET') {
-      const [{ data: ws, error: wErr }, { data: rowRecords, error: rErr }, { data: cuTasks, error: cuErr }] = await Promise.all([
-        supabase.from('workspace').select('*').eq('id', 1).single(),
-        supabase.from('rows').select('*'),
-        supabase.from('clickup_tasks').select('*')
-      ]);
-      if (wErr) throw wErr;
-      if (rErr) throw rErr;
-      if (cuErr) throw cuErr;
-
-      return res.status(200).json({
-        gmailClientPrefix: ws.gmail_client_prefix || '',
-        clickupTasks: (cuTasks || []).map(t => ({
-          id: t.id,
-          name: t.name,
-          status: t.status,
-          due: t.due,
-          productType: t.product_type,
-          productTier: t.product_tier,
-          productStyle: t.product_style,
-          clickupUrl: t.clickup_url
-        })),
-        gmailLabelDefs:    ws.gmail_label_defs || [],
-        gmailEmails:       ws.gmail_emails || [],
-        rows: (rowRecords || []).map(recordToRow)
-      });
-    }
-
-    if (req.method === 'POST') {
-      const body = req.body;
-      if (!body || !Array.isArray(body.rows)) {
-        return res.status(400).json({ error: 'Expected { rows: [...], gmailClientPrefix, clickupTasks, gmailLabelDefs, gmailEmails }' });
-      }
-
-      // 1. workspace settings — single row, upsert in place. clickupTasks is
-      //    deliberately excluded: it's owned by api/sync-clickup.js, not by
-      //    the browser's save().
-      const { error: wErr } = await supabase.from('workspace').upsert({
-        id: 1,
-        gmail_client_prefix: body.gmailClientPrefix || '',
-        gmail_label_defs:    body.gmailLabelDefs || [],
-        gmail_emails:        body.gmailEmails || []
-      });
-      if (wErr) throw wErr;
-
-      // 2. rows — one INSERT ... ON CONFLICT statement carrying every row,
-      //    so parent/child order inside the batch doesn't matter: Postgres
-      //    checks the parent_id FK at end-of-statement, not row-by-row as it
-      //    goes, so a child can appear before its parent in the array.
-      if (body.rows.length > 0) {
-        const records = body.rows.map(rowToRecord);
-        const { error: upsertErr } = await supabase.from('rows').upsert(records, { onConflict: 'id' });
-        if (upsertErr) throw upsertErr;
-      }
-
-      // 3. Delete anything the client no longer has. Guarded on a non-empty
-      //    incoming list — an accidental empty save should never be able to
-      //    wipe the whole table.
-      const incomingIds = body.rows.map(r => r.id);
-      if (incomingIds.length > 0) {
-        const list = incomingIds.map(id => `"${id}"`).join(',');
-        const { error: delErr } = await supabase.from('rows').delete().not('id', 'in', `(${list})`);
-        if (delErr) throw delErr;
-      }
-
-      return res.status(200).json({ ok: true });
-    }
-
-    res.setHeader('Allow', ['GET', 'POST']);
-    return res.status(405).json({ error: `Method ${req.method} not allowed` });
-  } catch (err) {
-    console.error('api/db error:', err);
-    return res.status(500).json({ error: err.message || 'Internal error' });
+// Resets every row's daily I/O flag the first time the app opens on a new day.
+export function dailyIOReset() {
+  const today = new Date().toDateString();
+  const lastOpen = localStorage.getItem(LAST_OPEN_KEY);
+  if (lastOpen !== today) {
+    db.rows.forEach(r => { r.io = false; });
+    localStorage.setItem(LAST_OPEN_KEY, today);
+    save();
   }
 }

@@ -7,20 +7,38 @@
 //
 //   GET  /api/db  -> { gmailClientPrefix, clickupTasks, gmailLabelDefs,
 //                      gmailEmails, rows: [...] }   — same shape as SEED_DB.
-//   POST /api/db  -> body is that same shape. Upserts workspace (one row) and
-//                     full-replace-syncs rows: whatever's in the payload is
-//                     truth, same semantics as the old localStorage.setItem
+//   POST /api/db  -> body is that same shape MINUS clickupTasks. Upserts
+//                     workspace's settings (currently just gmail_client_prefix)
+//                     and full-replace-syncs rows: whatever's in the payload
+//                     is truth, same semantics as the old localStorage.setItem
 //                     of the whole blob. Anything missing from the payload
 //                     gets deleted — that's how row deletion (e.g.
 //                     unassignCuTaskAll) reaches the database at all, since
 //                     there's no separate "delete" endpoint.
+//
+//   clickupTasks is read here but never WRITTEN here — it's synced
+//   separately by api/sync-clickup.js, into its own table. clickup.js never
+//   mutates this list client-side (see clickup_tasks table comment in
+//   schema.sql), so there's nothing for the browser's save() to persist.
 
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
+// Deliberately NOT created at module load. createClient() throws
+// synchronously on a missing/malformed URL — if that happened up here,
+// outside any try/catch, it crashes the whole function process before
+// `handler` ever runs, and Vercel reports a bare FUNCTION_INVOCATION_FAILED
+// instead of a real error message. Creating it inside the handler, after an
+// explicit check, means a config problem is just a normal 500 with a
+// message that says what's actually wrong.
+function getClient() {
+  const { SUPABASE_URL, SUPABASE_SERVICE_KEY } = process.env;
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+    throw new Error(
+      `Missing env var(s): ${!SUPABASE_URL ? 'SUPABASE_URL ' : ''}${!SUPABASE_SERVICE_KEY ? 'SUPABASE_SERVICE_KEY' : ''}`.trim()
+    );
+  }
+  return createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+}
 
 // Every field that got its own real Postgres column — scalar columns AND the
 // dedicated JSONB columns (comments, invoices, activityLog, timeline,
@@ -71,17 +89,30 @@ function recordToRow(rec) {
 
 export default async function handler(req, res) {
   try {
+    const supabase = getClient();
+
     if (req.method === 'GET') {
-      const [{ data: ws, error: wErr }, { data: rowRecords, error: rErr }] = await Promise.all([
+      const [{ data: ws, error: wErr }, { data: rowRecords, error: rErr }, { data: cuTasks, error: cuErr }] = await Promise.all([
         supabase.from('workspace').select('*').eq('id', 1).single(),
-        supabase.from('rows').select('*')
+        supabase.from('rows').select('*'),
+        supabase.from('clickup_tasks').select('*')
       ]);
       if (wErr) throw wErr;
       if (rErr) throw rErr;
+      if (cuErr) throw cuErr;
 
       return res.status(200).json({
         gmailClientPrefix: ws.gmail_client_prefix || '',
-        clickupTasks:      ws.clickup_tasks || [],
+        clickupTasks: (cuTasks || []).map(t => ({
+          id: t.id,
+          name: t.name,
+          status: t.status,
+          due: t.due,
+          productType: t.product_type,
+          productTier: t.product_tier,
+          productStyle: t.product_style,
+          clickupUrl: t.clickup_url
+        })),
         gmailLabelDefs:    ws.gmail_label_defs || [],
         gmailEmails:       ws.gmail_emails || [],
         rows: (rowRecords || []).map(recordToRow)
@@ -94,11 +125,12 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Expected { rows: [...], gmailClientPrefix, clickupTasks, gmailLabelDefs, gmailEmails }' });
       }
 
-      // 1. workspace — single row, upsert in place.
+      // 1. workspace settings — single row, upsert in place. clickupTasks is
+      //    deliberately excluded: it's owned by api/sync-clickup.js, not by
+      //    the browser's save().
       const { error: wErr } = await supabase.from('workspace').upsert({
         id: 1,
         gmail_client_prefix: body.gmailClientPrefix || '',
-        clickup_tasks:       body.clickupTasks || [],
         gmail_label_defs:    body.gmailLabelDefs || [],
         gmail_emails:        body.gmailEmails || []
       });
