@@ -119,3 +119,47 @@ export const ACTIVITY_SKIP = new Set([
   'previewLink','reportingLink','reviewStudioLink','boordsLink','hubspotLink',
   'estimateLink','invoiceRef'
 ]);
+
+// ── LIVE REFERENCE DATA (Supabase-backed) ────────────────────────────────────
+// The lists above are DEFAULTS/FALLBACKS. At boot, load() fetches the matching
+// reference tables from Supabase and calls applyReference() to overwrite these
+// in place. We MUTATE the existing arrays/objects (not reassign) because ES
+// module bindings are read-only for importers — but every consumer reads these
+// at call-time (when building a dropdown), so an in-place swap is picked up on
+// the next render with no change needed in the consuming files.
+//
+// If the reference payload is missing (tables not migrated yet, or a failed
+// load), the hardcoded defaults above remain in force — the app still works.
+
+function _replaceArray(target, next) {
+  if (!Array.isArray(next)) return;          // ignore missing/empty payloads
+  target.length = 0;
+  for (const v of next) target.push(v);
+}
+function _replaceMap(target, next) {
+  if (!next || typeof next !== 'object') return;
+  for (const k in target) delete target[k];
+  Object.assign(target, next);
+}
+
+export function applyReference(ref) {
+  if (!ref) return;                          // no reference block -> keep defaults
+  // Only replace when the incoming list is non-empty, so a half-populated set of
+  // tables can't blank out a working dropdown. (An intentionally empty table is
+  // rare for these; safer to keep the default than to render an empty select.)
+  const arr = (target, next) => { if (Array.isArray(next) && next.length) _replaceArray(target, next); };
+  const map = (target, next) => { if (next && Object.keys(next).length) _replaceMap(target, next); };
+
+  arr(AM_LIST,            ref.amList);
+  arr(DESIGNER_LIST,      ref.designerList);
+  arr(ANIMATOR_LIST,      ref.animatorList);
+  arr(VO_LIST,            ref.voList);
+  arr(OWNER_LIST,         ref.ownerList);
+  arr(ALL_TAGS,           ref.tags);
+  arr(LANGUAGE_LIST,      ref.languages);
+  arr(PRODUCT_TOPIC_LIST, ref.productTopics);
+  arr(PRODUCT_TYPE_LIST,  ref.productTypes);
+  arr(CLOSEOUT_ITEMS,     ref.closeoutItems);
+  map(PRODUCT_TIER_MAP,   ref.productTierMap);
+  map(PRODUCT_STYLE_MAP,  ref.productStyleMap);
+}

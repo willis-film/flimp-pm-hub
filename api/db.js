@@ -160,14 +160,56 @@ export default async function handler(req, res) {
     const supabase = getClient();
 
     if (req.method === 'GET') {
-      const [{ data: ws, error: wErr }, { data: rowRecords, error: rErr }, { data: cuTasks, error: cuErr }] = await Promise.all([
+      // Reference (lookup) tables — loaded once at boot, cached client-side for
+      // the session. Editable directly in Supabase; a page reload picks up edits.
+      // Fetched in parallel with the core data; all filtered to active rows and
+      // ordered by sort_order so dropdowns render in the intended order.
+      const refTable = name => supabase.from(name).select('*').eq('active', true).order('sort_order');
+
+      const [
+        { data: ws, error: wErr },
+        { data: rowRecords, error: rErr },
+        { data: cuTasks, error: cuErr },
+        { data: people, error: pErr },
+        { data: tags, error: tagErr },
+        { data: languages, error: lErr },
+        { data: productTopics, error: ptErr },
+        { data: productTypes, error: ptypeErr },
+        { data: closeoutItems, error: coErr },
+        { data: productOptions, error: poErr }
+      ] = await Promise.all([
         supabase.from('workspace').select('*').eq('id', 1).single(),
         supabase.from('rows').select('*'),
-        supabase.from('clickup_tasks').select('*')
+        supabase.from('clickup_tasks').select('*'),
+        refTable('people'),
+        refTable('tags'),
+        refTable('languages'),
+        refTable('product_topics'),
+        refTable('product_types'),
+        refTable('closeout_items'),
+        refTable('product_options')
       ]);
       if (wErr) throw wErr;
       if (rErr) throw rErr;
       if (cuErr) throw cuErr;
+      // Reference-table errors are non-fatal individually, but surface them so a
+      // missing table (e.g. migration not run yet) is visible rather than silent.
+      const refErr = pErr || tagErr || lErr || ptErr || ptypeErr || coErr || poErr;
+      if (refErr) throw refErr;
+
+      // Shape product_options back into the { productType: [values] } maps the
+      // UI expects, split by kind, preserving sort order.
+      const tierMap = {};
+      const styleMap = {};
+      for (const o of (productOptions || [])) {
+        const target = o.kind === 'style' ? styleMap : tierMap;
+        (target[o.product_type] = target[o.product_type] || []).push(o.value);
+      }
+      // Group people by role into plain name arrays.
+      const peopleByRole = { am: [], designer: [], animator: [], vo: [], owner: [] };
+      for (const p of (people || [])) {
+        if (peopleByRole[p.role]) peopleByRole[p.role].push(p.name);
+      }
 
       return res.status(200).json({
         gmailClientPrefix: ws.gmail_client_prefix || '',
@@ -183,7 +225,21 @@ export default async function handler(req, res) {
         })),
         gmailLabelDefs:    ws.gmail_label_defs || [],
         gmailEmails:       ws.gmail_emails || [],
-        rows: (rowRecords || []).map(recordToRow)
+        rows: (rowRecords || []).map(recordToRow),
+        reference: {
+          amList:          peopleByRole.am,
+          designerList:    peopleByRole.designer,
+          animatorList:    peopleByRole.animator,
+          voList:          peopleByRole.vo,
+          ownerList:       peopleByRole.owner,
+          tags:            (tags || []).map(r => r.value),
+          languages:       (languages || []).map(r => r.value),
+          productTopics:   (productTopics || []).map(r => r.value),
+          productTypes:    (productTypes || []).map(r => r.value),
+          closeoutItems:   (closeoutItems || []).map(r => r.value),
+          productTierMap:  tierMap,
+          productStyleMap: styleMap
+        }
       });
     }
 

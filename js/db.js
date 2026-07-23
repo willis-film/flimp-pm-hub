@@ -6,6 +6,7 @@
 // contract hasn't changed, only what's behind it.
 
 import { SEED_DB } from './data/seed.js';
+import { applyReference } from './data/constants.js';
 
 const LAST_OPEN_KEY = 'flimp_last_open'; // per-device marker, not project data — stays local, see dailyIOReset() below.
 const API = '/api/db';
@@ -121,6 +122,9 @@ export async function load() {
     const saved = await res.json();
     // Mutate the existing object in place so the exported reference stays valid.
     Object.assign(db, saved);
+    // Overwrite the hardcoded option lists with the Supabase reference tables
+    // (falls back to the hardcoded defaults if the reference block is absent).
+    applyReference(saved.reference);
   } catch (e) {
     console.error('db.js load() failed, falling back to seed data:', e);
   }
