@@ -8,6 +8,21 @@ import { db, save } from './db.js';
 import { ui } from './state.js';
 import { A, register } from './bus.js';
 
+// Gmail deep-link for a thread. The account is pinned by address rather than
+// the usual /u/0/ index: that index is "first Google account signed into this
+// browser," which depends on sign-in order and can differ between machines —
+// so /u/0/ can land in a personal inbox that doesn't contain the thread.
+// authuser= resolves to the right mailbox regardless. Set to '' to fall back
+// to /u/0/ if only ever one account is signed in.
+const GMAIL_ACCOUNT = 'andrew@flimp.net';
+
+function gmailThreadUrl(threadId) {
+  return GMAIL_ACCOUNT
+    ? `https://mail.google.com/mail/?authuser=${encodeURIComponent(GMAIL_ACCOUNT)}#all/${threadId}`
+    : `https://mail.google.com/mail/u/0/#all/${threadId}`;
+}
+
+
 // Tracks the parent strip currently animating into a new status section, so
 // render() can stamp the pre-offset `.fps-enter` class on it synchronously.
 let _enteringId = null;
@@ -449,10 +464,10 @@ function render(){
           <td style="max-width:90px;${unreadStyle}">${labelNames||'<span class="dash">—</span>'}</td>
           <td style="max-width:200px;${unreadStyle}">${esc(email.from||'—')}</td>
           <td style="max-width:410px;${unreadStyle}">${esc(email.subject||'—')}</td>
-          <td style="white-space:nowrap;${unreadStyle}">${esc(email.date||'—')}</td>
+          <td style="white-space:nowrap;${unreadStyle}" title="${esc(fmtAbsTime({at:email.date}))}">${esc(fmtRelTime({at:email.date})||email.date||'—')}</td>
           <td style="text-align:center">
             ${email.threadId
-              ? `<a class="email-link" href="https://mail.google.com/mail/u/0/#all/${esc(email.threadId)}" target="_blank">
+              ? `<a class="email-link" href="${esc(gmailThreadUrl(email.threadId))}" target="_blank">
                   <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3H3a1 1 0 00-1 1v9a1 1 0 001 1h9a1 1 0 001-1v-3M10 2h4m0 0v4m0-4L7 9"/></svg>
                   Open
                 </a>`
