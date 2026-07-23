@@ -419,20 +419,22 @@ function render(){
       tbody.appendChild(tr);
     });
 
-    // Add-subtask control lives OUTSIDE the table, not as a final <tr>.
-    // As a row it inherited the sheet's cell borders and --panel-2 fill, so
-    // it read as a table row with an odd empty 15-column tail rather than as
-    // a button. Sitting below the table on the panel background, it reads as
-    // what it is: an action attached to the table, not a member of it.
+    // Add-subtask control sits OUTSIDE .subtask-wrap, as a sibling after it —
+    // not inside, and not as a final <tr>. Inside the wrap it inherits the
+    // panel's white --panel background, its border, and its rounded bottom
+    // corners, so it reads as a pale extra row still attached to the table.
+    // Out here it sits directly on the page background, which lets the
+    // table's bottom radius close off after the last real subtask and leaves
+    // the button reading as an action below the card (the ClickUp pattern).
     const addWrap=document.createElement('div');
-    addWrap.className='sub-add-wrap';
+    addWrap.className='sub-add-wrap'+(activePanel!=='subtasks'?' hidden':'');
     addWrap.innerHTML=`
       <button class="add-task-btn" onclick="A.openSubtaskModal('${parent.id}')">
         <span style="font-size: 14px;line-height:1">+</span>&nbsp;Add subtask
       </button>`;
 
     block.appendChild(subWrap);
-    subWrap.appendChild(addWrap);
+    block.appendChild(addWrap);
 
     // ── EMAIL PANEL ────────────────────────────────────────────────────────
     const emailWrap=document.createElement('div');

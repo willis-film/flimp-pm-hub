@@ -668,10 +668,23 @@ body::before {
 .task-name-text { font-family: var(--font); font-size: 13px; color: var(--ink); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
 .task-name-text:hover { color: var(--signal); }
 
-/* add-subtask control — sits below the table on the panel background, not as
-   a final <tr>. As a row it carried the sheet's cell borders and --panel-2
-   fill and read as data; out here it reads as an action. */
-.sub-add-wrap { padding: 7px 0 2px; display: flex; }
+/* add-subtask control — a sibling AFTER .subtask-wrap, not inside it and not
+   a final <tr>. Inside the wrap it picked up --panel, the border and the
+   bottom radius, so it read as a pale extra table row. Out here it sits on
+   the page background: the table's bottom corners close after the last real
+   subtask, and this reads as an action below the card.
+   Matches the panel's left indent (--spine-off) so it aligns with the table
+   edge rather than the strip spine. */
+.sub-add-wrap {
+  margin-left: var(--spine-off);
+  padding: 8px 0 2px;
+  display: flex;
+  margin-bottom: 11px;
+}
+/* .subtask-wrap carries margin-bottom for spacing when the panel is open; with
+   the button below it, that gap belongs after the button instead. */
+.subtask-wrap:has(+ .sub-add-wrap:not(.hidden)) { margin-bottom: 0; }
+.sub-add-wrap.hidden { display: none; }
 
 /* add-row footers */
 .add-task-row td { height: 30px; background: var(--panel-2); }
