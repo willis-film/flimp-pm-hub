@@ -15,7 +15,7 @@
 //                     gets deleted — that's how row deletion (e.g.
 //                     unassignCuTaskAll) reaches the database at all, since
 //                     there's no separate "delete" endpoint.
-//
+//   tack
 //   clickupTasks is read here but never WRITTEN here — it's synced
 //   separately by api/sync-clickup.js, into its own table. clickup.js never
 //   mutates this list client-side (see clickup_tasks table comment in
