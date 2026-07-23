@@ -16,6 +16,25 @@ import { A, register } from './bus.js';
 // to /u/0/ if only ever one account is signed in.
 const GMAIL_ACCOUNT = 'andrew@flimp.net';
 
+// Timestamp for the Inbox panel's Latest column. Not fmtRelTime(): that one
+// is tuned for the activity log, where "3h ago" is the useful framing and
+// anything past 30 days collapses to a bare "Jul 20" with no time at all.
+// Mail wants the opposite emphasis — which day, and when on that day — so
+// this always renders both parts, with an explicit separator between them
+// rather than the comma-run-together that toLocaleString produces.
+// Same-year dates drop the year to keep the narrow column from wrapping.
+function fmtEmailTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  const date = d.toLocaleDateString('en-US',
+    sameYear ? { month: 'short', day: 'numeric' }
+             : { month: 'short', day: 'numeric', year: 'numeric' });
+  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return `${date}  ${time}`;
+}
+
 function gmailThreadUrl(threadId) {
   return GMAIL_ACCOUNT
     ? `https://mail.google.com/mail/?authuser=${encodeURIComponent(GMAIL_ACCOUNT)}#all/${threadId}`
@@ -400,21 +419,20 @@ function render(){
       tbody.appendChild(tr);
     });
 
-    const addTr=document.createElement('tr');
-    addTr.className='add-task-row';
-    addTr.innerHTML=`
-      <td class="td-name" style="background:var(--panel-2)">
-        <div class="name-inner">
-          <div class="toggle-spacer"></div>
-          <button class="add-task-btn" onclick="A.openSubtaskModal('${parent.id}')">
-            <span style="font-size: 14px;line-height:1">+</span>&nbsp;Add subtask
-          </button>
-        </div>
-      </td>
-      <td colspan="15"></td>`;
-    tbody.appendChild(addTr);
+    // Add-subtask control lives OUTSIDE the table, not as a final <tr>.
+    // As a row it inherited the sheet's cell borders and --panel-2 fill, so
+    // it read as a table row with an odd empty 15-column tail rather than as
+    // a button. Sitting below the table on the panel background, it reads as
+    // what it is: an action attached to the table, not a member of it.
+    const addWrap=document.createElement('div');
+    addWrap.className='sub-add-wrap';
+    addWrap.innerHTML=`
+      <button class="add-task-btn" onclick="A.openSubtaskModal('${parent.id}')">
+        <span style="font-size: 14px;line-height:1">+</span>&nbsp;Add subtask
+      </button>`;
 
     block.appendChild(subWrap);
+    subWrap.appendChild(addWrap);
 
     // ── EMAIL PANEL ────────────────────────────────────────────────────────
     const emailWrap=document.createElement('div');
@@ -464,7 +482,7 @@ function render(){
           <td style="max-width:90px;${unreadStyle}">${labelNames||'<span class="dash">—</span>'}</td>
           <td style="max-width:200px;${unreadStyle}">${esc(email.from||'—')}</td>
           <td style="max-width:410px;${unreadStyle}">${esc(email.subject||'—')}</td>
-          <td style="white-space:nowrap;${unreadStyle}" title="${esc(fmtAbsTime({at:email.date}))}">${esc(fmtRelTime({at:email.date})||email.date||'—')}</td>
+          <td style="white-space:nowrap;${unreadStyle}" title="${esc(fmtAbsTime({at:email.date}))}">${esc(fmtEmailTime(email.date))}</td>
           <td style="text-align:center">
             ${email.threadId
               ? `<a class="email-link" href="${esc(gmailThreadUrl(email.threadId))}" target="_blank">

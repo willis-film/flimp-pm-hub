@@ -64,6 +64,18 @@ const isSystemLabel = id => SYSTEM_LABELS.has(id) || id.startsWith('CATEGORY_');
 // archive self-completes over a few cycles instead of failing forever.
 const BACKFILL_BATCH = 40;
 
+// Gmail has no folders — nesting is purely a naming convention, where
+// "Active Clients 26/Grange Insurance" is a child of "Active Clients 26" only
+// because of the slash. Both come back from labels.list as equal, assignable
+// labels. The bare parent is a container in practice: mail is filed into the
+// children, so assigning a project to "Active Clients 26" would match every
+// client at once. Dropped here by checking whether any OTHER label starts
+// with this one plus a slash — that is what makes it a parent, rather than
+// guessing from the prefix field or a hardcoded name.
+function stripParentLabels(defs) {
+  return defs.filter(l => !defs.some(o => o.id !== l.id && o.name.startsWith(l.name + '/')));
+}
+
 function getSupabase() {
   const { SUPABASE_URL, SUPABASE_SERVICE_KEY } = process.env;
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
@@ -122,11 +134,11 @@ async function gmail(path, accessToken) {
 // SKIPS the label update and lets the thread sync proceed, rather than
 // failing the whole run. A scheduled job shouldn't blank the sidebar.
 async function refreshLabelDefs(supabase, accessToken) {
-  const DEFAULT_BG = '#9FB1BC';
-  const DEFAULT_TEXT = '#08212D';
+  const DEFAULT_BG = '#E8EDF0';
+  const DEFAULT_TEXT = '#3D5561';
   try {
     const json = await gmail('/labels', accessToken);
-    const defs = (json.labels || [])
+    const allDefs = (json.labels || [])
       .filter(l => l.type === 'user')
       .map(l => ({
         id: l.id,
@@ -135,6 +147,9 @@ async function refreshLabelDefs(supabase, accessToken) {
         textColor: (l.color && l.color.textColor) || DEFAULT_TEXT
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
+
+    // Drop bare parent labels ("Active Clients 26") — see stripParentLabels.
+    const defs = stripParentLabels(allDefs);
 
     if (defs.length === 0) {
       console.warn('sync-gmail-threads: labels.list returned no user labels — skipping label refresh');

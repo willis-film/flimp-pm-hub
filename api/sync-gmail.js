@@ -39,8 +39,20 @@ const USER_LABEL_TYPE = 'user';
 // a `color` object for labels whose color was explicitly chosen; the rest
 // have none at all. The sidebar and pills both expect a bgColor, so an
 // unset label gets the neutral hub grey rather than rendering colorless.
-const DEFAULT_BG = '#9FB1BC';
-const DEFAULT_TEXT = '#08212D';
+const DEFAULT_BG = '#E8EDF0';
+const DEFAULT_TEXT = '#3D5561';
+
+// Gmail has no folders — nesting is purely a naming convention, where
+// "Active Clients 26/Grange Insurance" is a child of "Active Clients 26" only
+// because of the slash. Both come back from labels.list as equal, assignable
+// labels. The bare parent is a container in practice: mail is filed into the
+// children, so assigning a project to "Active Clients 26" would match every
+// client at once. Dropped here by checking whether any OTHER label starts
+// with this one plus a slash — that is what makes it a parent, rather than
+// guessing from the prefix field or a hardcoded name.
+function stripParentLabels(defs) {
+  return defs.filter(l => !defs.some(o => o.id !== l.id && o.name.startsWith(l.name + '/')));
+}
 
 function getSupabase() {
   const { SUPABASE_URL, SUPABASE_SERVICE_KEY } = process.env;
@@ -109,7 +121,7 @@ export default async function handler(req, res) {
     // orphans an assignment the way regenerated local ids ('lbl1', 'lbl2'
     // from seed.js) would. Sorted by name so the sidebar ordering is stable
     // between syncs rather than tracking Gmail's arbitrary return order.
-    const labelDefs = rawLabels
+    const allDefs = rawLabels
       .filter(l => l.type === USER_LABEL_TYPE)
       .map(l => ({
         id: l.id,
@@ -118,6 +130,9 @@ export default async function handler(req, res) {
         textColor: (l.color && l.color.textColor) || DEFAULT_TEXT
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
+
+    // Drop bare parent labels ("Active Clients 26") — see stripParentLabels.
+    const labelDefs = stripParentLabels(allDefs);
 
     // Guard: an empty result would blank every label in the sidebar and turn
     // every assigned pill into "label moved". That's a plausible symptom of

@@ -668,6 +668,11 @@ body::before {
 .task-name-text { font-family: var(--font); font-size: 13px; color: var(--ink); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
 .task-name-text:hover { color: var(--signal); }
 
+/* add-subtask control — sits below the table on the panel background, not as
+   a final <tr>. As a row it carried the sheet's cell borders and --panel-2
+   fill and read as data; out here it reads as an action. */
+.sub-add-wrap { padding: 7px 0 2px; display: flex; }
+
 /* add-row footers */
 .add-task-row td { height: 30px; background: var(--panel-2); }
 .add-task-btn, .add-inv-btn { background: none; border: none; cursor: pointer; font-family: var(--font); font-size: 12px; color: var(--ink-3); display: flex; align-items: center; gap: 5px; padding: 0; height: 100%; transition: color .13s; }
