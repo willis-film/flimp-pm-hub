@@ -87,13 +87,15 @@
      NOTE on the arithmetic: box-sizing is border-box globally (see the reset at
      the top of this file), so the tab's 1px right border is INSIDE its 20px, not
      added to it. Likewise .fps's 1px left border is inside .fps. So the strip
-     BODY starts at 1px (.fps's own left border) + 20px (the tab) = 21px from the
+     BODY starts at 1px (.fps's own left border) + 10px (the tab) = 11px from the
      block's left edge. Counting the tab's border a second time is the classic
      content-box mistake and lands the panel 1px past the seam.
-       --spine-w   the lamp rail, border included
-       --spine-off .fps's left border + the rail = where .fps-body starts */
-  --spine-w:   20px;
-  --spine-off: 21px;
+       --spine-w   the status rail, border included
+       --spine-off .fps's left border + the rail = where .fps-body starts
+     NOTE: --spine-off is NOT computed — if you change --spine-w, change this to
+     match (spine-w + 1px), or every open panel's indent drifts off the seam. */
+  --spine-w:   10px;
+  --spine-off: 11px;
   --rail-w: 224px;
 
   /* ── type — Montserrat throughout (aligns with the Frequency Tower wordmark) ── */
@@ -375,7 +377,7 @@ body::before {
   /* fallback for browsers without color-mix(): flat status color */
   background: var(--lamp, var(--ink-3));
   background:
-    radial-gradient(ellipse 15px 26px at 50% 50%, rgba(255,255,255,0.40) 0%, rgba(255,255,255,0) 68%),
+    radial-gradient(ellipse 8px 26px at 50% 50%, rgba(255,255,255,0.40) 0%, rgba(255,255,255,0) 68%),
     linear-gradient(90deg,
       color-mix(in srgb, var(--lamp, var(--ink-3)) 74%, #2A1A1D) 0%,
       color-mix(in srgb, var(--lamp, var(--ink-3)) 89%, #2A1A1D) 18%,
