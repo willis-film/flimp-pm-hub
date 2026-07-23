@@ -354,48 +354,65 @@ body::before {
    twice over — by the spine lamps (lit vs unlit) and by the strip's shadow
    (standing proud vs seated on the board). A third marker was redundant. */
 
-/* status spine — a brushed light-metal rail carrying three lit signal lamps */
+/* ── STATUS SPINE ────────────────────────────────────────────────────────────
+   The spine IS the status indicator: one solid bar of status color, no lamps,
+   no brushed metal. Replaces the old three-lamp aluminum rail — at 9px the
+   lamps' highlight/ring/shadow stack read as noise beside the project name,
+   and three of them restated a status the label already carried.
+
+   Material logic (the part that keeps this from being a plain colored stripe):
+   - a soft centered highlight pool — the lamp glow, stretched to the full bar
+   - a darkening down the LEFT edge only, so the bar reads as seated against
+     the strip's edge rather than floating as a free-standing tube
+   The spine's height is set by the strip header alone (panels render as
+   siblings outside .fps), so a fixed-size centered pool never drifts.
+
+   Still the I/O toggle: same width, same hit target, same press handler and
+   keyboard support. Only the visual expression changed. */
 .fps-tab {
   width: var(--spine-w); flex-shrink: 0; position: relative;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 14px; padding: 4px 0; cursor: pointer;
-  background: linear-gradient(90deg, #EDF0F3, #F7F9FB 55%, #E8ECEF);
-  border-right: 1px solid var(--line-2);
-  box-shadow: inset -1px 0 0 rgba(255,255,255,0.6);
-  transition: background .13s;
+  cursor: pointer;
+  /* fallback for browsers without color-mix(): flat status color */
+  background: var(--lamp, var(--ink-3));
+  background:
+    radial-gradient(ellipse 15px 26px at 50% 50%, rgba(255,255,255,0.40) 0%, rgba(255,255,255,0) 68%),
+    linear-gradient(90deg,
+      color-mix(in srgb, var(--lamp, var(--ink-3)) 74%, #2A1A1D) 0%,
+      color-mix(in srgb, var(--lamp, var(--ink-3)) 89%, #2A1A1D) 18%,
+      var(--lamp, var(--ink-3)) 42%,
+      var(--lamp, var(--ink-3)) 100%);
+  box-shadow: inset 0 0 0 1px rgba(28,42,51,0.20);
+  transition: background .13s, box-shadow .13s;
 }
-.fps-tab:hover { background: linear-gradient(90deg, #E4E9EE, #EEF2F6 55%, #DFE5EA); }
+.fps-tab:hover { box-shadow: inset 0 0 0 1px rgba(28,42,51,0.32); }
 .fps-tab:focus-visible { outline: 2px solid var(--signal); outline-offset: -2px; }
-.fps-lamp {
-  /* a lit lamp — solid status color, tight darkening ring + inner highlight (no halo) */
-  width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
+
+.fps-tab-kickoff    { --lamp: var(--sig-kickoff); }
+.fps-tab-production { --lamp: var(--sig-production); }
+.fps-tab-limbo      { --lamp: var(--sig-limbo); }
+.fps-tab-done       { --lamp: var(--sig-done); }
+.fps-tab-closed     { --lamp: var(--sig-closed); }
+
+/* I/O DONE → the spine steps back but KEEPS its status.
+   Deliberately a PARTIAL desaturation (60% toward neutral), not a flat gray:
+   a handled strip should still tell you what state it's in at a glance — the
+   day's I/O being done says nothing about the project's status. The eye stops
+   catching it; the information survives.
+   Dim by COLOR, never by opacity: opacity would blend the spine toward the
+   white card behind it, washing each status out by a different amount (gold
+   far more than red). Mixing keeps the step-back even across the ramp. */
+.fps-tab.io-checked {
+  background: #A9AEB2;                        /* fallback: flat handled gray */
   background:
-    radial-gradient(circle at 35% 28%, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0) 45%),
-    var(--lamp, var(--ink-3));
-  box-shadow:
-    0 0 0 1px var(--lamp-ring, rgba(28,42,51,0.22)),
-    0 1px 1px rgba(28,42,51,0.18);
+    radial-gradient(ellipse 15px 26px at 50% 50%, rgba(255,255,255,0.46) 0%, rgba(255,255,255,0) 68%),
+    linear-gradient(90deg,
+      color-mix(in srgb, color-mix(in srgb, var(--lamp, var(--ink-3)) 40%, #9AA0A5) 82%, #2A1A1D) 0%,
+      color-mix(in srgb, color-mix(in srgb, var(--lamp, var(--ink-3)) 40%, #9AA0A5) 93%, #2A1A1D) 18%,
+      color-mix(in srgb, var(--lamp, var(--ink-3)) 40%, #9AA0A5) 42%,
+      color-mix(in srgb, var(--lamp, var(--ink-3)) 40%, #9AA0A5) 100%);
+  box-shadow: inset 0 0 0 1px rgba(28,42,51,0.11);
 }
-.fps-tab-kickoff    { --lamp: var(--sig-kickoff);    --lamp-ring: rgba(70,88,104,0.4); }
-.fps-tab-production { --lamp: var(--sig-production); --lamp-ring: rgba(150,30,38,0.42); }
-.fps-tab-limbo      { --lamp: var(--sig-limbo);      --lamp-ring: rgba(150,112,26,0.45); }
-.fps-tab-done       { --lamp: var(--sig-done);       --lamp-ring: rgba(30,100,150,0.42); }
-.fps-tab-closed     { --lamp: var(--sig-closed);     --lamp-ring: rgba(34,110,68,0.4); }
-/* I/O done for the day → lamps muted (still present, just quiet) */
-/* I/O done → lamps read as UNLIT: still solid physical objects, just dark.
-   NOTE: do NOT dim these with opacity — a translucent lamp lets the brushed
-   metal grain show straight through its face. Dim by color instead. */
-.fps-tab.io-checked .fps-lamp {
-  /* fallback first: a flat unlit gray for browsers without color-mix() */
-  background: #B4BBC1;
-  background:
-    radial-gradient(circle at 35% 28%, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0) 45%),
-    color-mix(in srgb, var(--lamp, var(--ink-3)) 22%, #AEB6BC);
-  box-shadow:
-    0 0 0 1px rgba(28,42,51,0.28),
-    0 1px 1px rgba(28,42,51,0.18),
-    inset 0 1px 2px rgba(28,42,51,0.22);   /* recessed, unlit */
-}
+.fps-tab.io-checked:hover { box-shadow: inset 0 0 0 1px rgba(28,42,51,0.22); }
 
 /* strip body */
 .fps-body {
@@ -942,31 +959,9 @@ body::before{
   background-size: auto, 46px 46px, 46px 46px;
 }
 
-/* (2) BRUSHED-METAL SPINE — real machined grain + specular highlight,
-   so the holder reads as aluminum rather than a gray bar. */
-.fps-tab{
-  background:
-    /* fine brushed grain */
-    repeating-linear-gradient(90deg,
-      rgba(255,255,255,0.5) 0 1px,
-      rgba(28,42,51,0.05) 1px 2px),
-    /* specular highlight across the face */
-    linear-gradient(90deg,
-      #B9C0C6 0%,
-      #D6DBDF 26%,
-      #F2F5F7 48%,
-      #CFD5D9 70%,
-      #AFB7BD 100%);
-  border-right: 1px solid #9AA3AA;
-  box-shadow:
-    inset -1px 0 0 rgba(255,255,255,0.55),
-    inset 1px 0 0 rgba(28,42,51,0.10);
-}
-.fps-tab:hover{
-  background:
-    repeating-linear-gradient(90deg, rgba(255,255,255,0.55) 0 1px, rgba(28,42,51,0.05) 1px 2px),
-    linear-gradient(90deg,#C2C9CF 0%,#DFE4E8 26%,#F8FAFB 48%,#D8DEE2 70%,#B8C0C6 100%);
-}
+/* (2) BRUSHED-METAL SPINE — REMOVED. The spine is now a solid status bar; see
+   the .fps-tab block in the STATUS SPINE section above. This override used to
+   repaint it as aluminum and would silently undo that treatment. */
 
 /* (3) PAPER-EDGE CARD LIFT — strips seated on the board like physical cards:
    a crisp top light-line, a soft contact shadow, a slightly warmer edge. */
@@ -992,7 +987,9 @@ body::before{
     0 0 0 1px rgba(28,42,51,0.02),
     0 1px 2px rgba(28,42,51,0.05);                /* barely any cast */
 }
-.fps:not(.io-unchecked) .fps-body{ opacity: 0.92; }  /* a touch quieter overall */
+/* Body fade removed: the spine's partial desaturation now carries the "handled"
+   signal on its own, and fading the body only made the text harder to read.
+   To restore, re-add:  .fps:not(.io-unchecked) .fps-body{ opacity: 0.92; } */
 
 .fps:hover{
   box-shadow:
