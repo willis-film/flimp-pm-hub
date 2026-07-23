@@ -92,10 +92,15 @@
      content-box mistake and lands the panel 1px past the seam.
        --spine-w   the status rail, border included
        --spine-off .fps's left border + the rail = where .fps-body starts
-     NOTE: --spine-off is NOT computed — if you change --spine-w, change this to
-     match (spine-w + 1px), or every open panel's indent drifts off the seam. */
+       --spine-pad invisible click padding on the tab's right edge; taken back
+                   out of .fps-body's left padding so nothing shifts
+     NOTE: --spine-off is NOT computed — it must equal .fps's 1px border plus
+     the tab's FULL box (--spine-w + --spine-pad), currently 1 + 10 + 6 = 17px.
+     Change any of those three and change this to match, or every open panel's
+     indent drifts off the seam. */
   --spine-w:   10px;
-  --spine-off: 11px;
+  --spine-off: 17px;
+  --spine-pad: 6px;
   --rail-w: 224px;
 
   /* ── type — Montserrat throughout (aligns with the Frequency Tower wordmark) ── */
@@ -372,7 +377,20 @@ body::before {
    Still the I/O toggle: same width, same hit target, same press handler and
    keyboard support. Only the visual expression changed. */
 .fps-tab {
-  width: var(--spine-w); flex-shrink: 0; position: relative;
+  /* The visible bar is --spine-w wide, but the PRESS TARGET is wider: a
+     transparent right border adds --spine-pad of clickable area without
+     painting anything. Borders are part of the element's box and receive
+     clicks, so the toggle is comfortable to hit while the colour stays thin.
+     .fps-body's left padding is reduced by the same amount below, so the text
+     doesn't shift — we're reclaiming dead space, not adding any.
+     background-clip: padding-box keeps the fill out of the border area, or the
+     status colour would bleed into the pad and the bar would look wider.
+     NOTE: box-sizing is border-box globally, so width must be spine-w + the
+     pad — otherwise the transparent border eats INTO the 10px and the visible
+     bar shrinks instead of the target growing. */
+  width: calc(var(--spine-w) + var(--spine-pad)); flex-shrink: 0; position: relative;
+  border-right: var(--spine-pad) solid transparent;
+  background-clip: padding-box;
   cursor: pointer;
   /* fallback for browsers without color-mix(): flat status color */
   background: var(--lamp, var(--ink-3));
@@ -431,7 +449,10 @@ body::before {
 /* strip body */
 .fps-body {
   flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;
-  padding: 11px 12px 11px 15px; gap: 8px; position: relative;
+  /* left padding is 15px MINUS --spine-pad: the tab's transparent border has
+     already claimed that space as click area, so the text sits exactly where
+     it did before — the gap is the same, it's just clickable now. */
+  padding: 11px 12px 11px calc(15px - var(--spine-pad)); gap: 8px; position: relative;
 }
 
 /* TOP ROW: project name + labels + status */
