@@ -336,12 +336,16 @@ export default async function handler(req, res) {
       .from('workspace').select('*').eq('id', 1).single();
     if (wsErr) throw wsErr;
 
-    const { data: rows, error: rErr } = await supabase.from('rows').select('gmail_labels');
+    const { data: rows, error: rErr } = await supabase.from('rows').select('data');
     if (rErr) throw rErr;
 
-    // Only labels actually attached to a project are worth syncing.
+    // gmailLabels is NOT a named column on `rows`. api/db.js maps only the
+    // fields in its KNOWN_FIELDS list to real columns; everything else —
+    // gmailLabels included — lands in the catch-all `data` JSONB blob,
+    // camelCase preserved. So it's read from data->gmailLabels here rather
+    // than a snake_case column that doesn't exist.
     const assignedLabelIds = [...new Set(
-      (rows || []).flatMap(r => r.gmail_labels || [])
+      (rows || []).flatMap(r => (r.data && r.data.gmailLabels) || [])
     )];
     if (!assignedLabelIds.length) {
       return res.status(200).json({ ok: true, skipped: 'no labels assigned to any project' });
