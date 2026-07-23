@@ -1,7 +1,7 @@
 // emails.js — Inbox panel: Gmail label pills, label assignment modals.
 
 import { esc } from '../utils.js';
-import { db, save } from '../db.js';
+import { db, save, load } from '../db.js';
 import { A, register } from '../bus.js';
 
 let _assigningLabelId=null;
@@ -79,5 +79,40 @@ function unassignLabel(labelId){
 
 function unassignLabelAndRefresh(labelId){ unassignLabel(labelId); }
 
+// Triggers the server-side Gmail label pull, then re-hydrates from the proxy.
+//
+// Deliberately does NOT call save() afterward. api/sync-gmail.js writes
+// gmail_label_defs directly to the workspace row; the fresh defs arrive back
+// through load(). Calling save() here would POST the whole client db object
+// straight back over that column — and since save() is debounced 400ms, an
+// in-flight edit could land after the sync and overwrite it with the stale
+// label list the page booted with. Read-back only, no write-back.
+//
+// This is the one place in the app that awaits a network call before
+// rendering, so the button carries its own pending state rather than leaving
+// the sidebar looking inert for the second or two Google takes to answer.
+async function syncGmailLabels(){
+  const btn=document.getElementById('gmail-sync-btn');
+  const original=btn?btn.textContent:'';
+  if(btn){ btn.disabled=true; btn.textContent='Syncing…'; }
+  try{
+    const res=await fetch('/api/sync-gmail',{method:'POST'});
+    const json=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(json.error||`/api/sync-gmail -> ${res.status}`);
+    // Re-read the whole db so gmail_label_defs (and nothing else) refreshes
+    // through the same path as boot — no bespoke merge to keep in sync.
+    await load();
+    A.render(); A.renderGmailSidebar(); A.renderGmailBanner();
+    if(btn) btn.textContent=`Synced ${json.synced}`;
+  }catch(e){
+    console.error('syncGmailLabels failed:',e);
+    if(btn) btn.textContent='Sync failed';
+  }finally{
+    // Restore the label after a beat so the result is readable but the
+    // control doesn't stay stuck showing a stale outcome.
+    if(btn) setTimeout(()=>{ btn.disabled=false; btn.textContent=original; },2500);
+  }
+}
+
 // Register on the app bus so other modules + inline handlers can reach these.
-register({ gmailLabelTags, removeGmailLabel, openAssignLabelModal, closeAssignLabelModal, submitAssignLabel, openGmailLabelModal, closeGmailLabelModal, unassignLabel, unassignLabelAndRefresh });
+register({ gmailLabelTags, removeGmailLabel, openAssignLabelModal, closeAssignLabelModal, submitAssignLabel, openGmailLabelModal, closeGmailLabelModal, unassignLabel, unassignLabelAndRefresh, syncGmailLabels });
