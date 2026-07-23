@@ -28,7 +28,7 @@
 // work done here carries straight over.
 
 import { esc } from '../utils.js';
-import { db, save } from '../db.js';
+import { db, save } from '../store.js';
 import { A, register } from '../bus.js';
 
 // ── STATIC BOILERPLATE ───────────────────────────────────────────────────────

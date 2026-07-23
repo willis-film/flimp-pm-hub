@@ -6,7 +6,7 @@
 // resolve exactly as they did in the original single-file build. Finally we wire
 // the global document listeners and run the boot sequence.
 
-import { load, dailyIOReset } from './db.js';
+import { load, dailyIOReset } from './store.js';
 import { A } from './bus.js';
 
 // Side-effect imports: each registers its functions onto the `A` bus.

@@ -1,7 +1,7 @@
 // emails.js — Inbox panel: Gmail label pills, label assignment modals.
 
 import { esc } from '../utils.js';
-import { db, save, load } from '../db.js';
+import { db, save, load } from '../store.js';
 import { A, register } from '../bus.js';
 
 let _assigningLabelId=null;

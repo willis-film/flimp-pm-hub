@@ -1,7 +1,7 @@
 // closeout.js — Closeout checklist panel.
 
 import { CLOSEOUT_ITEMS } from '../data/constants.js';
-import { db, save } from '../db.js';
+import { db, save } from '../store.js';
 import { A, register } from '../bus.js';
 
 function toggleCloseoutItem(parentId, idx){

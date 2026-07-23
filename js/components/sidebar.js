@@ -2,7 +2,7 @@
 // Gmail + ClickUp sidebar lists and unassigned banners.
 
 import { esc } from '../utils.js';
-import { db, save } from '../db.js';
+import { db, save } from '../store.js';
 import { ui } from '../state.js';
 import { A, register } from '../bus.js';
 

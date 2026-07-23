@@ -1,7 +1,7 @@
 // subtasks.js — per-task field mutations used by the Subtasks panel table.
 
 import { fmtDate } from '../utils.js';
-import { db, save } from '../db.js';
+import { db, save } from '../store.js';
 import { A, register } from '../bus.js';
 
 function ufTask(id, field, value){

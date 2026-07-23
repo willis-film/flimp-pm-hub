@@ -3,7 +3,7 @@
 
 import { PRODUCT_TIER_MAP, PHASE_LABELS } from '../data/constants.js';
 import { esc, fmtDate, fmtNextActivity, newId } from '../utils.js';
-import { db, save } from '../db.js';
+import { db, save } from '../store.js';
 import { A, register } from '../bus.js';
 
 let _dpRowId=null, _dpField=null, _dpTaskId=null, _dpTaskField=null;

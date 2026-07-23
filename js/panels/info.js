@@ -23,7 +23,7 @@
 // rather than silently carrying two contradictory numbers.
 
 import { esc } from '../utils.js';
-import { db, save } from '../db.js';
+import { db, save } from '../store.js';
 import { A, register } from '../bus.js';
 import {
   AM_LIST, OWNER_LIST, LANGUAGE_LIST, PRODUCT_TOPIC_LIST,

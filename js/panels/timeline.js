@@ -34,7 +34,7 @@
 // on re-paste rather than dangling against a task list that no longer exists.
 
 import { esc, fmtDate } from '../utils.js';
-import { db, save } from '../db.js';
+import { db, save } from '../store.js';
 import { A, register } from '../bus.js';
 
 // ── PARSER ───────────────────────────────────────────────────────────────────

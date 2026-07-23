@@ -1,6 +1,6 @@
 // invoices.js — Invoices panel: add / edit / delete invoice rows.
 
-import { db, save } from '../db.js';
+import { db, save } from '../store.js';
 import { A, register } from '../bus.js';
 import { newId } from '../utils.js';
 

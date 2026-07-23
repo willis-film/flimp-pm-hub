@@ -2,7 +2,7 @@
 // place SUPABASE_URL / SUPABASE_SERVICE_KEY are allowed to exist — the browser
 // never sees this file's contents, only its JSON responses.
 //
-// Mirrors the load()/save() contract js/db.js already has, so the eventual
+// Mirrors the load()/save() contract js/store.js already has, so the eventual
 // cutover is: replace localStorage.getItem/setItem with fetch('/api/db').
 //
 //   GET  /api/db  -> { gmailClientPrefix, clickupTasks, gmailLabelDefs,
@@ -15,7 +15,7 @@
 //                     gets deleted — that's how row deletion (e.g.
 //                     unassignCuTaskAll) reaches the database at all, since
 //                     there's no separate "delete" endpoint.
-//   tack
+//
 //   clickupTasks is read here but never WRITTEN here — it's synced
 //   separately by api/sync-clickup.js, into its own table. clickup.js never
 //   mutates this list client-side (see clickup_tasks table comment in
@@ -251,12 +251,16 @@ export default async function handler(req, res) {
 
       // 1. workspace settings — single row, upsert in place. clickupTasks is
       //    deliberately excluded: it's owned by api/sync-clickup.js, not by
-      //    the browser's save().
+      //    the browser's save(). gmail_emails and gmail_label_defs are
+      //    excluded for the same reason — both are owned by the Gmail sync
+      //    endpoints (api/sync-gmail-threads.js and api/sync-gmail.js).
+      //    Nothing client-side ever mutates them; render.js only reads. If
+      //    they stayed in this upsert, every autosave would write back
+      //    whatever the page happened to load at boot, silently reverting a
+      //    sync that landed while the tab was open.
       const { error: wErr } = await supabase.from('workspace').upsert({
         id: 1,
-        gmail_client_prefix: body.gmailClientPrefix || '',
-        gmail_label_defs:    body.gmailLabelDefs || [],
-        gmail_emails:        body.gmailEmails || []
+        gmail_client_prefix: body.gmailClientPrefix || ''
       });
       if (wErr) throw wErr;
 

@@ -1,7 +1,7 @@
 // clickup.js — ClickUp integration: assign / unassign tasks to projects.
 
 import { esc, newId } from './utils.js';
-import { db, save } from './db.js';
+import { db, save } from './store.js';
 import { A, register } from './bus.js';
 
 let _assigningCuTaskId=null;

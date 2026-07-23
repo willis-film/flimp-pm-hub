@@ -2,7 +2,7 @@
 
 import { STATUS_LABELS, ACTIVITY_FIELD_LABELS, ACTIVITY_SKIP } from '../data/constants.js';
 import { esc, fmtDate, downloadCSV, fmtRelTime, fmtAbsTime } from '../utils.js';
-import { db } from '../db.js';
+import { db } from '../store.js';
 import { A, register } from '../bus.js';
 
 function fmtActivityVal(field, val){
