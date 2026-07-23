@@ -1,6 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
+  "crons": [
+    {
+      "path": "/api/sync-gmail-threads",
+      "schedule": "0 * * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/js/(.*)",
