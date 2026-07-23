@@ -53,17 +53,21 @@ const BOILER = {
 // Held on the parent row under `distro`, so a half-built email survives a panel
 // switch. Not a stored artifact — just working state for the current draft.
 function distroState(parent) {
-  if (!parent.distro) {
-    parent.distro = {
-      template: '',            // 'video' | 'guide'
-      subtaskIds: [],          // which deliverables are in this send
-      options: {},             // video only: which of the 6 methods are kept
-      fields: {},              // the few confirmed/edited variables
-      step: 1                  // wizard: which step is currently expanded
-    };
-  }
-  if (parent.distro.step === undefined) parent.distro.step = 1;
-  return parent.distro;
+  // Fill in each key individually rather than only handling a wholly-missing
+  // object. The old check was `if (!parent.distro) { ...full default... }`,
+  // which skipped initialisation whenever distro merely EXISTED — and an empty
+  // `{}` is truthy. Rows coming back from Supabase carry `distro: {}` (the
+  // proxy defaults the NOT NULL jsonb columns to an empty object), so the
+  // guard passed, subtaskIds stayed undefined, and distroPanelHtml threw on
+  // `st.subtaskIds.length` as soon as a template was selected.
+  if (!parent.distro || typeof parent.distro !== 'object') parent.distro = {};
+  const d = parent.distro;
+  if (d.template   === undefined) d.template   = '';   // 'video' | 'guide'
+  if (!Array.isArray(d.subtaskIds)) d.subtaskIds = []; // deliverables in this send
+  if (!d.options || typeof d.options !== 'object') d.options = {}; // video only: kept methods
+  if (!d.fields  || typeof d.fields  !== 'object') d.fields  = {}; // confirmed/edited variables
+  if (d.step === undefined) d.step = 1;                // wizard: expanded step
+  return d;
 }
 
 // Video has a methods step (3) that guide skips, so step numbers are not fixed
