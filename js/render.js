@@ -551,18 +551,19 @@ function render(){
       invTbody.appendChild(tr);
     });
 
-    // add invoice row
-    const addInvTr=document.createElement('tr');
-    addInvTr.className='add-task-row';
-    addInvTr.innerHTML=`
-      <td>
-        <button class="add-inv-btn" onclick="A.addInvoice('${parent.id}')">
-          <span style="font-size: 14px;line-height:1">+</span>&nbsp;Add invoice
-        </button>
-      </td>
-      <td colspan="6"></td>`;
-    invTbody.appendChild(addInvTr);
     block.appendChild(invWrap);
+
+    // Add-invoice control — same treatment as add-subtask above: a sibling
+    // AFTER .inv-wrap rather than a final <tr>, so the table's bottom radius
+    // closes after the last real invoice and the button sits on the page
+    // background instead of inside the panel card.
+    const addInvWrap=document.createElement('div');
+    addInvWrap.className='inv-add-wrap'+(activePanel!=='invoices'?' hidden':'');
+    addInvWrap.innerHTML=`
+      <button class="add-inv-btn" onclick="A.addInvoice('${parent.id}')">
+        <span style="font-size: 14px;line-height:1">+</span>&nbsp;Add invoice
+      </button>`;
+    block.appendChild(addInvWrap);
 
     // ── CLOSEOUT PANEL ─────────────────────────────────────────────────────
     {
