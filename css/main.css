@@ -393,30 +393,35 @@ body::before {
 .fps-tab-done       { --lamp: var(--sig-done); }
 .fps-tab-closed     { --lamp: var(--sig-closed); }
 
-/* I/O DONE → the spine steps back, keeping a trace of its status.
-   80% toward neutral. The board groups strips BY STATUS, so a handled spine is
-   only ever compared against lit spines in its own section — never against a
-   handled spine of a different status. Telling handled-production from
-   handled-limbo is the section header's job, not the spine's, so the
-   desaturation can go deep without costing any information.
+/* I/O DONE → the lamp goes OUT: matte finish, 80% desaturated.
+   Two things change together, and the finish is the important one. The lit
+   spine above carries a specular highlight; this one has none — a flat fill,
+   no radial-gradient layer at all. That reads as a genuine material change
+   (lamp on vs lamp off) rather than the same object at two brightnesses, and
+   it's the fastest signal on the board because gloss-vs-matte registers before
+   colour does.
 
-   Keeps the same convex highlight as the lit spine — only the colour retreats.
-   (A concave "pressed in" variant was tried and rejected: inverting the centre
-   pool to a shadow read as a dent in the strip rather than a quieter lamp, and
-   it fought the flight-strip metaphor. The retreat should be in colour alone.)
+   Colour retreats 80% toward neutral on top of that. The board groups strips
+   BY STATUS, so a handled spine is only ever compared against lit spines in
+   its own section — never against a handled spine of a different status.
+   Telling handled-production from handled-limbo is the section header's job,
+   not the spine's, so the desaturation can go deep at no cost.
+
+   The left-edge falloff goes too: it existed to seat a lit, curved surface
+   against the strip. A matte face has no curvature to seat, so a single flat
+   fill is the honest treatment. Only the 1px hairline remains, lightened.
+
+   (Two alternatives were tried and rejected: a concave "pressed in" centre
+   pool, which read as a dent in the strip rather than a dimmed lamp; and
+   keeping the highlight while pushing desaturation to 80%, which wasted
+   status colour the matte finish had already made unnecessary.)
 
    Dim by COLOR, never by opacity: opacity would blend the spine toward the
    white card behind it, washing each status out by a different amount (gold
    far more than red). Mixing keeps the step-back even across the ramp. */
 .fps-tab.io-checked {
   background: #9BA0A4;                        /* fallback: flat handled gray */
-  background:
-    radial-gradient(ellipse 15px 26px at 50% 50%, rgba(255,255,255,0.46) 0%, rgba(255,255,255,0) 68%),
-    linear-gradient(90deg,
-      color-mix(in srgb, color-mix(in srgb, var(--lamp, var(--ink-3)) 20%, #9AA0A5) 82%, #2A1A1D) 0%,
-      color-mix(in srgb, color-mix(in srgb, var(--lamp, var(--ink-3)) 20%, #9AA0A5) 93%, #2A1A1D) 18%,
-      color-mix(in srgb, var(--lamp, var(--ink-3)) 20%, #9AA0A5) 42%,
-      color-mix(in srgb, var(--lamp, var(--ink-3)) 20%, #9AA0A5) 100%);
+  background: color-mix(in srgb, var(--lamp, var(--ink-3)) 20%, #9AA0A5);
   box-shadow: inset 0 0 0 1px rgba(28,42,51,0.11);
 }
 .fps-tab.io-checked:hover { box-shadow: inset 0 0 0 1px rgba(28,42,51,0.22); }
