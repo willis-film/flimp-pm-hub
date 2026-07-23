@@ -393,25 +393,31 @@ body::before {
 .fps-tab-done       { --lamp: var(--sig-done); }
 .fps-tab-closed     { --lamp: var(--sig-closed); }
 
-/* I/O DONE → the spine steps back, keeping a trace of its status.
-   80% toward neutral. The board groups strips BY STATUS, so a handled spine is
-   only ever compared against lit spines in its own section — never against a
-   handled spine of a different status. Telling handled-production from
-   handled-limbo is the section header's job, not the spine's, so the
-   desaturation can go deep without costing any information.
+/* I/O DONE → the spine reads as PRESSED IN, not merely dimmed.
+   This is the exact inversion of the lit spine above: same gradient structure,
+   but the centre pool is a SHADOW instead of a highlight, so the surface reads
+   concave (a trough) rather than convex (a dome). The left-edge darkening and
+   the 1px hairline are unchanged, so only the light direction flips — the pair
+   reads as one control in two states rather than two separate treatments.
+
+   The shape now carries the state change, which lets the colour stay
+   informative: desaturation is held at 60% (not the 80% used when colour alone
+   had to signal "handled"), so a handled spine still shows its status clearly.
+   Kept deliberately shallow — a deeper trough reads as heavy at 20px wide.
+
    Dim by COLOR, never by opacity: opacity would blend the spine toward the
    white card behind it, washing each status out by a different amount (gold
    far more than red). Mixing keeps the step-back even across the ramp. */
 .fps-tab.io-checked {
-  background: #9BA0A4;                        /* fallback: flat handled gray */
+  background: #A9AEB2;                        /* fallback: flat handled gray */
   background:
-    radial-gradient(ellipse 15px 26px at 50% 50%, rgba(255,255,255,0.46) 0%, rgba(255,255,255,0) 68%),
+    radial-gradient(ellipse 15px 26px at 50% 50%, rgba(28,42,51,0.30) 0%, rgba(28,42,51,0) 70%),
     linear-gradient(90deg,
-      color-mix(in srgb, color-mix(in srgb, var(--lamp, var(--ink-3)) 20%, #9AA0A5) 82%, #2A1A1D) 0%,
-      color-mix(in srgb, color-mix(in srgb, var(--lamp, var(--ink-3)) 20%, #9AA0A5) 93%, #2A1A1D) 18%,
-      color-mix(in srgb, var(--lamp, var(--ink-3)) 20%, #9AA0A5) 42%,
-      color-mix(in srgb, var(--lamp, var(--ink-3)) 20%, #9AA0A5) 100%);
-  box-shadow: inset 0 0 0 1px rgba(28,42,51,0.11);
+      color-mix(in srgb, color-mix(in srgb, var(--lamp, var(--ink-3)) 40%, #9AA0A5) 82%, #2A1A1D) 0%,
+      color-mix(in srgb, color-mix(in srgb, var(--lamp, var(--ink-3)) 40%, #9AA0A5) 93%, #2A1A1D) 18%,
+      color-mix(in srgb, var(--lamp, var(--ink-3)) 40%, #9AA0A5) 42%,
+      color-mix(in srgb, var(--lamp, var(--ink-3)) 40%, #9AA0A5) 100%);
+  box-shadow: inset 0 0 0 1px rgba(28,42,51,0.13);
 }
 .fps-tab.io-checked:hover { box-shadow: inset 0 0 0 1px rgba(28,42,51,0.22); }
 
