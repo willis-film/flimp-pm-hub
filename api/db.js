@@ -55,7 +55,11 @@ const KNOWN_FIELDS = [
   'io', 'branding',
   'totalRevenue', 'designerCost', 'animatorCost', 'voCost',
   'otherVendor1Cost', 'otherVendor2Cost',
-  'comments', 'invoices', 'activityLog', 'timeline', 'closeout', 'distro'
+  'comments', 'invoices', 'activityLog', 'timeline', 'closeout', 'distro',
+  // Explicit sibling ordering for drag-and-drop. Must be a real column, not a
+  // `data` blob field: the rows read below sorts on it in SQL, and Postgres
+  // can't ORDER BY something buried in JSONB without a much uglier query.
+  'sortOrder'
 ];
 const KNOWN_SET = new Set(KNOWN_FIELDS);
 
@@ -179,7 +183,12 @@ export default async function handler(req, res) {
         { data: productOptions, error: poErr }
       ] = await Promise.all([
         supabase.from('workspace').select('*').eq('id', 1).single(),
-        supabase.from('rows').select('*'),
+        // ORDER BY is load-bearing, not cosmetic: without it Postgres returns
+        // rows in unspecified order and manual reordering silently drifts
+        // whenever a row is updated. NULLS LAST so any row created before the
+        // sort_order migration sinks to the bottom of its group rather than
+        // jumping to the top.
+        supabase.from('rows').select('*').order('sort_order', { nullsFirst: false }),
         supabase.from('clickup_tasks').select('*'),
         refTable('people'),
         refTable('tags'),

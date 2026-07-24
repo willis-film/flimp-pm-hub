@@ -16,6 +16,7 @@ import './components/sidebar.js';
 import './components/modals.js';
 import './clickup.js';
 import './sync.js';
+import './reorder.js';
 import './panels/subtasks.js';
 import './panels/emails.js';
 import './panels/invoices.js';

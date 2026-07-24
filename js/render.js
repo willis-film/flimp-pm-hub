@@ -345,12 +345,21 @@ function render(){
     const tbody=table.querySelector('tbody');
     const visibleChildren=ui.currentFilter==='all' ? children : children.filter(c=>A.matchesFilter(c));
 
+    // Reordering is only offered on an unfiltered list. visibleChildren can be
+    // a subset, and an index into a filtered view does not address the same
+    // record in the full sibling array — dragging row 2 of 3 visible when 7
+    // exist would move the wrong subtask. Rather than translate indices (and
+    // leave the user dropping a row into a gap they can't see), the handles
+    // are simply not rendered while a filter is active.
+    const canReorder = ui.currentFilter==='all';
+
     visibleChildren.forEach(task=>{
       const tdl=task.due?daysLeft(task.due):null;
       const daysCell=tdl!==null?`<span class="${tdl<0?'overdue':''}">${tdl}</span>`:`<span class="dash">—</span>`;
       const dotCls=`is-${task.status}`;
       const tr=document.createElement('tr');
       tr.id='tr-'+task.id;
+      if(canReorder) tr.dataset.idx=String(children.indexOf(task));
 
       function taskSelect(field, list){
         const val=task[field]||'';
@@ -363,7 +372,12 @@ function render(){
       tr.innerHTML=`
         <td class="td-name">
           <div class="name-inner">
-            <div class="toggle-spacer"></div>
+            <!-- Handle occupies the existing 18px toggle-spacer, so adding
+                 drag costs no horizontal layout change. Dragging is bound to
+                 the handle rather than the row because the row's cells hold
+                 inputs and selects, and a draggable ancestor makes selecting
+                 text inside them fight the drag. -->
+            <div class="toggle-spacer">${canReorder?`<span class="drag-handle" title="Drag to reorder">⠿</span>`:''}</div>
             <div class="row-dot ${dotCls}" onclick="A.openStatusMenu('${task.id}',event)" title="Set status"></div>
             <span class="task-name-text" onclick="openDetail('${task.id}')" style="${task.io?'font-style:italic;color:var(--text2)':''}">${esc(task.name)}</span>
           </div>
@@ -418,6 +432,7 @@ function render(){
         </td>`;
       tbody.appendChild(tr);
     });
+    if(canReorder) A.attachSubtaskDnD(tbody, parent.id);
 
     // Add-subtask control sits OUTSIDE .subtask-wrap, as a sibling after it —
     // not inside, and not as a final <tr>. Inside the wrap it inherits the
@@ -511,6 +526,7 @@ function render(){
     invTable.className='inv-sheet';
     invTable.innerHTML=`
       <thead><tr>
+        <th style="width:22px"></th>
         <th style="width:90px">Sent</th>
         <th style="width:160px">Vendor</th>
         <th style="width:120px">Invoice #</th>
@@ -527,7 +543,11 @@ function render(){
 
     invoices.forEach((inv,idx)=>{
       const tr=document.createElement('tr');
+      // Invoices are always shown in full — no filtering applies to this
+      // table — so unlike subtasks the index is always the true one.
+      tr.dataset.idx=String(idx);
       tr.innerHTML=`
+        <td class="inv-handle-cell"><span class="drag-handle" title="Drag to reorder">⠿</span></td>
         <td><input class="inv-input" type="date" value="${inv.sent||''}" onchange="A.updateInvoice('${parent.id}',${idx},'sent',this.value)" style="width:86px"></td>
         <td><input class="inv-input" value="${esc(inv.vendor||'')}" placeholder="Vendor" onblur="A.updateInvoice('${parent.id}',${idx},'vendor',this.value)"></td>
         <td><input class="inv-input" value="${esc(inv.number||'')}" placeholder="INV-000" onblur="A.updateInvoice('${parent.id}',${idx},'number',this.value)"></td>
@@ -550,6 +570,7 @@ function render(){
         </td>`;
       invTbody.appendChild(tr);
     });
+    A.attachInvoiceDnD(invTbody, parent.id);
 
     block.appendChild(invWrap);
 
