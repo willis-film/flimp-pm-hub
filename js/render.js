@@ -735,12 +735,31 @@ function setStatus(id, value){
     requestAnimationFrame(()=>requestAnimationFrame(()=>{
       newBlock.classList.remove('fps-enter');
       newBlock.classList.add('animating-in');
-      newBlock.addEventListener('animationend',()=>newBlock.classList.remove('animating-in'),{once:true});
+      // animationend bubbles — only react to the block's own animation, not a
+      // lamp dot or progress fill finishing inside it.
+      const onInEnd=(e)=>{
+        if(e.target!==newBlock) return;
+        newBlock.removeEventListener('animationend', onInEnd);
+        newBlock.classList.remove('animating-in');
+      };
+      newBlock.addEventListener('animationend', onInEnd);
       if(ui.detailId===id) openDetail(id);
     }));
   };
+
+  // Run onOut exactly once, whichever comes first: the block's own animation
+  // ending, or the fallback timer. Without the timer a backgrounded tab (which
+  // suspends animations) would drop the status change entirely.
+  let fired=false;
+  const fire=()=>{ if(fired) return; fired=true; clearTimeout(timer); onOut(); };
+  const onOutEnd=(e)=>{
+    if(e.target!==block) return;   // ignore bubbled child animations
+    block.removeEventListener('animationend', onOutEnd);
+    fire();
+  };
+  const timer=setTimeout(fire, 600);
   block.classList.add('animating-out');
-  block.addEventListener('animationend', onOut, {once:true});
+  block.addEventListener('animationend', onOutEnd);
 }
 
 function cycleStatus(id){

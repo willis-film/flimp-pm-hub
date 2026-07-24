@@ -768,10 +768,23 @@ body::before {
 .add-strip-btn:hover { border-color: var(--signal); color: var(--signal); background: var(--signal-tint); }
 
 /* ── STRIP SLIDE ANIMATION ───────────────────────────────────────────────── */
-@keyframes slideOutRight { from { transform: translateX(0); opacity: 1; } to { transform: translateX(110%); opacity: 0; } }
-@keyframes slideInRight  { from { transform: translateX(110%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-.fps-block.animating-out { animation: slideOutRight 280ms cubic-bezier(0.4,0,0.2,1) forwards; overflow: hidden; pointer-events: none; }
-.fps-block.animating-in  { animation: slideInRight 300ms cubic-bezier(0.25,0.46,0.45,0.94) forwards; overflow: hidden; }
+/* The strip slides clear first, THEN the gap closes (and on arrival the gap
+   opens before the strip slides in). Animating max-height/margin is what makes
+   the move readable — without it the list snaps and the eye sees a jump, not a
+   motion. max-height is a ceiling, not a real height: raise it if a parent
+   strip with an open panel can exceed it. */
+@keyframes slideOutRight {
+  0%   { transform: translateX(0);    opacity: 1; max-height: 900px; margin-bottom: 11px; }
+  55%  { transform: translateX(110%); opacity: 0; max-height: 900px; margin-bottom: 11px; }
+  100% { transform: translateX(110%); opacity: 0; max-height: 0;     margin-bottom: 0; }
+}
+@keyframes slideInRight {
+  0%   { transform: translateX(110%); opacity: 0; max-height: 0;     margin-bottom: 0; }
+  45%  { transform: translateX(110%); opacity: 0; max-height: 900px; margin-bottom: 11px; }
+  100% { transform: translateX(0);    opacity: 1; max-height: 900px; margin-bottom: 11px; }
+}
+.fps-block.animating-out { animation: slideOutRight 420ms cubic-bezier(0.4,0,1,1) forwards; overflow: hidden; pointer-events: none; }
+.fps-block.animating-in  { animation: slideInRight 480ms cubic-bezier(0,0,0.2,1) forwards; overflow: hidden; }
 .fps-block.fps-enter { transform: translateX(110%); opacity: 0; overflow: hidden; pointer-events: none; }
 
 /* ── STATUS POPUP MENU ───────────────────────────────────────────────────── */
