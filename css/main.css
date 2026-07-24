@@ -632,13 +632,22 @@ body::before {
   text-align: left; position: sticky; top: 0; z-index: 10; user-select: none;
 }
 .sheet thead th:last-child { border-right: none; }
-/* The subtasks sheet is the only one with a STICKY thead, and its opaque
-   --panel-2 background sits at y=0 — directly on top of the seam inset the
-   panel wrap casts. Nudging the header down by its own 1px top border lets
-   the inset read above it, so this panel matches the others. Without this,
-   the inset is drawn and then immediately covered, which is why two earlier
-   attempts at this appeared to do nothing at all. */
-.sheet thead th { top: 1px; }
+/* The subtasks sheet is the ONLY panel table with a sticky thead — .email-sheet,
+   .inv-sheet et al. leave theirs static. Measured in-browser, both panels are
+   identical in every other respect (same 1026px width, same left/right bounds,
+   same computed inset on the wrap), so the sticky header is the entire
+   difference: it is opaque --panel-2 at z-index 10 sitting at the panel's top
+   edge, exactly where the wrap's 6px seam inset paints, so it hides it.
+   An earlier `top: 1px` bought one pixel against a shadow that needs ~7, which
+   is why the panel kept looking almost-but-not-quite right.
+   The fix is clearance, not a heavier shadow: push the whole table down 7px so
+   the wrap's inset is visible in the gap above the header. margin-top on the
+   table rather than padding-top on the wrap — the wrap is the scroll container,
+   and padding there would scroll away with the content while the inset stayed
+   pinned to the container box. `top: 0` restores the header's sticky offset,
+   which the earlier 1px nudge had displaced. */
+.subtask-wrap > .sheet { margin-top: 7px; }
+.sheet thead th { top: 0; }
 
 .th-name   { width: 280px; position: sticky; left: 0; z-index: 20; background: var(--panel-2); border-right: 2px solid var(--line-2) !important; }
 .th-status { width: 110px; } .th-phase { width: 185px; } .th-tags { width: 96px; }
