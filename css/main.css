@@ -640,12 +640,19 @@ body::before {
 }
 .sheet thead th:last-child { border-right: none; }
 
-/* .th-name stays sticky on the LEFT axis — the subtask sheet scrolls
-   horizontally and pinning the name column is worth having. That's a
-   different axis from the vertical sticky removed above, and it does not
-   interfere with the panel's top seam: the header row now sits in normal
-   flow, so the wrap's inset paints above it across the full width. */
-.th-name   { width: 280px; position: sticky; left: 0; z-index: 20; background: var(--panel-2); border-right: 2px solid var(--line-2) !important; }
+/* .th-name / .td-name stay sticky on the LEFT axis — the subtask sheet scrolls
+   horizontally and pinning the name column is worth having. That's a different
+   axis from the vertical sticky removed above, and it does not interfere with
+   the panel's top seam: the header row now sits in normal flow, so the wrap's
+   inset paints above it across the full width.
+   Positioning only — no visual distinction. Both carried a
+   `border-right: 2px solid var(--line-2) !important`, double width and darker
+   than every other cell's `1px solid var(--line)`, as a "this column is
+   pinned" marker. It read as the column being held to a different standard,
+   so it's gone; the base border applies. The background overrides stay: a
+   sticky cell must be opaque or scrolling content shows through it, and they
+   already match what the non-sticky cells use. */
+.th-name   { width: 280px; position: sticky; left: 0; z-index: 20; background: var(--panel-2); }
 .th-status { width: 110px; } .th-phase { width: 185px; } .th-tags { width: 96px; }
 .th-due { width: 90px; } .th-days { width: 70px; } .th-assign { width: 78px; }
 .th-am { width: 92px; } .th-update { width: 92px; } .th-type { width: 140px; }
@@ -667,7 +674,7 @@ body::before {
 .sheet tbody select, .inv-sheet tbody select { color: var(--ink) !important; }
 .sheet tbody select option, .inv-sheet tbody select option { background: var(--panel); color: var(--ink); }
 
-.td-name { position: sticky; left: 0; background: var(--panel); border-right: 2px solid var(--line-2) !important; z-index: 5; transition: background .08s; }
+.td-name { position: sticky; left: 0; background: var(--panel); z-index: 5; transition: background .08s; }
 .name-inner { display: flex; align-items: center; height: 100%; gap: 0; }
 .toggle-spacer { width: 18px; flex-shrink: 0; }
 .row-dot {
