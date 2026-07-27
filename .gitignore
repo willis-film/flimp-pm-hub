@@ -1,0 +1,11 @@
+# macOS Finder metadata
+.DS_Store
+**/.DS_Store
+
+# Installed by Vercel at build time; never committed
+node_modules/
+
+# Local Vercel dev state / env
+.vercel
+.env
+.env.local
