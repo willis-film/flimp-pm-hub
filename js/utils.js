@@ -4,6 +4,7 @@
 
 import {
   STATUS_LABELS, PHASE_LABELS, PRODUCT_TIER_MAP, PRODUCT_STYLE_MAP,
+  TAG_COLORS, TAG_COLOR_DEFAULT,
 } from './data/constants.js';
 
 // ── ID GENERATION ────────────────────────────────────────────────────────────
@@ -64,17 +65,42 @@ export function fmtNextActivity(iso) {
 }
 
 // ── COLORS ───────────────────────────────────────────────────────────────────
-export function tagColor(t) {
-  return { EV: '#E8985E', DP: '#92DCE5', HRLV: '#CCB7AE', PPTV: '#BD93BD', TRAN: '#FABC2A', FCV: '#177E89', TV: '#92B4F4', SUB: '#8D918B', RC: '#0B7189', VBS: '#33658A' }[t] || '#6b7280';
+// One palette per tag, read from TAG_COLORS — which applyReference() overlays
+// from the `tags` table at load. Previously the chips and the detail-panel
+// picker buttons carried two SEPARATE hardcoded palettes that had drifted apart
+// (EV was a pale #FCEDE1 chip but a saturated #E8985E button); both now resolve
+// through here, so the picker previews what the strip will actually show.
+//
+// Per-property fallback rather than per-tag: a Supabase row that sets only
+// bg_color still gets a sane text and border instead of dropping to grey.
+function tagPalette(t) {
+  const c = TAG_COLORS[t];
+  if (!c) return TAG_COLOR_DEFAULT;
+  return {
+    bg:     c.bg     || TAG_COLOR_DEFAULT.bg,
+    text:   c.text   || TAG_COLOR_DEFAULT.text,
+    border: c.border || TAG_COLOR_DEFAULT.border
+  };
 }
-export function tagTextColor(t) {
-  return { DP: '#0e6b74', HRLV: '#5a4036', TRAN: '#7a5200', TV: '#1a3a7a' }[t] || '#fff';
+export function tagColor(t)       { return tagPalette(t).bg; }
+export function tagTextColor(t)   { return tagPalette(t).text; }
+export function tagBorderColor(t) { return tagPalette(t).border; }
+
+// The chip's inline style. Emitted instead of a `tag-${value.toLowerCase()}`
+// class, which is what removes the naming constraint: a value like
+// "Print & Mail" used to produce broken markup and no colour.
+export function tagStyle(t) {
+  const c = tagPalette(t);
+  return `background:${c.bg};color:${c.text};border-color:${c.border}`;
+}
+export function tagChip(t) {
+  return `<span class="tag" style="${tagStyle(t)}">${esc(t)}</span>`;
 }
 
 // ── SMALL HTML SNIPPET BUILDERS ──────────────────────────────────────────────
 export function statusBadge(s) { return `<span class="badge badge-${s}">${STATUS_LABELS[s] || s}</span>`; }
 export function phasePill(p) { if (!p) return `<span class="dash">—</span>`; return `<span class="phase-pill phase-${p}">${PHASE_LABELS[p] || p}</span>`; }
-export function tagsHtml(tags) { if (!tags || !tags.length) return `<span class="dash">—</span>`; return `<div class="tags-wrap">${tags.map(t => `<span class="tag tag-${t.toLowerCase()}">${t}</span>`).join('')}</div>`; }
+export function tagsHtml(tags) { if (!tags || !tags.length) return `<span class="dash">—</span>`; return `<div class="tags-wrap">${tags.map(tagChip).join('')}</div>`; }
 export function linkHtml(url) { if (!url) return `<span class="dash">—</span>`; const short = url.replace(/^https?:\/\//, '').split('/')[0]; return `<span class="link-cell"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 3H3a1 1 0 00-1 1v9a1 1 0 001 1h9a1 1 0 001-1v-3M10 2h4m0 0v4m0-4L7 9"/></svg>${esc(short)}</span>`; }
 export function avatarHtml(a) { if (!a) return `<span class="dash">—</span>`; const init = a[0]; return `<div class="avatar av-${init}" title="${esc(a)}">${init}</div>`; }
 

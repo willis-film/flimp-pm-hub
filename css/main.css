@@ -545,26 +545,36 @@ body::before {
   font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.4px;
   border: 1px solid transparent;
 }
-.tags-wrap { display: flex; gap: 4px; }
-.tag-ev   { background: #FCEDE1; color: #B25E20; border-color: #F3D6BE; }
-.tag-dp   { background: #E1F2F5; color: #157A86; border-color: #BFE4EA; }
-.tag-hrlv { background: #F1ECE8; color: #7C5E48; border-color: #E0D3C8; }
-.tag-pptv { background: #F4EAF4; color: #8A468A; border-color: #E4CFE4; }
-.tag-tran { background: #FBF1D9; color: #8A6A12; border-color: #EFDFA8; }
-.tag-fcv  { background: #DFF0F2; color: #136470; border-color: #BCE0E6; }
-.tag-tv   { background: #E8EFFb; color: #3A5B9A; border-color: #CBD9F4; }
-.tag-sub  { background: #EEF0EE; color: #5A6359; border-color: #D9DDD7; }
-.tag-rc   { background: #DEF0F4; color: #0B6E80; border-color: #BBE2EA; }
-.tag-vbs  { background: #E6EFF6; color: #335B8A; border-color: #C8DCEC; }
+/* Subtask table + detail-panel meta. Same treatment as .fps-tags above: the cell
+   clips at overflow:hidden, so without this a row with more tags than fit loses
+   the extras with no indication. flex-shrink:0 for the same reason there — flex
+   would squash the chips instead of letting the row scroll. */
+.tags-wrap { display: flex; gap: 4px; overflow-x: auto; }
+.tags-wrap .tag { flex-shrink: 0; }
+/* The per-tag .tag-ev … .tag-vbs classes are gone. Colour now travels with the
+   tag itself — TAG_COLORS in js/data/constants.js, overlaid from the `tags`
+   table's colour columns (supabase/2026-07-27-tag-colors.sql) — and is emitted
+   inline by utils.tagChip(). Adding a tag no longer needs a rule here, and tag
+   values no longer have to be valid CSS class names. */
 
 /* on-strip tag buttons (toggles) */
-.fps-tags { display: flex; gap: 4px; align-items: center; flex-wrap: nowrap; }
-.fps-tag-btn { font-family: var(--font-mono); font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 3px; border: 1px solid transparent; cursor: pointer; line-height: 1.4; }
-.fps-tag-btn.active-ev   { background: #E8985E; color: #2A1A0C; border-color: #D9863F; }
-.fps-tag-btn.active-dp   { background: #6FC9D4; color: #0e4d54; border-color: #4FB6C2; }
-.fps-tag-btn.active-hrlv { background: #C2A593; color: #4a3328; border-color: #B08F79; }
-.fps-tag-btn.active-pptv { background: #BD93BD; color: #2A1A2A; border-color: #A87BA8; }
-.fps-tag-btn.inactive    { background: var(--panel-2); color: var(--ink-3); border-color: var(--line-2); }
+/* Sized (with the 212px field width in render.js) to seat four chips at the
+   widest existing code length — 4 chars, ~46.5px each, plus three 4px gaps and
+   the field's 14px padding. A fifth chip scrolls rather than being silently
+   sheared off at the column edge, which is what used to happen: the field
+   clipped at overflow:hidden with no ellipsis and no hint more tags existed. */
+.fps-tags {
+  display: flex; gap: 4px; align-items: center; flex-wrap: nowrap;
+  overflow-x: auto; overflow-y: hidden;
+}
+/* Load-bearing. Chips are flex items, so by default they SHRINK to fit the
+   container rather than overflowing it — the row would just squash every chip
+   narrower and never become scrollable at all. */
+.fps-tags .tag { flex-shrink: 0; }
+/* .fps-tag-btn.* removed: nothing in js/ ever emitted that class — it was left
+   over from an earlier on-strip tag-toggle design, and only covered four of the
+   ten tags. The live toggles are the detail-panel buttons in render.js, which
+   style themselves inline from TAG_COLORS. */
 
 /* ── TOOL GRID (3x3 switch panel) + STRIP ACTIONS ────────────────────────── */
 .tool-grid-wrap {

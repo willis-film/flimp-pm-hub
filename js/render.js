@@ -3,7 +3,7 @@
 // Kept together because they share render() and the `ui` view state.
 
 import { STATUS_LABELS, PHASE_LABELS, STATUS_CYCLE, ALL_TAGS, AM_LIST, DESIGNER_LIST, ANIMATOR_LIST, VO_LIST, PRODUCT_TYPE_LIST, PRODUCT_STYLE_MAP, PRODUCT_TIER_MAP, CLOSEOUT_ITEMS } from './data/constants.js';
-import { esc, fmtDate, daysLeft, fmtNextActivity, tagColor, tagTextColor, statusBadge, phasePill, tagsHtml, df, fmtRelTime, fmtAbsTime } from './utils.js';
+import { esc, fmtDate, daysLeft, fmtNextActivity, tagColor, tagTextColor, tagBorderColor, tagChip, statusBadge, phasePill, tagsHtml, df, fmtRelTime, fmtAbsTime } from './utils.js';
 import { db, save } from './store.js';
 import { ui } from './state.js';
 import { A, register } from './bus.js';
@@ -171,10 +171,10 @@ function render(){
           </div>
         </div>
         <div class="fps-fields">
-          <div class="fps-field" style="width:144px;flex-shrink:0">
+          <div class="fps-field" style="width:212px;flex-shrink:0">
             <div class="fps-field-label">Tags</div>
             <div class="fps-field-val">
-              <div class="fps-tags">${(parent.tags||[]).length ? (parent.tags||[]).map(t=>`<span class="tag tag-${t.toLowerCase()}">${t}</span>`).join('') : '<span style="color:var(--ink-4)">—</span>'}</div>
+              <div class="fps-tags">${(parent.tags||[]).length ? (parent.tags||[]).map(tagChip).join('') : '<span style="color:var(--ink-4)">—</span>'}</div>
             </div>
           </div>
           <div class="fps-field" style="width:440px;flex-shrink:1;min-width:150px">
@@ -869,7 +869,7 @@ function openDetail(id){
   const fields=isParent ? `
     ${df('Status',`<select class="fi" onchange="uf('${id}','status',this.value)">${STATUS_CYCLE.map(s=>`<option value="${s}"${row.status===s?' selected':''}>${STATUS_LABELS[s]}</option>`).join('')}</select>`)}
     ${df('I/O',`<input type="checkbox"${row.io?' checked':''} onchange="uf('${id}','io',this.checked)">`)}
-    ${df('Tags',`<div style="display:flex;gap:4px;flex-wrap:wrap;">${ALL_TAGS.map(t=>{const a=(row.tags||[]).includes(t);return `<button onclick="toggleTag('${id}','${t}')" style="font-family:var(--font);font-size: 12px;font-weight:400;padding:3px 9px;border-radius:3px;border:1.5px solid ${a?'transparent':'var(--line-2)'};cursor:pointer;color:${a?tagTextColor(t):'var(--ink-3)'};background:${a?tagColor(t):'var(--panel-2)'};transition:all .13s">${t}</button>`}).join('')}</div>`)}
+    ${df('Tags',`<div style="display:flex;gap:4px;flex-wrap:wrap;">${ALL_TAGS.map(t=>{const a=(row.tags||[]).includes(t);return `<button data-tag="${esc(t)}" onclick="toggleTag('${id}',this.dataset.tag)" style="font-family:var(--font);font-size: 12px;font-weight:400;padding:3px 9px;border-radius:3px;border:1.5px solid ${a?tagBorderColor(t):'var(--line-2)'};cursor:pointer;color:${a?tagTextColor(t):'var(--ink-3)'};background:${a?tagColor(t):'var(--panel-2)'};transition:all .13s">${esc(t)}</button>`}).join('')}</div>`)}
     ${df('Due Date',`<input class="fi" type="date" value="${row.due||''}" onchange="uf('${id}','due',this.value)" style="width:160px">`)}
     ${df('OE Start',`<input class="fi" type="date" value="${row.oeStart||''}" onchange="uf('${id}','oeStart',this.value)" style="width:160px">`)}
     ${df('AM',`<select class="fi" onchange="uf('${id}','am',this.value)"><option value="">—</option>${AM_LIST.map(a=>`<option value="${a}"${row.am===a?' selected':''}>${a}</option>`).join('')}</select>`)}
@@ -881,7 +881,7 @@ function openDetail(id){
   ` : `
     ${df('Status',`<select class="fi" onchange="uf('${id}','status',this.value)">${STATUS_CYCLE.map(s=>`<option value="${s}"${row.status===s?' selected':''}>${STATUS_LABELS[s]}</option>`).join('')}</select>`)}
     ${df('Phase',`<select class="fi" onchange="uf('${id}','phase',this.value)"><option value="">None</option>${Object.entries(PHASE_LABELS).map(([k,v])=>`<option value="${k}"${row.phase===k?' selected':''}>${v}</option>`).join('')}</select>`)}
-    ${df('Tags',`<div style="display:flex;gap:4px;flex-wrap:wrap;">${ALL_TAGS.map(t=>{const a=(row.tags||[]).includes(t);return `<button onclick="toggleTag('${id}','${t}')" style="font-family:var(--font);font-size: 12px;font-weight:400;padding:3px 9px;border-radius:3px;border:1.5px solid ${a?'transparent':'var(--line-2)'};cursor:pointer;color:${a?tagTextColor(t):'var(--ink-3)'};background:${a?tagColor(t):'var(--panel-2)'};transition:all .13s">${t}</button>`}).join('')}</div>`)}
+    ${df('Tags',`<div style="display:flex;gap:4px;flex-wrap:wrap;">${ALL_TAGS.map(t=>{const a=(row.tags||[]).includes(t);return `<button data-tag="${esc(t)}" onclick="toggleTag('${id}',this.dataset.tag)" style="font-family:var(--font);font-size: 12px;font-weight:400;padding:3px 9px;border-radius:3px;border:1.5px solid ${a?tagBorderColor(t):'var(--line-2)'};cursor:pointer;color:${a?tagTextColor(t):'var(--ink-3)'};background:${a?tagColor(t):'var(--panel-2)'};transition:all .13s">${esc(t)}</button>`}).join('')}</div>`)}
     ${df('Due Date',`<input class="fi" type="date" value="${row.due||''}" onchange="uf('${id}','due',this.value)" style="width:160px">`)}
     ${df('AM',`<select class="fi" onchange="uf('${id}','am',this.value)"><option value="">—</option>${AM_LIST.map(a=>`<option value="${a}"${row.am===a?' selected':''}>${a}</option>`).join('')}</select>`)}
     ${df('New / Update',`<select class="fi" onchange="uf('${id}','newOrUpdate',this.value)"><option value="">—</option><option value="New"${row.newOrUpdate==='New'?' selected':''}>New</option><option value="Update"${row.newOrUpdate==='Update'?' selected':''}>Update</option></select>`)}

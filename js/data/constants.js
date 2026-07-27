@@ -27,6 +27,33 @@ export const STATUS_CYCLE  = ['kickoff','production','limbo','done','closed'];
 
 export const ALL_TAGS      = ['EV','DP','HRLV','PPTV','TRAN','FCV','TV','SUB','RC','VBS'];
 
+// Tag chip colours, keyed by tag value. Overridden in place by applyReference()
+// from the `tags` table's bg_color/text_color/border_color columns (see
+// supabase/2026-07-27-tag-colors.sql), so adding a tag is a Supabase row rather
+// than a code change.
+//
+// These hardcoded entries are the offline/pre-migration fallback and are the
+// same values the .tag-* CSS classes used to carry — that stylesheet block is
+// gone, this is now the only place a tag's colour is defined in code.
+//
+// A tag with no entry here and none from Supabase falls back to TAG_COLOR_DEFAULT
+// rather than rendering invisibly, which is what happened before: a tag with no
+// matching CSS class got the bare .tag rule (transparent on transparent).
+export const TAG_COLOR_DEFAULT = { bg: '#EEF0F2', text: '#5A6359', border: '#D9DDD7' };
+
+export const TAG_COLORS = {
+  EV:   { bg: '#FCEDE1', text: '#B25E20', border: '#F3D6BE' },
+  DP:   { bg: '#E1F2F5', text: '#157A86', border: '#BFE4EA' },
+  HRLV: { bg: '#F1ECE8', text: '#7C5E48', border: '#E0D3C8' },
+  PPTV: { bg: '#F4EAF4', text: '#8A468A', border: '#E4CFE4' },
+  TRAN: { bg: '#FBF1D9', text: '#8A6A12', border: '#EFDFA8' },
+  FCV:  { bg: '#DFF0F2', text: '#136470', border: '#BCE0E6' },
+  TV:   { bg: '#E8EFFB', text: '#3A5B9A', border: '#CBD9F4' },
+  SUB:  { bg: '#EEF0EE', text: '#5A6359', border: '#D9DDD7' },
+  RC:   { bg: '#DEF0F4', text: '#0B6E80', border: '#BBE2EA' },
+  VBS:  { bg: '#E6EFF6', text: '#335B8A', border: '#C8DCEC' },
+};
+
 export const AM_LIST       = ['Heather','Julie','Kristy'];
 
 export const DESIGNER_LIST = ['Andrew Willis','Colby Dolan','Connor Biddle','Heather Klee','Hernan Sofiro','Ines Itcovici','Ken Curry','Kyra Dawson','Lisa Ledbetter','Maria Haynes','Maria Partsevsky','Mark Eyberg','Martin de Alzaga','Megan Phillips','Ryan Gibo','Sacha Pfeifer','Santiago Gonzalez Hoch','Sean Martines','Steve Garofalo','Steve Gray','Stuart Chesters'];
@@ -162,4 +189,13 @@ export function applyReference(ref) {
   arr(CLOSEOUT_ITEMS,     ref.closeoutItems);
   map(PRODUCT_TIER_MAP,   ref.productTierMap);
   map(PRODUCT_STYLE_MAP,  ref.productStyleMap);
+
+  // Merged, not replaced — unlike every map above. api/db.js only emits an entry
+  // for a tag that actually has a colour set, so a wholesale swap would drop the
+  // hardcoded fallback for every tag whose columns are still NULL and leave those
+  // chips grey. Merging lets the table override tag-by-tag while unmigrated rows
+  // keep working.
+  if (ref.tagColors && typeof ref.tagColors === 'object') {
+    Object.assign(TAG_COLORS, ref.tagColors);
+  }
 }

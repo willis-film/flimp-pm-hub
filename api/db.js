@@ -220,6 +220,22 @@ export default async function handler(req, res) {
         if (peopleByRole[p.role]) peopleByRole[p.role].push(p.name);
       }
 
+      // Tag chip colours, keyed by tag value (see the 2026-07-27 migration).
+      // Only tags with at least one colour column set get an entry: the client
+      // MERGES this over its hardcoded TAG_COLORS defaults, so emitting a row of
+      // nulls for an uncoloured tag would blank out a working fallback. Missing
+      // individual columns fall back per-property on the client.
+      const tagColors = {};
+      for (const t of (tags || [])) {
+        if (t.bg_color || t.text_color || t.border_color) {
+          tagColors[t.value] = {
+            bg:     t.bg_color     || undefined,
+            text:   t.text_color   || undefined,
+            border: t.border_color || undefined
+          };
+        }
+      }
+
       return res.status(200).json({
         gmailClientPrefix: ws.gmail_client_prefix || '',
         clickupTasks: (cuTasks || []).map(t => ({
@@ -242,6 +258,7 @@ export default async function handler(req, res) {
           voList:          peopleByRole.vo,
           ownerList:       peopleByRole.owner,
           tags:            (tags || []).map(r => r.value),
+          tagColors,
           languages:       (languages || []).map(r => r.value),
           productTopics:   (productTopics || []).map(r => r.value),
           productTypes:    (productTypes || []).map(r => r.value),
