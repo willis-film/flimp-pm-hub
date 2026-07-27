@@ -731,8 +731,24 @@ function setStatus(id, value){
     _enteringId=null;
     const newBlock=document.getElementById('block-'+id);
     if(!newBlock){ if(ui.detailId===id) openDetail(id); return; }
+    // Stamp the strip's real height for slideInRight (see --fps-h in main.css).
+    // scrollHeight, NOT offsetHeight: .fps-enter clamps the box to max-height:0
+    // so the destination gap stays shut until the animation opens it, which
+    // makes offsetHeight read 0 right here. scrollHeight reports the true
+    // content height straight through that clamp.
+    newBlock.style.setProperty('--fps-h', newBlock.scrollHeight+'px');
     // 3) On the next frame, swap the static offset for the slide-in animation.
-    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    //    Guarded the same way as the out phase below, and for the same reason:
+    //    rAF is suspended while a tab is backgrounded, and if it never fires the
+    //    strip is left sitting at .fps-enter — which is now collapsed as well as
+    //    transparent, so the row would look deleted rather than merely blank.
+    //    Whichever of rAF or the fallback arrives first wins; startIn runs once.
+    //    Adding the class late is still safe: a suspended CSS animation plays
+    //    when the tab comes back, whereas .fps-enter would never resolve.
+    let started=false;
+    const startIn=()=>{
+      if(started) return; started=true;
+      clearTimeout(inTimer);
       newBlock.classList.remove('fps-enter');
       newBlock.classList.add('animating-in');
       // animationend bubbles — only react to the block's own animation, not a
@@ -741,10 +757,15 @@ function setStatus(id, value){
         if(e.target!==newBlock) return;
         newBlock.removeEventListener('animationend', onInEnd);
         newBlock.classList.remove('animating-in');
+        // Measured for this one move only — a later panel toggle would make it
+        // stale, so it doesn't outlive the animation that needed it.
+        newBlock.style.removeProperty('--fps-h');
       };
       newBlock.addEventListener('animationend', onInEnd);
       if(ui.detailId===id) openDetail(id);
-    }));
+    };
+    const inTimer=setTimeout(startIn, 200);
+    requestAnimationFrame(()=>requestAnimationFrame(startIn));
   };
 
   // Run onOut exactly once, whichever comes first: the block's own animation
@@ -758,6 +779,10 @@ function setStatus(id, value){
     fire();
   };
   const timer=setTimeout(fire, 600);
+  // Stamp the strip's real height for slideOutRight (see --fps-h in main.css).
+  // Measured here, before the class lands, so it reflects the strip as the user
+  // currently sees it — open panel and all — rather than a fixed guess.
+  block.style.setProperty('--fps-h', block.offsetHeight+'px');
   block.classList.add('animating-out');
   block.addEventListener('animationend', onOutEnd);
 }
