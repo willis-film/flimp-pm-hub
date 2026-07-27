@@ -558,11 +558,12 @@ body::before {
    values no longer have to be valid CSS class names. */
 
 /* on-strip tag buttons (toggles) */
-/* Sized (with the 212px field width in render.js) to seat four chips at the
-   widest existing code length — 4 chars, ~46.5px each, plus three 4px gaps and
-   the field's 14px padding. A fifth chip scrolls rather than being silently
-   sheared off at the column edge, which is what used to happen: the field
-   clipped at overflow:hidden with no ellipsis and no hint more tags existed. */
+/* The field stays at its original 144px (set in render.js) — roughly three
+   chips at typical code lengths — and anything past that SCROLLS. Previously it
+   was clipped by the field's overflow:hidden with no ellipsis and no hint the
+   extra tags existed; widening the column to fit more was tried and cost too
+   much room from the neighbouring fields, so scrolling carries the overflow
+   instead. */
 .fps-tags {
   display: flex; gap: 4px; align-items: center; flex-wrap: nowrap;
   overflow-x: auto; overflow-y: hidden;

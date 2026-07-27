@@ -171,7 +171,7 @@ function render(){
           </div>
         </div>
         <div class="fps-fields">
-          <div class="fps-field" style="width:212px;flex-shrink:0">
+          <div class="fps-field" style="width:144px;flex-shrink:0">
             <div class="fps-field-label">Tags</div>
             <div class="fps-field-val">
               <div class="fps-tags">${(parent.tags||[]).length ? (parent.tags||[]).map(tagChip).join('') : '<span style="color:var(--ink-4)">—</span>'}</div>
