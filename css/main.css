@@ -341,7 +341,16 @@ body::before {
 .sll-closed     { background: linear-gradient(90deg, rgba(47,145,89,0.32), transparent); }
 
 /* ── FLIGHT PROGRESS STRIP ───────────────────────────────────────────────── */
-.fps-block { margin-bottom: 11px; }
+/* flex-shrink: 0 is load-bearing, not tidying. .list-wrap is a column flex
+   container, so each block is a flex item, and a flex item's `min-height: auto`
+   only resolves to its content-based minimum while `overflow` is `visible`.
+   All three status-change animation classes (.animating-out, .animating-in,
+   .fps-enter) set `overflow: hidden` — which drops that floor to 0 and lets the
+   item shrink freely. Once the board is long enough to overflow .list-wrap,
+   flex-shrink then collapses the animating strip to zero height and it vanishes
+   outright for the whole animation. It only reproduces on a board that scrolls,
+   which is why short test boards look fine. */
+.fps-block { margin-bottom: 11px; flex-shrink: 0; }
 
 .fps {
   display: flex; align-items: stretch;
