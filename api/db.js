@@ -214,11 +214,24 @@ export default async function handler(req, res) {
         const target = o.kind === 'style' ? styleMap : tierMap;
         (target[o.product_type] = target[o.product_type] || []).push(o.value);
       }
-      // Group people by role into plain name arrays.
+      // Group people by role into plain name arrays. These drive the Info
+      // panel's dropdowns, which only ever need a name.
       const peopleByRole = { am: [], designer: [], animator: [], vo: [], owner: [] };
       for (const p of (people || [])) {
         if (peopleByRole[p.role]) peopleByRole[p.role].push(p.name);
       }
+
+      // The same rows, kept whole. The kickoff PDF's team block prints contact
+      // details, so it needs more than a name — and it needs to reach people who
+      // aren't assigned to the project at all, which the role buckets above
+      // can't express. Emitted separately rather than by enriching the buckets,
+      // so the dropdowns keep receiving the flat string arrays they expect.
+      const peopleDirectory = (people || []).map(p => ({
+        name:  p.name,
+        role:  p.role,
+        email: p.email || '',
+        phone: p.phone || ''
+      }));
 
       // Tag chip colours, keyed by tag value (see the 2026-07-27 migration).
       // Only tags with at least one colour column set get an entry: the client
@@ -257,6 +270,7 @@ export default async function handler(req, res) {
           animatorList:    peopleByRole.animator,
           voList:          peopleByRole.vo,
           ownerList:       peopleByRole.owner,
+          people:          peopleDirectory,
           tags:            (tags || []).map(r => r.value),
           tagColors,
           languages:       (languages || []).map(r => r.value),

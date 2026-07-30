@@ -11,25 +11,29 @@
 // draft survives a panel switch.
 //
 // ── WHAT THE KICKOFF PDF ACTUALLY IS ─────────────────────────────────────────
-// A hybrid. Page 1 is filled through real AcroForm fields; the page-2 timeline
-// table is DRAWN programmatically (variable row count, must paginate), using a
-// field's rectangle only as a coordinate boundary. This panel owns neither
-// mechanism — it collects and confirms the inputs, then hands them to
-// /api/kickoff-pdf.js. Keeping the panel purely about inputs is what lets the
-// generator change (Python prototype → pdf-lib in Node) without touching it.
+// Every region is DRAWN onto the template's artwork — nothing is filled as an
+// AcroForm field. The formed PDFs supply two things: the background art, and the
+// rectangles that say where each region sits. See the LAYOUT BOXES block below
+// for why field-fill was dropped.
 //
-// The preview column therefore shows FIELD CONTENT, not a rendered page. It is
-// a "here is exactly what will land in each field" readout — which is the part
-// that's actually worth checking before generating, and is honest about being a
-// readout rather than faking a page render.
+// This panel owns none of the drawing. It resolves every value the document
+// needs into finished strings and hands them to /api/kickoff-pdf.js. Keeping the
+// panel purely about inputs is what lets the generator be tested from a JSON
+// fixture, with no database and no knowledge of the row schema.
 //
-// STATUS: the form is complete for page 1 + First Steps. Generation is stubbed —
-// /api/kickoff-pdf.js does not exist yet, and the button says so rather than
-// firing a request at a 404.
+// The preview column is therefore a REGION-BY-REGION readout, not a rendered
+// page — which is the part actually worth checking before generating, and is
+// honest about being a readout rather than faking a page render. It is also the
+// editing surface: see the OVERRIDES block.
+//
+// STATUS: input collection is complete for page 1 + First Steps. Generation is
+// stubbed — /api/kickoff-pdf.js does not exist yet, and the button says so
+// rather than firing a request at a 404.
 
 import { esc } from '../utils.js';
 import { db, save } from '../store.js';
 import { A, register } from '../bus.js';
+import { PEOPLE_DIRECTORY, KICKOFF_ALWAYS } from '../data/constants.js';
 
 // ── KINDS ────────────────────────────────────────────────────────────────────
 const KINDS = [
@@ -38,45 +42,50 @@ const KINDS = [
 ];
 const KIND_LABEL = Object.fromEntries(KINDS.map(k => [k.id, k.label]));
 
-// ── TEMPLATE FACTS ───────────────────────────────────────────────────────────
-// Read off the real AcroForm in `Flimp Kickoff Template Formed.pdf`, not guessed.
-// These drive the warnings below, so if the template is ever re-formed with
-// different rects or default appearances, correct them HERE and the whole panel
-// follows.
+// ── LAYOUT BOXES ─────────────────────────────────────────────────────────────
+// Rectangles read off the AcroForm in `Flimp Kickoff Template Formed.pdf`, and
+// the design sizes from each field's default appearance. If the template is ever
+// re-formed with different geometry, correct it HERE and the whole panel follows.
 //
-//   Process     rect [35.3, 61.8, 369.3, 308.9]  DA /RundDisplay-Medium 15 Tf
-//   Flimp Team  rect [425.5, 266.0, 575.5, 525.6] DA /RundDisplay-Medium 12 Tf
-//   First Steps rect [212.1, 582.8, 567.6, 682.7] DA /Helv 12 Tf, NOT multiline
+// NOTE WHAT THESE ARE NOW. The generator does NOT fill these as form fields —
+// it draws into them as coordinate boxes, the same way the timeline table
+// already treats the `Timeline` rect. Two things forced that:
 //
-// `Process` is the sharp edge: 15pt is HARDCODED, not auto-sizing (`0 Tf` would
-// mean auto), so the field cannot shrink text to fit. At ~21pt line spacing in a
-// 247pt-tall rect, roughly 11 lines fit before the field's own clipping
-// rectangle silently cuts off the rest. Hence the warning rather than a surprise
-// on the generated PDF.
-// Line capacity is derived from the real rect height and font size rather than
-// hardcoded, so correcting a measurement corrects every warning at once.
-// Leading of 1.4× is the usual PDF text-field default.
+//   1. An AcroForm text field carries ONE default appearance for the whole
+//      field: one font, one size, one colour. Process and First Steps are headed
+//      lists — a per-type heading has to read differently from the numbered
+//      lines beneath it — and a single-format field simply cannot express that.
+//      (Rich-text fields nominally can; they're an Acrobat-only corner of the
+//      spec with no pdf-lib support.)
+//   2. Half the document was already being drawn. Keeping field-fill for the
+//      other half meant two text paths, two font resolutions, and two ways for
+//      text to fail, in one document.
+//
+// Dropping the fields costs nothing visually: the page art is four placed
+// XObjects positioned by a 358-byte content stream, and the fields are widget
+// annotations floating on top. Strip them and the page is unchanged.
+//
+// The upshot for this panel is that overflow is no longer silent truncation —
+// the generator can set text smaller to fit. So `font` is the size the design
+// asks for, and `minFont` is how far it may be reduced before the result stops
+// being worth printing.
 const LEADING = 1.4;
 const FIELD = {
-  // rect [35.3, 61.8, 369.3, 308.9] → 334.0 × 247.1pt, DA fixed at 15pt
-  process:    { w: 334.0, h: 247.1, font: 15 },
-  // rect [212.1, 582.8, 567.6, 682.7] → 355.5 × 99.9pt, DA /Helv 12
-  // NOTE: built with Ff=0 — NOT multiline. A bulleted list needs the generator
-  // to flip that flag at fill time (pdf-lib: field.enableMultiline()), or only
-  // the first line will ever render.
-  firstSteps: { w: 355.5, h: 99.9, font: 12 }
+  // rect [35.3, 61.8, 369.3, 308.9] → 334.0 × 247.1pt, design size 15pt
+  process:    { w: 334.0, h: 247.1, font: 15, minFont: 10 },
+  // rect [212.1, 582.8, 567.6, 682.7] → 355.5 × 99.9pt, design size 12pt
+  firstSteps: { w: 355.5, h: 99.9, font: 12, minFont: 8 }
 };
-const capacity = f => Math.floor(f.h / (f.font * LEADING));
+const capacityAt = (f, size) => Math.floor(f.h / (size * LEADING));
+const capacity   = f => capacityAt(f, f.font);
 // Character budget per line, approximating average glyph width at 0.5em. Rough
 // on purpose — enough to warn on, and the generator does the authoritative
 // measurement with real font metrics.
 const charsPerLine = f => Math.max(1, Math.floor(f.w / (f.font * 0.5)));
 
 const LIMITS = {
-  // The team box is ~150pt wide. Three people at four lines each was tested and
-  // fits, with the font auto-shrinking to stay inside. Beyond that it keeps
-  // shrinking rather than overflowing, so this is a legibility warning, not a
-  // clipping one.
+  // The team box is ~150pt wide and four lines tall per person. Three fits
+  // comfortably; beyond that the text has to be set smaller to stay inside.
   teamComfortable: 3
 };
 
@@ -151,7 +160,7 @@ function tplState(parent) {
   const t = parent.templates;
   if (t.kind === undefined) t.kind = '';                                        // '' | 'email' | 'kickoff'
   if (!t.campaignOff || typeof t.campaignOff !== 'object') t.campaignOff = {};  // deliverables left OFF the Campaign list
-  if (!t.teamOff     || typeof t.teamOff     !== 'object') t.teamOff     = {};  // people left OFF the Flimp Team block
+  if (!t.teamOn      || typeof t.teamOn      !== 'object') t.teamOn      = {};  // people opted IN beyond the pinned two
   if (!t.fields      || typeof t.fields      !== 'object') t.fields      = {};  // confirmed/edited page-1 values
   if (!t.lineOff     || typeof t.lineOff     !== 'object') t.lineOff     = {};  // Process/First Steps lines switched off
   if (!t.overrides   || typeof t.overrides   !== 'object') t.overrides   = {};  // per-project wording tweaks
@@ -209,14 +218,37 @@ function campaignItems(parent, st) {
     }));
 }
 
-// Everyone named anywhere on the project or its items, deduped by name, each
-// carrying every role they hold. One person is often two roles (designer on one
-// item, animator on another); the document should name them once.
+// ── TEAM ─────────────────────────────────────────────────────────────────────
+// The block has three tiers, because "who is on this kickoff" is three different
+// questions:
 //
-// Title, email and phone are NOT here because they do not exist in the schema —
-// they are person-level facts and the rows only store names. They come from the
-// `people` reference table once it gains `email` / `phone` columns.
-function gatherTeam(parent) {
+//   PINNED    — production lead and the account manager. On every kickoff by
+//               definition, so the panel states them rather than asking.
+//   ASSIGNED  — whoever holds a role on this project's items. Offered, not
+//               assumed: a project can carry six vendors and the box comfortably
+//               holds three, so including them all by default would guarantee an
+//               overflow warning on every project.
+//   DIRECTORY — anyone else in `people`. Someone can belong on a kickoff without
+//               holding a production role on it.
+//
+// Note the deliberate split from the Campaign list, which tracks EXCLUSIONS so a
+// newly added deliverable appears automatically. Team members are opt-IN because
+// the constraint runs the other way: the box is narrow, and the cost of a
+// forgotten tick is one missing name, against a document that silently shrinks
+// its own text if everyone piles in.
+
+// Contact details live on the person, not the assignment, so they're looked up
+// by name against the directory. A name with no matching row still renders —
+// with blank contact lines — rather than vanishing from the team block.
+function contactFor(name) {
+  const rec = PEOPLE_DIRECTORY.find(p => p.name === name);
+  return { email: (rec && rec.email) || '', phone: (rec && rec.phone) || '' };
+}
+
+// Everyone holding a role on this project, deduped by name and carrying every
+// role they hold — one person is often two (designer on one item, animator on
+// another), and the document should name them once.
+function assignedRoles(parent) {
   const kids = A.getChildren(parent.id);
   const byName = new Map();
   for (const role of TEAM_ROLES) {
@@ -224,26 +256,66 @@ function gatherTeam(parent) {
     for (const row of rows) {
       const name = (row[role.field] || '').trim();
       if (!name) continue;
-      if (!byName.has(name)) byName.set(name, { name, roles: [] });
-      const rec = byName.get(name);
-      if (!rec.roles.includes(role.label)) rec.roles.push(role.label);
+      if (!byName.has(name)) byName.set(name, []);
+      const roles = byName.get(name);
+      if (!roles.includes(role.label)) roles.push(role.label);
     }
   }
-  return [...byName.values()];
+  return byName;
 }
 
-// Selection and exclusion still key on the ROW name, not the displayed one —
-// otherwise renaming someone in the document would orphan their off-toggle.
+// The full candidate list, in the order the document prints them: pinned first,
+// then assigned, then everyone else. `pinned` members cannot be switched off.
+function teamCandidates(parent) {
+  const roles = assignedRoles(parent);
+  const am = (parent.am || '').trim();
+  const out = [];
+  const seen = new Set();
+  const add = (name, pinned, why) => {
+    if (!name || seen.has(name)) return;
+    seen.add(name);
+    out.push({ name, pinned, why, roles: roles.get(name) || [] });
+  };
+
+  add(KICKOFF_ALWAYS, true, 'Always on every kickoff');
+  add(am, true, 'Account manager on this project');
+  for (const name of roles.keys()) add(name, false, '');
+  for (const p of PEOPLE_DIRECTORY) add(p.name, false, '');
+  return out;
+}
+
+// Roles come from the assignment where there is one. Pinned members often hold
+// no production role — the account manager usually doesn't — so they fall back
+// to the reason they're pinned, which is the truer description anyway.
+function roleTextFor(c) {
+  if (c.roles.length) return c.roles.join(' · ');
+  const rec = PEOPLE_DIRECTORY.find(p => p.name === c.name);
+  if (c.pinned) return c.name === KICKOFF_ALWAYS ? 'Production' : 'Account Manager';
+  return (rec && rec.role) ? rec.role : '';
+}
+
+function isTeamOn(st, c) { return c.pinned || !!st.teamOn[c.name]; }
+
+// Selection keys on the ROW name, never the displayed one — otherwise renaming
+// someone in the document would orphan their toggle.
 function selectedTeam(parent, st) {
-  return gatherTeam(parent)
-    .filter(p => !st.teamOff[p.name])
-    .map(p => ({
-      name:     p.name,
-      nameKey:  'team:' + p.name,
-      roleKey:  'teamrole:' + p.name,
-      label:    ov(st, 'team:' + p.name, p.name),
-      roleText: ov(st, 'teamrole:' + p.name, p.roles.join(' · '))
-    }));
+  return teamCandidates(parent)
+    .filter(c => isTeamOn(st, c))
+    .map(c => {
+      const contact = contactFor(c.name);
+      return {
+        name:      c.name,
+        pinned:    c.pinned,
+        nameKey:   'team:' + c.name,
+        roleKey:   'teamrole:' + c.name,
+        emailKey:  'teamemail:' + c.name,
+        phoneKey:  'teamphone:' + c.name,
+        label:     ov(st, 'team:' + c.name, c.name),
+        roleText:  ov(st, 'teamrole:' + c.name, roleTextFor(c)),
+        emailText: ov(st, 'teamemail:' + c.name, contact.email),
+        phoneText: ov(st, 'teamphone:' + c.name, contact.phone)
+      };
+    });
 }
 
 // Page-1 values that are genuinely single values. Process and First Steps are
@@ -368,21 +440,27 @@ function timelineSummary(parent) {
 
 // ── CONTENT LIMIT CHECKS ─────────────────────────────────────────────────────
 
+// Overflow is now a decision rather than an accident: the generator draws these
+// boxes, so it can set text smaller to fit. Two thresholds follow — over the
+// design size means "this will be reduced", over the minimum means "this will
+// not fit at a size worth reading". Only the second is a real problem.
+function fitWarning(section, label, f) {
+  if (section.lines <= section.cap) return null;
+  const hard = capacityAt(f, f.minFont);
+  return section.lines > hard
+    ? `${label} is about ${section.lines} lines. Even at ${f.minFont}pt — the smallest worth printing — the box holds ~${hard}. Cut some lines or move content elsewhere.`
+    : `${label} is about ${section.lines} lines against ~${section.cap} at the design size of ${f.font}pt, so it will be set smaller to fit.`;
+}
+
 function warnings(parent, st) {
   const out = [];
   const d = derived(parent, st);
 
-  if (d.process.lines > d.process.cap) {
-    out.push(`Process is about ${d.process.lines} lines and the field holds ~${d.process.cap}. Its font size is hardcoded at ${FIELD.process.font}pt, so the overflow is clipped by the field — not shrunk to fit.`);
-  }
-  if (d.firstSteps.lines > d.firstSteps.cap) {
-    out.push(`First Steps is about ${d.firstSteps.lines} lines and the field holds ~${d.firstSteps.cap} at ${FIELD.firstSteps.font}pt.`);
-  }
-  // Structural, not a content-length problem — worth stating separately because
-  // the fix is in the generator rather than in what's written here.
-  if (d.firstSteps.text.includes('\n')) {
-    out.push('First Steps is built single-line (Ff=0). Any list needs the generator to enable multiline on the field, or only the first bullet will render.');
-  }
+  const pw = fitWarning(d.process, 'Process', FIELD.process);
+  if (pw) out.push(pw);
+  const fw = fitWarning(d.firstSteps, 'First Steps', FIELD.firstSteps);
+  if (fw) out.push(fw);
+
   const unauthored = [...new Set(
     [...d.process.groups, ...d.firstSteps.groups].filter(g => !g.authored).map(g => g.type)
   )];
@@ -461,23 +539,46 @@ function campaignBody(pid, parent, st) {
   }).join('')}</div>`;
 }
 
-// Step 3 — who appears in the Flimp Team block.
+// Step 3 — who appears in the Flimp Team block. Pinned people are shown as
+// settled rather than as ticked checkboxes, because a control that can't be
+// switched off shouldn't look like one that can.
 function teamBody(pid, parent, st) {
-  const people = gatherTeam(parent);
-  if (!people.length) {
-    return `<div class="tp-empty">Nobody is assigned on this project yet — set an owner, account manager or vendor in the Info panel and they will appear here.</div>`;
-  }
-  const rows = people.map(p => {
-    const on = !st.teamOff[p.name];
-    return `<label class="tp-check${on ? ' on' : ''}">
-      <input type="checkbox" ${on ? 'checked' : ''} onchange="A.tpToggleTeam('${pid}',this.dataset.nm)" data-nm="${esc(p.name)}">
-      <span class="tp-check-box"></span>
-      <span class="tp-check-nm">${esc(p.name)}</span>
-      <span class="tp-check-m">${esc(p.roles.join(' · '))}</span>
-    </label>`;
-  }).join('');
-  return `<div class="tp-checks">${rows}</div>
-    <div class="tp-note">Title, email and phone are not stored anywhere yet — the rows only hold names. They will fill in once the <code>people</code> reference table gains <code>email</code> and <code>phone</code> columns.</div>`;
+  const all = teamCandidates(parent);
+  const pinned = all.filter(c => c.pinned);
+  const rest   = all.filter(c => !c.pinned);
+
+  const missingContact = all
+    .filter(c => isTeamOn(st, c))
+    .filter(c => { const k = contactFor(c.name); return !k.email && !k.phone; })
+    .map(c => c.name);
+
+  const pinnedRows = pinned.map(c => `<div class="tp-pinned">
+      <span class="tp-pinned-lock" title="${esc(c.why)}">◆</span>
+      <span class="tp-check-nm">${esc(c.name)}</span>
+      <span class="tp-check-m">${esc(c.why)}</span>
+    </div>`).join('');
+
+  const restRows = rest.length
+    ? rest.map(c => {
+        const on = !!st.teamOn[c.name];
+        const role = roleTextFor(c);
+        return `<label class="tp-check${on ? ' on' : ''}">
+          <input type="checkbox" ${on ? 'checked' : ''}
+            onchange="A.tpToggleTeam('${pid}',this.dataset.nm)" data-nm="${esc(c.name)}">
+          <span class="tp-check-box"></span>
+          <span class="tp-check-nm">${esc(c.name)}</span>
+          <span class="tp-check-m">${esc(c.roles.length ? role : (role ? role + ' · not on this project' : 'not on this project'))}</span>
+        </label>`;
+      }).join('')
+    : `<div class="tp-empty">Nobody else to add — the <code>people</code> table is empty or still loading.</div>`;
+
+  return `<div class="tp-subh">Always included</div>
+    <div class="tp-checks">${pinnedRows || '<div class="tp-empty">No account manager set on this project.</div>'}</div>
+    <div class="tp-subh">Add others</div>
+    <div class="tp-checks">${restRows}</div>
+    ${missingContact.length
+      ? `<div class="tp-note">No email or phone on file for ${esc(missingContact.join(', '))} — their contact lines will print blank. Fill them in on the <code>people</code> table in Supabase, or type them straight into the preview for this document only.</div>`
+      : ''}`;
 }
 
 // Step 4 — the two typed-in values, then the two derived sections.
@@ -532,10 +633,10 @@ function fieldBody(pid, parent, st) {
 
   return `<div class="tp-note">Wording is edited in the preview on the right — click any value to change it for this document. Switch lines off here to leave them out entirely.</div>
     ${derivedBlock(pid, 'process', 'Process — page 1',
-      `Numbered per product type, restarting at 1. Font is hardcoded at ${FIELD.process.font}pt, so overflow is clipped rather than shrunk.`,
+      `Numbered per product type, restarting at 1. Drawn at ${FIELD.process.font}pt, reduced toward ${FIELD.process.minFont}pt if it runs long.`,
       d.process.groups, d.process.lines, d.process.cap)}
     ${derivedBlock(pid, 'firstSteps', 'First Steps — page 2',
-      `Bulleted per product type. The field is built single-line, so the generator must enable multiline for any list to show.`,
+      `Bulleted per product type. Drawn at ${FIELD.firstSteps.font}pt, reduced toward ${FIELD.firstSteps.minFont}pt if it runs long.`,
       d.firstSteps.groups, d.firstSteps.lines, d.firstSteps.cap)}`;
 }
 
@@ -609,13 +710,15 @@ function previewBody(parent, st) {
         `<li>${editable(parent.id, k.key, k.label)}${revert(parent.id, st, k.key)}</li>`).join('')}</ul>`
     : '';
 
-  // Show the missing person-level fields explicitly rather than omitting them —
-  // the gap is the point, and hiding it would make the block look finished.
+  // Four lines per person, exactly as the block prints them. A missing email or
+  // phone shows as an empty editable rather than being skipped — the gap is
+  // visible, and can be filled for this document without a trip to Supabase.
   const teamBlock = team.length
     ? team.map(p => `<div class="tp-pv-person">
         <div class="tp-pv-person-n">${editable(parent.id, p.nameKey, p.label)}${revert(parent.id, st, p.nameKey)}</div>
         <div class="tp-pv-person-r">${editable(parent.id, p.roleKey, p.roleText, '', 'no role')}${revert(parent.id, st, p.roleKey)}</div>
-        <div class="tp-pv-person-x">Title · Email · Phone — not in schema yet</div>
+        <div class="tp-pv-person-c">${editable(parent.id, p.emailKey, p.emailText, '', 'no email')}${revert(parent.id, st, p.emailKey)}</div>
+        <div class="tp-pv-person-c">${editable(parent.id, p.phoneKey, p.phoneText, '', 'no phone')}${revert(parent.id, st, p.phoneKey)}</div>
       </div>`).join('')
     : '';
 
@@ -718,7 +821,7 @@ function tpSetKind(pid, kind) {
   // clean rather than leaving an email's answers on a kickoff.
   st.fields = {};
   st.campaignOff = {};
-  st.teamOff = {};
+  st.teamOn = {};
   st.lineOff = {};
   st.overrides = {};
   st.step = kind === 'kickoff' ? 2 : 1;   // kickoff has steps to advance into
@@ -738,10 +841,11 @@ function tpToggleCampaign(pid, kidId) {
   save(); A.render();
 }
 
+// Pinned members have no toggle, so this only ever reaches the opt-in list.
 function tpToggleTeam(pid, name) {
   const r = db.rows.find(x => x.id === pid); if (!r) return;
   const st = tplState(r);
-  if (st.teamOff[name]) delete st.teamOff[name]; else st.teamOff[name] = true;
+  if (st.teamOn[name]) delete st.teamOn[name]; else st.teamOn[name] = true;
   save(); A.render();
 }
 

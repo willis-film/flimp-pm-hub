@@ -101,6 +101,22 @@ export const PRODUCT_TOPIC_LIST = [
 
 export const OWNER_LIST = ['Andrew Willis','Heather Klee','Julie','Kristy'];
 
+// The `people` table kept whole — name, role, and contact details — rather than
+// flattened to names by role like the lists above. The kickoff PDF's team block
+// prints email and phone, and can include someone who holds no role on the
+// project at all, neither of which the role buckets can express.
+//
+// Empty by default: unlike the dropdown lists there is no sensible hardcoded
+// fallback for somebody's real email address, and inventing one would be worse
+// than showing a blank. Populated from Supabase at boot.
+export const PEOPLE_DIRECTORY = [];
+
+// Whoever runs production is on every kickoff, so the document should never ask.
+// Matched against `people.name`, which is where the contact details come from —
+// if this string stops matching a row there, the name still prints but the
+// contact lines go blank rather than the person disappearing.
+export const KICKOFF_ALWAYS = 'Andrew Willis';
+
 export const CLOSEOUT_ITEMS = [
   'Invoices Received',
   'Invoices Documented',
@@ -182,6 +198,11 @@ export function applyReference(ref) {
   arr(ANIMATOR_LIST,      ref.animatorList);
   arr(VO_LIST,            ref.voList);
   arr(OWNER_LIST,         ref.ownerList);
+  // Replaced unconditionally, not guarded on non-empty like the lists above.
+  // Those guards exist to stop a half-migrated table blanking a working
+  // dropdown; here the default IS empty, so a guard would only ever prevent a
+  // real payload from landing.
+  _replaceArray(PEOPLE_DIRECTORY, ref.people);
   arr(ALL_TAGS,           ref.tags);
   arr(LANGUAGE_LIST,      ref.languages);
   arr(PRODUCT_TOPIC_LIST, ref.productTopics);
