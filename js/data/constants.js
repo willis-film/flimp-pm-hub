@@ -122,11 +122,12 @@ export const KICKOFF_ALWAYS = 'Andrew Willis';
 // Flimp contacts, and designers, animators and VO artists are neither
 // client-facing nor, in several cases, Flimp staff at all.
 //
-// 'owner' is the project-manager role in this schema: it's what feeds the "Flimp
-// project owner" and "Item owner" dropdowns. 'pm' is accepted alongside it in
-// case the table ever uses that spelling directly, since the role vocabulary
-// lives in Supabase rather than here.
-export const KICKOFF_TEAM_ROLES = ['am', 'owner', 'pm'];
+// 'pm' is the canonical project-manager role. 'owner' is its former spelling,
+// still accepted so rows that predate 2026-07-30-people-role-pm.sql keep working
+// — the same reason api/db.js buckets both. Either way it's the role behind the
+// Info panel's "Flimp project owner" and "Item owner" fields, which keep their
+// names: those label a project's owner, not a job title.
+export const KICKOFF_TEAM_ROLES = ['am', 'pm', 'owner'];
 
 // How those raw role values read in a client-facing document.
 export const KICKOFF_ROLE_LABEL = {

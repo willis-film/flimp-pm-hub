@@ -216,9 +216,27 @@ export default async function handler(req, res) {
       }
       // Group people by role into plain name arrays. These drive the Info
       // panel's dropdowns, which only ever need a name.
+      //
+      // The map is explicit rather than indexing the buckets by `role` directly,
+      // because the two vocabularies are no longer identical: the project-manager
+      // role was renamed 'owner' -> 'pm' in Supabase (see
+      // 2026-07-30-people-role-pm.sql), while the payload key stays `ownerList`
+      // to match the Info panel's "Flimp project owner" / "Item owner" fields.
+      //
+      // BOTH spellings feed the same bucket on purpose. The rename and this
+      // deploy don't land at the same instant, and an unmapped role is dropped
+      // silently — which would be near-invisible here, since applyReference()
+      // only overwrites a list when the incoming one is non-empty. An empty
+      // ownerList wouldn't blank the dropdown; it would quietly leave the
+      // hardcoded fallback in place and stop reflecting Supabase at all.
+      const ROLE_BUCKET = {
+        am: 'am', designer: 'designer', animator: 'animator', vo: 'vo',
+        pm: 'owner', owner: 'owner'
+      };
       const peopleByRole = { am: [], designer: [], animator: [], vo: [], owner: [] };
       for (const p of (people || [])) {
-        if (peopleByRole[p.role]) peopleByRole[p.role].push(p.name);
+        const bucket = ROLE_BUCKET[p.role];
+        if (bucket) peopleByRole[bucket].push(p.name);
       }
 
       // The same rows, kept whole. The kickoff PDF's team block prints contact
