@@ -2131,6 +2131,38 @@ select.info-in { cursor: pointer; padding-right: 4px; }
 .tp-line-t { font-size: 12px; color: var(--ink); line-height: 1.45; }
 .tp-line:not(.on) .tp-line-t { color: var(--ink-4); text-decoration: line-through; }
 
+/* ── EDITABLE PREVIEW ─────────────────────────────────────────────────────── */
+/* The preview is the editing surface: every derived value can be rewritten for
+   this document. Affordance is deliberately quiet — a dotted underline on hover
+   rather than input chrome, so the column still reads as a document and not a
+   form. */
+
+.tp-ed {
+  display: inline-block; min-width: 12px;
+  border-bottom: 1px dashed transparent; border-radius: 2px;
+  padding: 0 1px; cursor: text;
+}
+.tp-ed:hover { border-bottom-color: var(--ink-4); background: var(--panel-2); }
+.tp-ed:focus {
+  outline: none; background: var(--panel);
+  border-bottom-color: var(--signal); box-shadow: 0 0 0 2px var(--signal-glow);
+}
+/* An empty value still needs a click target, and needs to say it's empty. */
+.tp-ed-empty:not(:focus):before {
+  content: attr(data-ph); color: var(--ink-4); font-style: italic;
+}
+
+.tp-revert {
+  border: none; background: none; cursor: pointer; padding: 0 3px;
+  font-size: 11px; line-height: 1; color: var(--signal);
+  vertical-align: baseline;
+}
+.tp-revert:hover { color: var(--signal-deep); }
+
+/* Marks a line in the FORM column whose wording was changed in the preview —
+   the toggle list would otherwise show the original and look out of sync. */
+.tp-edited-dot { color: var(--signal); font-weight: 700; }
+
 /* Assembled sections as they appear in the preview readout. */
 .tp-pv-grp { margin-bottom: 9px; }
 .tp-pv-grp:last-child { margin-bottom: 0; }

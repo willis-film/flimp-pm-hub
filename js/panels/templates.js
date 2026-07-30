@@ -154,9 +154,31 @@ function tplState(parent) {
   if (!t.teamOff     || typeof t.teamOff     !== 'object') t.teamOff     = {};  // people left OFF the Flimp Team block
   if (!t.fields      || typeof t.fields      !== 'object') t.fields      = {};  // confirmed/edited page-1 values
   if (!t.lineOff     || typeof t.lineOff     !== 'object') t.lineOff     = {};  // Process/First Steps lines switched off
+  if (!t.overrides   || typeof t.overrides   !== 'object') t.overrides   = {};  // per-project wording tweaks
   if (t.step === undefined) t.step = 1;
   return t;
 }
+
+// ── OVERRIDES ────────────────────────────────────────────────────────────────
+// Everything in the preview is derived from somewhere — the project row, the
+// subtask rows, the per-type copy. Derivation gets it right most of the time,
+// but a specific project always has nuances the general rule can't know, so any
+// derived value can be edited in place for this document only.
+//
+// Overrides are stored SEPARATELY from the source rather than written back over
+// it. That keeps three things true at once: the source stays canonical (editing
+// the kickoff never mutates a subtask's real name), untouched values keep
+// tracking their source, and every edit is reversible.
+//
+// An override that matches what the derivation already produces is deleted
+// rather than stored — otherwise a value would silently freeze the moment
+// someone clicked into it and clicked out again, and would stop following its
+// source without anything on screen saying so.
+function ov(st, key, derivedValue) {
+  const o = st.overrides[key];
+  return o === undefined ? derivedValue : o;
+}
+function isEdited(st, key) { return st.overrides[key] !== undefined; }
 
 // Resolved per kind, not fixed — email and kickoff do not share steps. Email has
 // none beyond the picker yet.
@@ -170,9 +192,21 @@ function stepIndex(st, name) { return stepList(st).indexOf(name) + 1; }
 // ── SOURCE DATA ──────────────────────────────────────────────────────────────
 
 // Deliverables that will become Campaign bullets — every subtask except the
-// ones explicitly switched off.
+// ones explicitly switched off. `label` is what the document says, which is the
+// subtask's own name unless it's been overridden for this kickoff; `type` stays
+// the real product type, so renaming a bullet never changes which copy block it
+// pulls.
 function campaignItems(parent, st) {
-  return A.getChildren(parent.id).filter(k => !st.campaignOff[k.id]);
+  return A.getChildren(parent.id)
+    .filter(k => !st.campaignOff[k.id])
+    .map(k => ({
+      id:    k.id,
+      row:   k,
+      key:   'campaign:' + k.id,
+      label: ov(st, 'campaign:' + k.id, k.name),
+      type:  (k.productType || '').trim() || UNTYPED,
+      meta:  k.productTier || k.productType || ''
+    }));
 }
 
 // Everyone named anywhere on the project or its items, deduped by name, each
@@ -198,17 +232,26 @@ function gatherTeam(parent) {
   return [...byName.values()];
 }
 
+// Selection and exclusion still key on the ROW name, not the displayed one —
+// otherwise renaming someone in the document would orphan their off-toggle.
 function selectedTeam(parent, st) {
-  return gatherTeam(parent).filter(p => !st.teamOff[p.name]);
+  return gatherTeam(parent)
+    .filter(p => !st.teamOff[p.name])
+    .map(p => ({
+      name:     p.name,
+      nameKey:  'team:' + p.name,
+      roleKey:  'teamrole:' + p.name,
+      label:    ov(st, 'team:' + p.name, p.name),
+      roleText: ov(st, 'teamrole:' + p.name, p.roles.join(' · '))
+    }));
 }
 
 // Page-1 values that are genuinely single values. Process and First Steps are
 // NOT here — they are assembled from product types, not typed in.
 function pageFields(parent, st) {
-  const f = st.fields;
   return {
-    clientName:  f.clientName  ?? (parent.clientAccount || parent.name || ''),
-    projectName: f.projectName ?? (parent.name || '')
+    clientName:  ov(st, 'clientName',  parent.clientAccount || parent.name || ''),
+    projectName: ov(st, 'projectName', parent.name || '')
   };
 }
 
@@ -225,20 +268,24 @@ function pageFields(parent, st) {
 function lineKey(which, type, i) { return `${which}:${type}:${i}`; }
 
 function contentGroups(parent, st, which) {
-  const items = campaignItems(parent, st);
   const order = [];
-  for (const k of items) {
-    const t = (k.productType || '').trim() || UNTYPED;
-    if (!order.includes(t)) order.push(t);
+  for (const k of campaignItems(parent, st)) {
+    if (!order.includes(k.type)) order.push(k.type);
   }
   return order.map(type => {
     const all = (TYPE_CONTENT[type] || {})[which] || [];
+    const headKey = `head:${which}:${type}`;
     return {
       type,
+      headKey,
+      heading: ov(st, headKey, type),
       authored: all.length > 0,
-      // Keep the original index so a line's identity (and therefore its off
-      // toggle) survives other lines being switched off.
-      lines: all.map((text, i) => ({ text, i, on: !st.lineOff[lineKey(which, type, i)] }))
+      // Keep the original index so a line's identity — its off toggle AND its
+      // override — survives other lines being switched off.
+      lines: all.map((text, i) => {
+        const key = lineKey(which, type, i);
+        return { key, i, text: ov(st, key, text), on: !st.lineOff[key], edited: isEdited(st, key) };
+      })
     };
   });
 }
@@ -254,7 +301,7 @@ function renderContent(groups, which) {
       const body = which === 'process'
         ? kept.map((l, n) => `${n + 1}. ${l.text}`)   // restarts at 1 per type
         : kept.map(l => `• ${l.text}`);
-      return [g.type, ...body].join('\n');
+      return [g.heading, ...body].join('\n');
     })
     .join('\n\n');
 }
@@ -347,7 +394,7 @@ function warnings(parent, st) {
   if (team.length > LIMITS.teamComfortable) {
     out.push(`${team.length} people in the Flimp Team block. It is only ~150pt wide, so the text auto-shrinks — tested comfortable at ${LIMITS.teamComfortable}.`);
   }
-  if (team.length && !team.some(p => p.roles.length)) out.push('No roles resolved for the team block.');
+  if (team.length && !team.some(p => p.roleText.trim())) out.push('No roles resolved for the team block.');
   if (!campaignItems(parent, st).length) {
     out.push('No deliverables selected, so the Campaign block will be empty.');
   }
@@ -457,10 +504,10 @@ function derivedBlock(pid, which, label, note, group, lines, cap) {
             const marker = which === 'process' ? `${l.on ? n : '–'}.` : '•';
             return `<label class="tp-line${l.on ? ' on' : ''}">
               <input type="checkbox" ${l.on ? 'checked' : ''}
-                onchange="A.tpToggleLine('${pid}','${which}','${esc(g.type)}',${l.i})">
+                onchange="A.tpToggleLine('${pid}',this.dataset.k)" data-k="${esc(l.key)}">
               <span class="tp-check-box"></span>
               <span class="tp-line-n">${marker}</span>
-              <span class="tp-line-t">${esc(l.text)}</span>
+              <span class="tp-line-t">${esc(l.text)}${l.edited ? ' <span class="tp-edited-dot" title="Edited for this project">•</span>' : ''}</span>
             </label>`;
           }).join('')}
         </div>`;
@@ -476,18 +523,14 @@ function derivedBlock(pid, which, label, note, group, lines, cap) {
   </div>`;
 }
 
+// The form column decides what is INCLUDED; the preview column decides how it
+// is WORDED. Client and project name used to have inputs here, but they are
+// edited directly in the preview now — two places to change the same value is
+// how they drift apart.
 function fieldBody(pid, parent, st) {
-  const pf = pageFields(parent, st);
   const d = derived(parent, st);
-  const inp = (key, label, val, ph = '') =>
-    `<label class="tp-f"><span class="tp-f-l">${esc(label)}</span>
-      <input class="tp-in" value="${esc(val)}" placeholder="${esc(ph)}"
-        oninput="A.tpField('${pid}','${key}',this.value)"></label>`;
 
-  return `<div class="tp-fgrid">
-      ${inp('clientName', 'Client name', pf.clientName)}
-      ${inp('projectName', 'Project name', pf.projectName)}
-    </div>
+  return `<div class="tp-note">Wording is edited in the preview on the right — click any value to change it for this document. Switch lines off here to leave them out entirely.</div>
     ${derivedBlock(pid, 'process', 'Process — page 1',
       `Numbered per product type, restarting at 1. Font is hardcoded at ${FIELD.process.font}pt, so overflow is clipped rather than shrunk.`,
       d.process.groups, d.process.lines, d.process.cap)}
@@ -497,8 +540,35 @@ function fieldBody(pid, parent, st) {
 }
 
 // ── VIEW: preview column ─────────────────────────────────────────────────────
-// A field-by-field readout of what will be written, NOT a page render. Grouped
-// by page so it reads against the actual document.
+// A field-by-field readout of what will be written, NOT a page render — grouped
+// by page so it reads against the actual document. It is also the EDITING
+// surface: every derived value here can be clicked and rewritten for this
+// document, because the wording is worth checking exactly where you see it.
+//
+// Edits commit on blur rather than per keystroke. That means a full re-render is
+// safe (the element being typed into is no longer focused by the time it
+// happens), which is why this needs none of distro's in-place patching.
+//
+// Values are read back with textContent, never innerHTML — whatever gets pasted
+// in, only its text survives, so no markup can reach the state or the PDF.
+function editable(pid, key, text, cls = '', placeholder = 'empty') {
+  const empty = !String(text || '').trim();
+  return `<span class="tp-ed ${cls}${empty ? ' tp-ed-empty' : ''}"
+    contenteditable="plaintext-only" spellcheck="false" data-k="${esc(key)}"
+    data-ph="${esc(placeholder)}"
+    onblur="A.tpEdit('${pid}',this.dataset.k,this.textContent)"
+    onkeydown="A.tpEditKey(event,this)">${esc(text || '')}</span>`;
+}
+
+// A revert control, shown only where an override actually exists. Without this
+// an edit would be a one-way door — you could never get back to what the source
+// says without knowing what it used to say.
+function revert(pid, st, key) {
+  return isEdited(st, key)
+    ? ` <button class="tp-revert" title="Revert to the value from the project record"
+        onclick="A.tpRevert('${pid}',this.dataset.k)" data-k="${esc(key)}">↺</button>`
+    : '';
+}
 
 function fieldRow(name, value, extra = '') {
   return `<div class="tp-pv-row">
@@ -507,17 +577,23 @@ function fieldRow(name, value, extra = '') {
   </div>`;
 }
 
-// Renders an assembled section the way it will sit in the field — type heading,
-// then its numbered or bulleted lines.
-function previewGroups(groups, which) {
+// An assembled section as it will sit in the field — heading, then its numbered
+// or bulleted lines. Headings are editable too: they are printed into the PDF
+// verbatim, so "Companion Piece" may well want to read differently to a client.
+function previewGroups(pid, st, groups, which) {
   const live = groups.filter(g => g.lines.some(l => l.on));
   if (!live.length) return '';
   return live.map(g => {
     const kept = g.lines.filter(l => l.on);
+    const items = kept.map(l =>
+      `<li>${editable(pid, l.key, l.text)}${revert(pid, st, l.key)}</li>`).join('');
     const list = which === 'process'
-      ? `<ol class="tp-pv-ol">${kept.map(l => `<li>${esc(l.text)}</li>`).join('')}</ol>`
-      : `<ul class="tp-pv-bullets">${kept.map(l => `<li>${esc(l.text)}</li>`).join('')}</ul>`;
-    return `<div class="tp-pv-grp"><div class="tp-pv-grp-h">${esc(g.type)}</div>${list}</div>`;
+      ? `<ol class="tp-pv-ol">${items}</ol>`
+      : `<ul class="tp-pv-bullets">${items}</ul>`;
+    return `<div class="tp-pv-grp">
+      <div class="tp-pv-grp-h">${editable(pid, g.headKey, g.heading)}${revert(pid, st, g.headKey)}</div>
+      ${list}
+    </div>`;
   }).join('');
 }
 
@@ -529,15 +605,16 @@ function previewBody(parent, st) {
   const d = derived(parent, st);
 
   const campaign = items.length
-    ? `<ul class="tp-pv-bullets">${items.map(k => `<li>${esc(k.name)}</li>`).join('')}</ul>`
+    ? `<ul class="tp-pv-bullets">${items.map(k =>
+        `<li>${editable(parent.id, k.key, k.label)}${revert(parent.id, st, k.key)}</li>`).join('')}</ul>`
     : '';
 
   // Show the missing person-level fields explicitly rather than omitting them —
   // the gap is the point, and hiding it would make the block look finished.
   const teamBlock = team.length
     ? team.map(p => `<div class="tp-pv-person">
-        <div class="tp-pv-person-n">${esc(p.name)}</div>
-        <div class="tp-pv-person-r">${esc(p.roles.join(' · '))}</div>
+        <div class="tp-pv-person-n">${editable(parent.id, p.nameKey, p.label)}${revert(parent.id, st, p.nameKey)}</div>
+        <div class="tp-pv-person-r">${editable(parent.id, p.roleKey, p.roleText, '', 'no role')}${revert(parent.id, st, p.roleKey)}</div>
         <div class="tp-pv-person-x">Title · Email · Phone — not in schema yet</div>
       </div>`).join('')
     : '';
@@ -554,13 +631,13 @@ function previewBody(parent, st) {
     : `<div class="tp-pv-v"><span class="tp-pv-blank">${esc(tl.note)}</span></div>`;
 
   return `<div class="tp-pv-page">Page 1 — Kickoff Info</div>
-    ${fieldRow('Client Name', esc(pf.clientName))}
-    ${fieldRow('Project Name', esc(pf.projectName))}
+    ${fieldRow('Client Name', editable(parent.id, 'clientName', pf.clientName) + revert(parent.id, st, 'clientName'))}
+    ${fieldRow('Project Name', editable(parent.id, 'projectName', pf.projectName) + revert(parent.id, st, 'projectName'))}
     ${fieldRow('Campaign', campaign)}
     ${fieldRow('Flimp Team', teamBlock)}
-    ${fieldRow('Process', previewGroups(d.process.groups, 'process'))}
+    ${fieldRow('Process', previewGroups(parent.id, st, d.process.groups, 'process'))}
     <div class="tp-pv-page">Page 2 — First Steps + Timeline</div>
-    ${fieldRow('First Steps', previewGroups(d.firstSteps.groups, 'firstSteps'))}
+    ${fieldRow('First Steps', previewGroups(parent.id, st, d.firstSteps.groups, 'firstSteps'))}
     <div class="tp-pv-row"><div class="tp-pv-k">Timeline</div>${tlBlock}</div>
     ${warnBlock}`;
 }
@@ -622,12 +699,12 @@ function campaignSummary(parent, st) {
   if (!total) return 'No subtasks';
   return items.length === total
     ? `All ${total} deliverable${total === 1 ? '' : 's'}`
-    : `${items.length} of ${total} · ${items.map(k => k.name).join(', ')}`;
+    : `${items.length} of ${total} · ${items.map(k => k.label).join(', ')}`;
 }
 
 function teamSummary(parent, st) {
   const team = selectedTeam(parent, st);
-  return team.length ? `${team.length} · ${team.map(p => p.name).join(', ')}` : 'Nobody selected';
+  return team.length ? `${team.length} · ${team.map(p => p.label).join(', ')}` : 'Nobody selected';
 }
 
 // ── MUTATORS ─────────────────────────────────────────────────────────────────
@@ -643,6 +720,7 @@ function tpSetKind(pid, kind) {
   st.campaignOff = {};
   st.teamOff = {};
   st.lineOff = {};
+  st.overrides = {};
   st.step = kind === 'kickoff' ? 2 : 1;   // kickoff has steps to advance into
   save(); A.render();
 }
@@ -667,24 +745,68 @@ function tpToggleTeam(pid, name) {
   save(); A.render();
 }
 
-function tpToggleLine(pid, which, type, i) {
+function tpToggleLine(pid, key) {
   const r = db.rows.find(x => x.id === pid); if (!r) return;
   const st = tplState(r);
-  const k = lineKey(which, type, i);
-  if (st.lineOff[k]) delete st.lineOff[k]; else st.lineOff[k] = true;
+  if (st.lineOff[key]) delete st.lineOff[key]; else st.lineOff[key] = true;
   save(); A.render();
 }
 
-// Live field edits patch the PREVIEW ONLY — never a full re-render. Re-rendering
-// on every keystroke destroys and recreates the input being typed into, and the
-// caret jumps to a fresh element. Same reason as distro's dsField.
-function tpField(pid, key, val) {
+// ── EDITING ──────────────────────────────────────────────────────────────────
+
+// Recomputes what a key WOULD say with no override in place, so an edit can be
+// compared against it. Storing an override identical to the derived value would
+// silently detach that value from its source — it would stop following a renamed
+// subtask or revised copy, with nothing on screen to say why.
+function derivedValue(parent, st, key) {
+  const bare = { ...st, overrides: {} };
+  if (key === 'clientName' || key === 'projectName') return pageFields(parent, bare)[key];
+  if (key.startsWith('campaign:')) {
+    const item = campaignItems(parent, bare).find(k => k.key === key);
+    return item ? item.label : undefined;
+  }
+  if (key.startsWith('team:') || key.startsWith('teamrole:')) {
+    const p = selectedTeam(parent, bare).find(x => x.nameKey === key || x.roleKey === key);
+    if (!p) return undefined;
+    return key.startsWith('teamrole:') ? p.roleText : p.label;
+  }
+  if (key.startsWith('head:')) {
+    const [, which, type] = key.split(':');
+    const g = contentGroups(parent, bare, which).find(x => x.type === type);
+    return g ? g.heading : undefined;
+  }
+  const [which, type] = key.split(':');
+  const g = contentGroups(parent, bare, which).find(x => x.type === type);
+  const line = g && g.lines.find(l => l.key === key);
+  return line ? line.text : undefined;
+}
+
+// Commits an in-place edit from the preview. Fires on blur, not per keystroke,
+// so a full re-render here is safe — the edited element is already unfocused.
+function tpEdit(pid, key, raw) {
   const r = db.rows.find(x => x.id === pid); if (!r) return;
   const st = tplState(r);
-  st.fields[key] = val;
-  save();
-  const box = document.getElementById('tp-pv-' + pid);
-  if (box) box.innerHTML = previewBody(r, st);
+  // contenteditable yields non-breaking spaces and stray newlines; normalise so
+  // an edit that only differs by whitespace reads as unchanged.
+  const val = String(raw || '').replace(/ /g, ' ').replace(/\s+/g, ' ').trim();
+  const base = derivedValue(r, st, key);
+  if (base !== undefined && val === String(base).trim()) delete st.overrides[key];
+  else st.overrides[key] = val;
+  save(); A.render();
+}
+
+// Enter commits rather than inserting a line break — every editable here is a
+// single line in the PDF, and a break would be invisible in the preview but real
+// in the output. Escape abandons the edit.
+function tpEditKey(ev, el) {
+  if (ev.key === 'Enter') { ev.preventDefault(); el.blur(); }
+  if (ev.key === 'Escape') { ev.preventDefault(); A.render(); }
+}
+
+function tpRevert(pid, key) {
+  const r = db.rows.find(x => x.id === pid); if (!r) return;
+  delete tplState(r).overrides[key];
+  save(); A.render();
 }
 
 // Generation is not built. Rather than POST at an endpoint that doesn't exist
@@ -700,5 +822,6 @@ function tpGenerate(pid) {
 
 register({
   templatesPanelHtml,
-  tpSetKind, tpGoStep, tpToggleCampaign, tpToggleTeam, tpToggleLine, tpField, tpGenerate
+  tpSetKind, tpGoStep, tpToggleCampaign, tpToggleTeam, tpToggleLine,
+  tpEdit, tpEditKey, tpRevert, tpGenerate
 });
