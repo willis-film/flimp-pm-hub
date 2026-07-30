@@ -2084,6 +2084,30 @@ select.info-in { cursor: pointer; padding-right: 4px; }
   background: var(--panel-2); border: 1px solid var(--line);
 }
 .tp-pinned-lock { color: var(--signal); font-size: 9px; flex-shrink: 0; }
+
+/* Adding a team member: a dropdown of everyone eligible, and a chip per pick.
+   The eligible list is every AM and PM at Flimp — too many rows to scan as
+   checkboxes for the two or three that apply. */
+.tp-select {
+  width: 100%; box-sizing: border-box; height: 32px;
+  font-family: var(--font); font-size: 12px; color: var(--ink);
+  background: var(--panel); border: 1px solid var(--line-2); border-radius: 5px;
+  padding: 0 8px; cursor: pointer;
+}
+.tp-select:focus { outline: none; border-color: var(--signal); box-shadow: 0 0 0 2px var(--signal-glow); }
+
+.tp-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+.tp-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 6px 4px 10px; border-radius: 14px;
+  background: var(--signal-tint); border: 1px solid rgba(52,120,223,0.25);
+}
+.tp-chip-nm { font-size: 12px; color: var(--ink); }
+.tp-chip-x {
+  border: none; background: none; cursor: pointer; padding: 0 2px;
+  font-size: 14px; line-height: 1; color: var(--ink-4);
+}
+.tp-chip-x:hover { color: var(--sig-production); }
 .tp-note {
   margin-top: 10px; padding: 9px 11px; border-radius: 5px;
   background: var(--panel-2); border: 1px solid var(--line);

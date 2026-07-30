@@ -33,7 +33,7 @@
 import { esc } from '../utils.js';
 import { db, save } from '../store.js';
 import { A, register } from '../bus.js';
-import { PEOPLE_DIRECTORY, KICKOFF_ALWAYS } from '../data/constants.js';
+import { PEOPLE_DIRECTORY, KICKOFF_ALWAYS, KICKOFF_TEAM_ROLES, KICKOFF_ROLE_LABEL } from '../data/constants.js';
 
 // ── KINDS ────────────────────────────────────────────────────────────────────
 const KINDS = [
@@ -219,23 +219,24 @@ function campaignItems(parent, st) {
 }
 
 // ── TEAM ─────────────────────────────────────────────────────────────────────
-// The block has three tiers, because "who is on this kickoff" is three different
-// questions:
+// Two tiers, because "who is on this kickoff" is two different questions:
 //
-//   PINNED    — production lead and the account manager. On every kickoff by
-//               definition, so the panel states them rather than asking.
-//   ASSIGNED  — whoever holds a role on this project's items. Offered, not
-//               assumed: a project can carry six vendors and the box comfortably
-//               holds three, so including them all by default would guarantee an
-//               overflow warning on every project.
-//   DIRECTORY — anyone else in `people`. Someone can belong on a kickoff without
-//               holding a production role on it.
+//   PINNED    — production lead and the project's account manager. On every
+//               kickoff by definition, so the panel states them rather than
+//               asking.
+//   SELECTED  — additional account managers and project managers, chosen from a
+//               dropdown.
 //
-// Note the deliberate split from the Campaign list, which tracks EXCLUSIONS so a
-// newly added deliverable appears automatically. Team members are opt-IN because
-// the constraint runs the other way: the box is narrow, and the cost of a
-// forgotten tick is one missing name, against a document that silently shrinks
-// its own text if everyone piles in.
+// Candidates are restricted to KICKOFF_TEAM_ROLES. The block introduces the
+// client's Flimp contacts, and designers, animators and VO artists are neither
+// client-facing nor, in several cases, Flimp staff — so being assigned to the
+// project no longer puts someone in this list. That also keeps the list short
+// enough to pick from, which a full vendor roster was not.
+//
+// Membership is opt-IN, deliberately diverging from the Campaign list, which
+// tracks EXCLUSIONS so a newly added deliverable appears automatically. The
+// constraint here runs the other way: the box comfortably holds three, so
+// defaulting people in would guarantee an overflow warning on every project.
 
 // Contact details live on the person, not the assignment, so they're looked up
 // by name against the directory. A name with no matching row still renders —
@@ -264,9 +265,20 @@ function assignedRoles(parent) {
   return byName;
 }
 
+const eligibleRole = role => KICKOFF_TEAM_ROLES.includes(role);
+
+// Everyone the dropdown may offer: the AMs and PMs in the directory.
+function eligiblePeople() {
+  return PEOPLE_DIRECTORY.filter(p => eligibleRole(p.role));
+}
+
 // The full candidate list, in the order the document prints them: pinned first,
-// then assigned, then everyone else. `pinned` members cannot be switched off.
-function teamCandidates(parent) {
+// then everyone selected. `pinned` members cannot be switched off.
+//
+// Anyone already in `teamOn` is included even if they'd no longer qualify —
+// tightening the eligible roles should never silently drop a name from a kickoff
+// someone had already assembled. They can still be removed by hand.
+function teamCandidates(parent, st) {
   const roles = assignedRoles(parent);
   const am = (parent.am || '').trim();
   const out = [];
@@ -279,19 +291,20 @@ function teamCandidates(parent) {
 
   add(KICKOFF_ALWAYS, true, 'Always on every kickoff');
   add(am, true, 'Account manager on this project');
-  for (const name of roles.keys()) add(name, false, '');
-  for (const p of PEOPLE_DIRECTORY) add(p.name, false, '');
+  for (const p of eligiblePeople()) if (st.teamOn[p.name]) add(p.name, false, '');
+  for (const name in st.teamOn) add(name, false, '');   // kept selections, whatever their role
   return out;
 }
 
-// Roles come from the assignment where there is one. Pinned members often hold
-// no production role — the account manager usually doesn't — so they fall back
-// to the reason they're pinned, which is the truer description anyway.
+// Roles come from the assignment where there is one — an AM who is also this
+// project's owner should read as such. Otherwise fall back to their directory
+// role, mapped to how it should read in a client-facing document.
 function roleTextFor(c) {
   if (c.roles.length) return c.roles.join(' · ');
+  if (c.name === KICKOFF_ALWAYS) return 'Production';
   const rec = PEOPLE_DIRECTORY.find(p => p.name === c.name);
-  if (c.pinned) return c.name === KICKOFF_ALWAYS ? 'Production' : 'Account Manager';
-  return (rec && rec.role) ? rec.role : '';
+  const role = rec && rec.role;
+  return (role && KICKOFF_ROLE_LABEL[role]) || role || (c.pinned ? 'Account Manager' : '');
 }
 
 function isTeamOn(st, c) { return c.pinned || !!st.teamOn[c.name]; }
@@ -299,7 +312,7 @@ function isTeamOn(st, c) { return c.pinned || !!st.teamOn[c.name]; }
 // Selection keys on the ROW name, never the displayed one — otherwise renaming
 // someone in the document would orphan their toggle.
 function selectedTeam(parent, st) {
-  return teamCandidates(parent)
+  return teamCandidates(parent, st)
     .filter(c => isTeamOn(st, c))
     .map(c => {
       const contact = contactFor(c.name);
@@ -539,13 +552,17 @@ function campaignBody(pid, parent, st) {
   }).join('')}</div>`;
 }
 
-// Step 3 — who appears in the Flimp Team block. Pinned people are shown as
-// settled rather than as ticked checkboxes, because a control that can't be
-// switched off shouldn't look like one that can.
+// Step 3 — who appears in the Flimp Team block.
+//
+// Pinned people are shown as settled rather than as ticked checkboxes, because a
+// control that can't be switched off shouldn't look like one that can. Everyone
+// else is added through a dropdown and shown as a removable chip: the eligible
+// list runs to every AM and PM at Flimp, which is far too many rows to scan as
+// checkboxes for the two or three that actually apply.
 function teamBody(pid, parent, st) {
-  const all = teamCandidates(parent);
-  const pinned = all.filter(c => c.pinned);
-  const rest   = all.filter(c => !c.pinned);
+  const all = teamCandidates(parent, st);
+  const pinned   = all.filter(c => c.pinned);
+  const selected = all.filter(c => !c.pinned);
 
   const missingContact = all
     .filter(c => isTeamOn(st, c))
@@ -558,24 +575,45 @@ function teamBody(pid, parent, st) {
       <span class="tp-check-m">${esc(c.why)}</span>
     </div>`).join('');
 
-  const restRows = rest.length
-    ? rest.map(c => {
-        const on = !!st.teamOn[c.name];
-        const role = roleTextFor(c);
-        return `<label class="tp-check${on ? ' on' : ''}">
-          <input type="checkbox" ${on ? 'checked' : ''}
-            onchange="A.tpToggleTeam('${pid}',this.dataset.nm)" data-nm="${esc(c.name)}">
-          <span class="tp-check-box"></span>
-          <span class="tp-check-nm">${esc(c.name)}</span>
-          <span class="tp-check-m">${esc(c.roles.length ? role : (role ? role + ' · not on this project' : 'not on this project'))}</span>
-        </label>`;
-      }).join('')
-    : `<div class="tp-empty">Nobody else to add — the <code>people</code> table is empty or still loading.</div>`;
+  // Already-pinned and already-selected names are left out of the options
+  // rather than shown disabled — a menu of things you can't pick is noise.
+  const taken = new Set(all.map(c => c.name));
+  const options = eligiblePeople()
+    .filter(p => !taken.has(p.name))
+    .map(p => `<option value="${esc(p.name)}">${esc(p.name)}${p.role ? ' · ' + esc(KICKOFF_ROLE_LABEL[p.role] || p.role) : ''}</option>`)
+    .join('');
+
+  // Distinguish "nothing loaded" from "loaded, but nobody qualifies" — the
+  // second usually means the role values in Supabase aren't what's expected, so
+  // name the ones actually present rather than showing an empty menu.
+  let picker;
+  if (options) {
+    picker = `<select class="tp-select" onchange="A.tpToggleTeam('${pid}',this.value); this.value='';">
+        <option value="" disabled selected>Add an account manager or project manager…</option>
+        ${options}
+      </select>`;
+  } else if (!PEOPLE_DIRECTORY.length) {
+    picker = `<div class="tp-empty">The <code>people</code> table hasn't loaded — no one to add.</div>`;
+  } else if (!eligiblePeople().length) {
+    const found = [...new Set(PEOPLE_DIRECTORY.map(p => p.role).filter(Boolean))];
+    picker = `<div class="tp-empty">No one in <code>people</code> has an eligible role. Looking for ${esc(KICKOFF_TEAM_ROLES.join(', '))}; the table has ${found.length ? esc(found.join(', ')) : 'no roles set'}.</div>`;
+  } else {
+    picker = `<div class="tp-empty">Everyone eligible is already on this kickoff.</div>`;
+  }
+
+  const chips = selected.length
+    ? `<div class="tp-chips">${selected.map(c => `<span class="tp-chip">
+        <span class="tp-chip-nm">${esc(c.name)}</span>
+        <button class="tp-chip-x" title="Remove"
+          onclick="A.tpToggleTeam('${pid}',this.dataset.nm)" data-nm="${esc(c.name)}">×</button>
+      </span>`).join('')}</div>`
+    : '';
 
   return `<div class="tp-subh">Always included</div>
     <div class="tp-checks">${pinnedRows || '<div class="tp-empty">No account manager set on this project.</div>'}</div>
     <div class="tp-subh">Add others</div>
-    <div class="tp-checks">${restRows}</div>
+    ${picker}
+    ${chips}
     ${missingContact.length
       ? `<div class="tp-note">No email or phone on file for ${esc(missingContact.join(', '))} — their contact lines will print blank. Fill them in on the <code>people</code> table in Supabase, or type them straight into the preview for this document only.</div>`
       : ''}`;

@@ -117,6 +117,24 @@ export const PEOPLE_DIRECTORY = [];
 // contact lines go blank rather than the person disappearing.
 export const KICKOFF_ALWAYS = 'Andrew Willis';
 
+// Which `people.role` values can appear in the kickoff's Flimp Team block.
+// Account managers and project managers only — the block introduces the client's
+// Flimp contacts, and designers, animators and VO artists are neither
+// client-facing nor, in several cases, Flimp staff at all.
+//
+// 'owner' is the project-manager role in this schema: it's what feeds the "Flimp
+// project owner" and "Item owner" dropdowns. 'pm' is accepted alongside it in
+// case the table ever uses that spelling directly, since the role vocabulary
+// lives in Supabase rather than here.
+export const KICKOFF_TEAM_ROLES = ['am', 'owner', 'pm'];
+
+// How those raw role values read in a client-facing document.
+export const KICKOFF_ROLE_LABEL = {
+  am:    'Account Manager',
+  owner: 'Project Manager',
+  pm:    'Project Manager'
+};
+
 export const CLOSEOUT_ITEMS = [
   'Invoices Received',
   'Invoices Documented',
