@@ -643,9 +643,17 @@ function render(){
     if (activePanel === 'distro') distroWrap.innerHTML = A.distroPanelHtml(parent);
     block.appendChild(distroWrap);
 
+    // ── TEMPLATES PANEL ────────────────────────────────────────────────────
+    // Generates pre-filled documents from the project record — an Email draft or
+    // a Kickoff document. Body is built by js/panels/templates.js; this mounts it.
+    const tplWrap = document.createElement('div');
+    tplWrap.className = 'tpl-wrap' + (activePanel !== 'templates' ? ' hidden' : '');
+    tplWrap.id = 'tpl-' + parent.id;
+    if (activePanel === 'templates') tplWrap.innerHTML = A.templatesPanelHtml(parent);
+    block.appendChild(tplWrap);
+
     // ── STUB PANELS ────────────────────────────────────────────────────────
     const _stubDefs=[
-      { id:'templates', label:'Templates',    body:'Email drafts and kickoff document generator — all fields pre-filled from client name, contacts, deliverables, and dates.' },
       { id:'metrics',   label:'Metrics',      body:'Activity log, days spent per phase, and project health summary.' },
     ];
     _stubDefs.forEach(s=>{

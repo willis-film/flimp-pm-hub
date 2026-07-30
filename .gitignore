@@ -9,3 +9,8 @@ node_modules/
 .vercel
 .env
 .env.local
+
+# Claude Code per-machine permission grants — local to one checkout, not shared.
+# The launch config and dev server alongside it ARE committed; they're useful to
+# anyone running the app locally.
+.claude/settings.local.json

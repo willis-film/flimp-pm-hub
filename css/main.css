@@ -622,7 +622,7 @@ body::before {
    · The left border stays. The panel is inset from the block, so its left edge
      is now a real exposed edge rather than a seam against the strip. */
 
-.subtask-wrap, .inv-wrap, .email-wrap, .closeout-wrap, .info-wrap, .timeline-wrap, .distro-wrap {
+.subtask-wrap, .inv-wrap, .email-wrap, .closeout-wrap, .info-wrap, .timeline-wrap, .distro-wrap, .tpl-wrap {
   margin-left: var(--spine-off);
   /* .fps carries a 1px border on BOTH sides; the panel only indents past the
      left one. Without this, the panel overhangs the strip's right edge by that
@@ -641,7 +641,7 @@ body::before {
      inset also survives this element being a scroll container. */
   box-shadow: inset 0 6px 7px -6px rgba(28,42,51,0.18);
 }
-.subtask-wrap.hidden, .inv-wrap.hidden, .email-wrap.hidden, .closeout-wrap.hidden, .info-wrap.hidden, .timeline-wrap.hidden, .distro-wrap.hidden { display: none; }
+.subtask-wrap.hidden, .inv-wrap.hidden, .email-wrap.hidden, .closeout-wrap.hidden, .info-wrap.hidden, .timeline-wrap.hidden, .distro-wrap.hidden, .tpl-wrap.hidden { display: none; }
 
 .sheet, .inv-sheet, .email-sheet { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; }
 
@@ -1945,4 +1945,268 @@ select.info-in { cursor: pointer; padding-right: 4px; }
 @media (max-width: 720px) {
   .ds-split { grid-template-columns: 1fr; }
   .ds-preview-col { position: static; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TEMPLATES PANEL — kind toggle + preview
+   Same shell as the Distribution panel (stepped form left, sticky preview
+   right), but its own selectors rather than shared .ds-* ones. The two panels
+   only look alike at the shell; their steps, fields and outputs are different
+   and will diverge further, so they don't share rules that one of them would
+   eventually need to override.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.tp-split {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px; padding: 16px 20px 20px; align-items: start;
+}
+.tp-form { min-width: 0; }
+
+/* ── STEP FRAMES ──────────────────────────────────────────────────────────── */
+
+.tp-step { margin-bottom: 14px; }
+.tp-step-h {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.1px;
+  text-transform: uppercase; color: var(--ink-3);
+  padding-bottom: 8px; margin-bottom: 11px; border-bottom: 1px solid var(--line);
+}
+.tp-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 17px; height: 17px; border-radius: 50%;
+  background: var(--signal); color: #fff; font-size: 10px; font-weight: 600;
+  letter-spacing: 0; flex-shrink: 0;
+}
+.tp-num-off { background: var(--line-2); color: var(--ink-4); }
+
+.tp-sum {
+  display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
+  padding: 9px 12px; margin-bottom: 8px; cursor: pointer;
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px;
+  transition: border-color .12s, background .12s;
+}
+.tp-sum:hover { border-color: var(--signal); background: var(--signal-tint); }
+.tp-sum-check {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
+  background: var(--sig-closed); color: #fff; font-size: 10px;
+}
+.tp-sum-label {
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--ink-3); flex-shrink: 0;
+}
+.tp-sum-value {
+  font-size: 11.5px; color: var(--ink); min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tp-sum-edit { margin-left: auto; flex-shrink: 0; font-size: 10.5px; color: var(--signal); font-weight: 500; }
+
+.tp-locked {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px; margin-bottom: 8px;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.1px;
+  text-transform: uppercase; color: var(--ink-4);
+  border: 1px dashed var(--line-2); border-radius: 6px; opacity: 0.7;
+}
+
+/* ── KIND TOGGLE ──────────────────────────────────────────────────────────── */
+
+.tp-kinds { display: flex; flex-direction: column; gap: 9px; }
+.tp-kind {
+  text-align: left; padding: 11px 13px; cursor: pointer;
+  background: var(--panel); border: 1px solid var(--line-2); border-radius: 6px;
+}
+.tp-kind:hover { border-color: var(--ink-4); }
+.tp-kind.on { border-color: var(--signal); background: var(--signal-tint); }
+.tp-kind-h { font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 3px; }
+.tp-kind-s { font-size: 11px; color: var(--ink-3); line-height: 1.4; }
+
+/* Placeholder for the not-yet-built steps below the picker. */
+.tp-pending {
+  margin-top: 14px; padding: 14px 13px; text-align: center;
+  border: 1px dashed var(--line-2); border-radius: 6px;
+}
+.tp-pending-h { font-size: 12px; font-weight: 600; color: var(--ink-3); margin-bottom: 4px; }
+.tp-pending-b { font-size: 11px; color: var(--ink-4); line-height: 1.5; }
+
+/* ── STEP BODIES ──────────────────────────────────────────────────────────── */
+
+.tp-advance { margin-top: 12px; }
+.tp-next {
+  font-family: var(--font); font-size: 12px; font-weight: 500;
+  padding: 7px 16px; border-radius: 5px; cursor: pointer;
+  background: var(--signal); color: #fff; border: 1px solid var(--signal-deep);
+}
+.tp-next:hover { background: var(--signal-deep); }
+
+.tp-checks { display: flex; flex-direction: column; gap: 6px; }
+.tp-check {
+  display: flex; align-items: center; gap: 10px; cursor: pointer;
+  padding: 8px 11px; border-radius: 5px;
+  background: var(--panel-2); border: 1px solid transparent;
+}
+.tp-check:hover { background: var(--panel-3); }
+.tp-check.on { background: var(--signal-tint); border-color: rgba(52,120,223,0.25); }
+.tp-check input { position: absolute; opacity: 0; width: 0; height: 0; }
+.tp-check-box {
+  width: 15px; height: 15px; border-radius: 4px; flex-shrink: 0;
+  border: 1.5px solid var(--ink-4); background: var(--panel); position: relative;
+}
+.tp-check.on .tp-check-box { background: var(--signal); border-color: var(--signal); }
+.tp-check.on .tp-check-box:after {
+  content: ''; position: absolute; left: 4px; top: 1px;
+  width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
+}
+.tp-check-nm { font-size: 12.5px; color: var(--ink); }
+.tp-check-m { margin-left: auto; font-size: 10.5px; color: var(--ink-4); text-align: right; }
+
+.tp-empty { font-size: 12px; color: var(--ink-4); font-style: italic; padding: 8px 0; line-height: 1.6; }
+.tp-note {
+  margin-top: 10px; padding: 9px 11px; border-radius: 5px;
+  background: var(--panel-2); border: 1px solid var(--line);
+  font-size: 11px; color: var(--ink-3); line-height: 1.6;
+}
+.tp-note code {
+  font-family: var(--font-mono); font-size: 10px;
+  background: var(--panel-3); padding: 1px 4px; border-radius: 3px;
+}
+
+.tp-fgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 12px; }
+.tp-fwide { margin-top: 10px; }
+.tp-f-l { display: block; font-size: 10.5px; color: var(--ink-2); margin-bottom: 3px; }
+.tp-f-l em { font-style: normal; color: var(--ink-4); }
+.tp-f-l em.tp-over { color: var(--sig-production); font-weight: 600; }
+.tp-in {
+  width: 100%; box-sizing: border-box; height: 30px;
+  font-family: var(--font); font-size: 12px; color: var(--ink);
+  background: var(--panel); border: 1px solid var(--line-2); border-radius: 4px; padding: 0 8px;
+}
+.tp-in:focus { outline: none; border-color: var(--signal); box-shadow: 0 0 0 2px var(--signal-glow); }
+.tp-ta { height: auto; padding: 7px 8px; line-height: 1.5; resize: vertical; }
+
+/* ── DERIVED SECTIONS (Process / First Steps) ─────────────────────────────── */
+/* Not typed in — assembled from the project's product types, reviewed line by
+   line, and metered against the field's real capacity. */
+
+.tp-derived {
+  margin-top: 14px; padding: 11px 12px;
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px;
+}
+.tp-derived-h {
+  display: flex; align-items: baseline; gap: 8px;
+  font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--ink-3); margin-bottom: 4px;
+}
+.tp-derived-c {
+  margin-left: auto; letter-spacing: 0; text-transform: none;
+  font-family: var(--font); font-size: 10.5px; color: var(--ink-4);
+}
+.tp-derived-c.tp-over { color: var(--sig-production); font-weight: 600; }
+.tp-derived-note { font-size: 10.5px; color: var(--ink-4); line-height: 1.5; margin-bottom: 9px; }
+
+.tp-grp { margin-bottom: 10px; }
+.tp-grp:last-child { margin-bottom: 0; }
+.tp-grp-h {
+  font-size: 11px; font-weight: 600; color: var(--ink-2);
+  padding-bottom: 4px; margin-bottom: 5px; border-bottom: 1px solid var(--line);
+}
+.tp-grp-none { font-size: 11px; color: var(--ink-4); font-style: italic; }
+
+.tp-line {
+  display: flex; align-items: flex-start; gap: 8px; cursor: pointer;
+  padding: 4px 6px; border-radius: 4px;
+}
+.tp-line:hover { background: var(--panel-3); }
+.tp-line input { position: absolute; opacity: 0; width: 0; height: 0; }
+.tp-line .tp-check-box { margin-top: 1px; }
+.tp-line.on .tp-check-box { background: var(--signal); border-color: var(--signal); }
+.tp-line.on .tp-check-box:after {
+  content: ''; position: absolute; left: 4px; top: 1px;
+  width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
+}
+.tp-line-n {
+  font-family: var(--font-mono); font-size: 10px; color: var(--ink-4);
+  min-width: 15px; flex-shrink: 0; padding-top: 1px;
+}
+.tp-line-t { font-size: 12px; color: var(--ink); line-height: 1.45; }
+.tp-line:not(.on) .tp-line-t { color: var(--ink-4); text-decoration: line-through; }
+
+/* Assembled sections as they appear in the preview readout. */
+.tp-pv-grp { margin-bottom: 9px; }
+.tp-pv-grp:last-child { margin-bottom: 0; }
+.tp-pv-grp-h { font-size: 11px; font-weight: 600; color: var(--ink-2); margin-bottom: 2px; }
+.tp-pv-ol { margin: 0; padding-left: 18px; }
+.tp-pv-ol li { margin-bottom: 2px; }
+
+/* ── PREVIEW COLUMN — sticky ──────────────────────────────────────────────── */
+
+.tp-preview-col {
+  position: sticky; top: 12px; min-width: 0;
+  border: 1px solid var(--line); border-radius: 7px; overflow: hidden;
+  background: var(--panel);
+}
+.tp-pv-bar {
+  display: flex; align-items: center; gap: 11px;
+  padding: 10px 13px; background: var(--panel-2); border-bottom: 1px solid var(--line);
+}
+.tp-gen {
+  font-family: var(--font); font-size: 12.5px; font-weight: 500;
+  padding: 7px 16px; border-radius: 5px; cursor: pointer;
+  background: var(--signal); color: #fff; border: 1px solid var(--signal-deep);
+}
+.tp-gen:hover { background: var(--signal-deep); }
+.tp-gen-note { font-size: 10.5px; color: var(--ink-4); line-height: 1.4; }
+.tp-gen-note-warn { color: var(--sig-production); }
+
+.tp-pv-scroll { max-height: 560px; overflow-y: auto; }
+.tp-pv { padding: 4px 0 12px; }
+
+/* A page divider, so the readout reads against the real document. */
+.tp-pv-page {
+  padding: 9px 14px; margin-bottom: 2px;
+  background: var(--panel-2); border-bottom: 1px solid var(--line);
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 1.1px;
+  text-transform: uppercase; color: var(--ink-3);
+}
+.tp-pv-page + .tp-pv-row { border-top: none; }
+
+.tp-pv-row {
+  display: grid; grid-template-columns: 96px minmax(0, 1fr);
+  gap: 12px; padding: 9px 14px; border-bottom: 1px solid var(--line);
+}
+.tp-pv-k {
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.9px;
+  text-transform: uppercase; color: var(--ink-4); padding-top: 2px;
+}
+.tp-pv-v { font-size: 12px; color: var(--ink); line-height: 1.55; min-width: 0; word-break: break-word; }
+.tp-pv-sub { font-size: 10.5px; color: var(--ink-4); margin-top: 3px; }
+.tp-pv-blank { color: var(--ink-4); font-style: italic; }
+.tp-pv-bullets { margin: 0; padding-left: 16px; }
+.tp-pv-bullets li { margin-bottom: 2px; }
+
+.tp-pv-person { margin-bottom: 9px; }
+.tp-pv-person:last-child { margin-bottom: 0; }
+.tp-pv-person-n { font-size: 12px; font-weight: 600; color: var(--ink); }
+.tp-pv-person-r { font-size: 10.5px; color: var(--ink-3); }
+.tp-pv-person-x { font-size: 10px; color: var(--ink-4); font-style: italic; }
+
+.tp-pv-warn {
+  margin: 12px 14px 0; padding: 10px 12px; border-radius: 5px;
+  background: var(--signal-tint); border: 1px solid var(--line-2);
+}
+.tp-pv-warn-h {
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--ink-3); margin-bottom: 6px;
+}
+.tp-pv-warn ul { margin: 0; padding-left: 15px; }
+.tp-pv-warn li { font-size: 11px; color: var(--ink-2); line-height: 1.55; margin-bottom: 4px; }
+.tp-pv-warn li:last-child { margin-bottom: 0; }
+
+.tp-pv-empty { padding: 40px 24px; text-align: center; }
+.tp-pv-empty-h { font-size: 13px; font-weight: 600; color: var(--ink-3); margin-bottom: 5px; }
+.tp-pv-empty-b { font-size: 11.5px; color: var(--ink-4); line-height: 1.5; }
+
+@media (max-width: 720px) {
+  .tp-split { grid-template-columns: 1fr; }
+  .tp-preview-col { position: static; }
 }

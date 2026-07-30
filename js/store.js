@@ -101,7 +101,13 @@ const PROJECT_FIELD_DEFAULTS = {
   // Distribution panel draft state. Null until the Distro panel is opened —
   // distro.js lazily creates { template, subtaskIds, options, fields, step }.
   // Working state for the current draft, not a record of what was sent.
-  distro: null
+  distro: null,
+  // Templates panel draft state. Null until the Templates panel is opened —
+  // templates.js lazily creates
+  // { kind, campaignOff, teamOff, lineOff, fields, step }. Unlike distro, this
+  // has no dedicated Postgres column, so api/db.js files it under the `data`
+  // catch-all JSONB — no migration needed.
+  templates: null
 };
 
 function backfillInfoFields() {
