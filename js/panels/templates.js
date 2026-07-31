@@ -33,7 +33,8 @@
 import { esc } from '../utils.js';
 import { db, save } from '../store.js';
 import { A, register } from '../bus.js';
-import { PEOPLE_DIRECTORY, KICKOFF_ALWAYS, KICKOFF_TEAM_ROLES, KICKOFF_ROLE_LABEL } from '../data/constants.js';
+import { PEOPLE_DIRECTORY, KICKOFF_ALWAYS, KICKOFF_TEAM_ROLES, KICKOFF_ROLE_LABEL,
+         KICKOFF_CONTENT } from '../data/constants.js';
 
 // ── KINDS ────────────────────────────────────────────────────────────────────
 const KINDS = [
@@ -97,37 +98,24 @@ const LIMITS = {
 // they're called — now come from one place, their `people` row.
 
 // ── PER-TYPE CONTENT ─────────────────────────────────────────────────────────
-// What the Process and First Steps sections SAY, keyed by product type. This is
-// the one place to edit them — the panel and the generator both read from here,
-// so there is no second copy to keep in sync.
-//
-// Keyed on product type (not tier) deliberately: 13 types against many dozens of
-// tiers, and a newly added tier inherits its type's content rather than needing
-// its own entry.
+// What the Process and First Steps sections SAY comes from KICKOFF_CONTENT,
+// loaded from the `kickoff_content` table. Keyed on product type (not tier)
+// deliberately: 13 types against many dozens of tiers, and a newly added tier
+// inherits its type's content rather than needing its own entry.
 //
 // Assembly rule: a project's SELECTED deliverables are grouped by type, and each
 // type present emits its own headed list — Process numbered and restarting at 1
-// per type, First Steps bulleted. A type with no entry here contributes nothing
-// and is reported in the panel as unauthored, so a silent gap is impossible.
+// per type, First Steps bulleted. A type with no rows contributes nothing and is
+// reported in the panel as unauthored, so a silent gap is impossible.
 //
-// EMPTY BY DESIGN, FOR NOW. The real copy hasn't been written yet; leaving these
-// blank makes every unauthored type visible in the panel rather than shipping
-// invented steps that read as if they were approved.
-const TYPE_CONTENT = {
-  'Presentation Video': { process: [], firstSteps: [] },
-  'Video':              { process: [], firstSteps: [] },
-  'Library Videos':     { process: [], firstSteps: [] },
-  'Microsite':          { process: [], firstSteps: [] },
-  'Benefit Guide':      { process: [], firstSteps: [] },
-  'Companion Piece':    { process: [], firstSteps: [] },
-  'Print & Mail':       { process: [], firstSteps: [] },
-  'Flimp Decisions':    { process: [], firstSteps: [] },
-  'Flimp Connect':      { process: [], firstSteps: [] },
-  'Web Development':    { process: [], firstSteps: [] },
-  'AI Chatbot Agent':   { process: [], firstSteps: [] },
-  'Flimp Canvas':       { process: [], firstSteps: [] },
-  'Other':              { process: [], firstSteps: [] }
-};
+// Each line is { id, text, url }. A url makes the whole line a hyperlink in the
+// generated PDF — possible only because the generator draws these regions rather
+// than filling AcroForm fields, whose values are plain text with one appearance
+// and cannot carry a link at all.
+function typeContent(type, which) {
+  const entry = KICKOFF_CONTENT[type];
+  return (entry && entry[which]) || [];
+}
 
 // Deliverables with no product type set still need somewhere to go, rather than
 // vanishing from a document that is supposed to list the whole project.
@@ -333,13 +321,20 @@ function pageFields(parent, st) {
 // Both sections are derived: group the selected deliverables by product type, in
 // order of first appearance, and emit one headed list per type present.
 //
-// Ordering follows the deliverables rather than TYPE_CONTENT's key order, so the
-// document reads in the same sequence as the Campaign list above it.
+// Ordering follows the deliverables rather than KICKOFF_CONTENT's key order, so
+// the document reads in the same sequence as the Campaign list above it.
 //
 // `which` is 'process' (numbered, restarting per type) or 'firstSteps'
 // (bulleted). Individual lines can be switched off per project — a standard step
 // that doesn't apply this time shouldn't require a code change.
-function lineKey(which, type, i) { return `${which}:${type}:${i}`; }
+//
+// KEYED ON THE SUPABASE ROW ID, never on position. Per-project state — a line
+// switched off, its wording changed, its link replaced — persists on the project
+// row, while the copy itself lives in a table someone reorders and edits.
+// Position would silently repoint a saved tweak at a different line the moment a
+// row moved; the id survives both reordering and other lines being hidden.
+function lineKey(id)    { return `line:${id}`; }
+function lineUrlKey(id) { return `lineurl:${id}`; }
 
 function contentGroups(parent, st, which) {
   const order = [];
@@ -347,18 +342,22 @@ function contentGroups(parent, st, which) {
     if (!order.includes(k.type)) order.push(k.type);
   }
   return order.map(type => {
-    const all = (TYPE_CONTENT[type] || {})[which] || [];
+    const all = typeContent(type, which);
     const headKey = `head:${which}:${type}`;
     return {
       type,
       headKey,
       heading: ov(st, headKey, type),
       authored: all.length > 0,
-      // Keep the original index so a line's identity — its off toggle AND its
-      // override — survives other lines being switched off.
-      lines: all.map((text, i) => {
-        const key = lineKey(which, type, i);
-        return { key, i, text: ov(st, key, text), on: !st.lineOff[key], edited: isEdited(st, key) };
+      lines: all.map(row => {
+        const key = lineKey(row.id), urlKey = lineUrlKey(row.id);
+        return {
+          key, urlKey, id: row.id,
+          text:   ov(st, key, row.text),
+          url:    ov(st, urlKey, row.url || ''),
+          on:     !st.lineOff[key],
+          edited: isEdited(st, key) || isEdited(st, urlKey)
+        };
       })
     };
   });
@@ -462,6 +461,21 @@ function warnings(parent, st) {
   if (pw) out.push(pw);
   const fw = fitWarning(d.firstSteps, 'First Steps', FIELD.firstSteps);
   if (fw) out.push(fw);
+
+  // A URL the PDF can't turn into a working link. Caught here rather than at
+  // generation because by then the document is already made, and a dead link in
+  // a client-facing kickoff is worse than a missing one.
+  const badLinks = [];
+  for (const section of [d.process, d.firstSteps]) {
+    for (const g of section.groups) {
+      for (const l of g.lines) {
+        if (l.on && l.url && !/^https?:\/\/\S+$/i.test(l.url)) badLinks.push(l.text);
+      }
+    }
+  }
+  if (badLinks.length) {
+    out.push(`Link doesn't look like a URL on: ${badLinks.join('; ')}. Links need the full address including https://.`);
+  }
 
   const unauthored = [...new Set(
     [...d.process.groups, ...d.firstSteps.groups].filter(g => !g.authored).map(g => g.type)
@@ -648,7 +662,9 @@ function derivedBlock(pid, which, label, note, group, lines, cap) {
                 onchange="A.tpToggleLine('${pid}',this.dataset.k)" data-k="${esc(l.key)}">
               <span class="tp-check-box"></span>
               <span class="tp-line-n">${marker}</span>
-              <span class="tp-line-t">${esc(l.text)}${l.edited ? ' <span class="tp-edited-dot" title="Edited for this project">•</span>' : ''}</span>
+              <span class="tp-line-t">${esc(l.text)}${
+                l.url ? ` <span class="tp-line-link" title="${esc(l.url)}">↗</span>` : ''}${
+                l.edited ? ' <span class="tp-edited-dot" title="Edited for this project">•</span>' : ''}</span>
             </label>`;
           }).join('')}
         </div>`;
@@ -721,13 +737,20 @@ function fieldRow(name, value, extra = '') {
 // An assembled section as it will sit in the field — heading, then its numbered
 // or bulleted lines. Headings are editable too: they are printed into the PDF
 // verbatim, so "Companion Piece" may well want to read differently to a client.
+// A line's URL sits under its text as a second, quieter row. It is always shown
+// rather than revealed on demand — the same choice as the team block's blank
+// contact lines. A step that SHOULD link somewhere and doesn't is exactly the
+// kind of gap worth seeing before generating, and hiding empty ones would make
+// the absence invisible.
 function previewGroups(pid, st, groups, which) {
   const live = groups.filter(g => g.lines.some(l => l.on));
   if (!live.length) return '';
   return live.map(g => {
     const kept = g.lines.filter(l => l.on);
-    const items = kept.map(l =>
-      `<li>${editable(pid, l.key, l.text)}${revert(pid, st, l.key)}</li>`).join('');
+    const items = kept.map(l => `<li>
+        <span class="${l.url ? 'tp-pv-linked' : ''}">${editable(pid, l.key, l.text)}</span>${revert(pid, st, l.key)}
+        <div class="tp-pv-url">${editable(pid, l.urlKey, l.url, '', 'no link')}${revert(pid, st, l.urlKey)}</div>
+      </li>`).join('');
     const list = which === 'process'
       ? `<ol class="tp-pv-ol">${items}</ol>`
       : `<ul class="tp-pv-bullets">${items}</ul>`;
@@ -914,15 +937,27 @@ function derivedValue(parent, st, key) {
     if (!p) return undefined;
     return key.startsWith('teamrole:') ? p.roleText : p.label;
   }
+  if (key.startsWith('teamemail:') || key.startsWith('teamphone:')) {
+    const p = selectedTeam(parent, bare).find(x => x.emailKey === key || x.phoneKey === key);
+    if (!p) return undefined;
+    return key.startsWith('teamemail:') ? p.emailText : p.phoneText;
+  }
   if (key.startsWith('head:')) {
     const [, which, type] = key.split(':');
     const g = contentGroups(parent, bare, which).find(x => x.type === type);
     return g ? g.heading : undefined;
   }
-  const [which, type] = key.split(':');
-  const g = contentGroups(parent, bare, which).find(x => x.type === type);
-  const line = g && g.lines.find(l => l.key === key);
-  return line ? line.text : undefined;
+  // Copy lines are keyed on the Supabase row id alone, so which section they
+  // belong to isn't in the key — search both rather than parsing it out.
+  if (key.startsWith('line:') || key.startsWith('lineurl:')) {
+    for (const which of ['process', 'firstSteps']) {
+      for (const g of contentGroups(parent, bare, which)) {
+        const line = g.lines.find(l => l.key === key || l.urlKey === key);
+        if (line) return key.startsWith('lineurl:') ? line.url : line.text;
+      }
+    }
+  }
+  return undefined;
 }
 
 // Commits an in-place edit from the preview. Fires on blur, not per keystroke,

@@ -180,7 +180,8 @@ export default async function handler(req, res) {
         { data: productTopics, error: ptErr },
         { data: productTypes, error: ptypeErr },
         { data: closeoutItems, error: coErr },
-        { data: productOptions, error: poErr }
+        { data: productOptions, error: poErr },
+        { data: kickoffRows, error: kcErr }
       ] = await Promise.all([
         supabase.from('workspace').select('*').eq('id', 1).single(),
         // ORDER BY is load-bearing, not cosmetic: without it Postgres returns
@@ -196,14 +197,15 @@ export default async function handler(req, res) {
         refTable('product_topics'),
         refTable('product_types'),
         refTable('closeout_items'),
-        refTable('product_options')
+        refTable('product_options'),
+        refTable('kickoff_content')
       ]);
       if (wErr) throw wErr;
       if (rErr) throw rErr;
       if (cuErr) throw cuErr;
       // Reference-table errors are non-fatal individually, but surface them so a
       // missing table (e.g. migration not run yet) is visible rather than silent.
-      const refErr = pErr || tagErr || lErr || ptErr || ptypeErr || coErr || poErr;
+      const refErr = pErr || tagErr || lErr || ptErr || ptypeErr || coErr || poErr || kcErr;
       if (refErr) throw refErr;
 
       // Shape product_options back into the { productType: [values] } maps the
@@ -214,6 +216,23 @@ export default async function handler(req, res) {
         const target = o.kind === 'style' ? styleMap : tierMap;
         (target[o.product_type] = target[o.product_type] || []).push(o.value);
       }
+      // Shape kickoff_content into { productType: { process: [], firstSteps: [] } },
+      // the same grouping trick as product_options above. refTable() already
+      // ordered by sort_order, so push order IS print order.
+      //
+      // `id` travels to the client because the Templates panel keys per-project
+      // tweaks — a line switched off, or reworded for one kickoff — against it.
+      // Anything positional would silently repoint those tweaks the moment a row
+      // is reordered or deleted. Stringified so the key is stable regardless of
+      // how the id arrives over JSON.
+      const kickoffContent = {};
+      for (const r of (kickoffRows || [])) {
+        const t = (kickoffContent[r.product_type] =
+          kickoffContent[r.product_type] || { process: [], firstSteps: [] });
+        const bucket = r.section === 'first_steps' ? 'firstSteps' : 'process';
+        t[bucket].push({ id: String(r.id), text: r.value, url: r.url || '' });
+      }
+
       // Group people by role into plain name arrays. These drive the Info
       // panel's dropdowns, which only ever need a name.
       //
@@ -302,7 +321,8 @@ export default async function handler(req, res) {
           productTypes:    (productTypes || []).map(r => r.value),
           closeoutItems:   (closeoutItems || []).map(r => r.value),
           productTierMap:  tierMap,
-          productStyleMap: styleMap
+          productStyleMap: styleMap,
+          kickoffContent
         }
       });
     }

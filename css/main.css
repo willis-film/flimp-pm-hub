@@ -2177,6 +2177,13 @@ select.info-in { cursor: pointer; padding-right: 4px; }
 }
 .tp-line-t { font-size: 12px; color: var(--ink); line-height: 1.45; }
 .tp-line:not(.on) .tp-line-t { color: var(--ink-4); text-decoration: line-through; }
+.tp-line-link { color: var(--signal); font-size: 10px; }
+
+/* A line carrying a URL renders as a link, since that's how it prints. */
+.tp-pv-linked .tp-ed { color: var(--signal); text-decoration: underline; text-underline-offset: 2px; }
+/* The URL itself, one quieter row beneath. Always present, including when
+   empty — a step that should link somewhere and doesn't is worth seeing. */
+.tp-pv-url { font-size: 10px; color: var(--ink-4); line-height: 1.5; word-break: break-all; }
 
 /* ── EDITABLE PREVIEW ─────────────────────────────────────────────────────── */
 /* The preview is the editing surface: every derived value can be rewritten for

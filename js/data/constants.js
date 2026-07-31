@@ -129,6 +129,20 @@ export const KICKOFF_ALWAYS = 'Andrew Willis';
 // names: those label a project's owner, not a job title.
 export const KICKOFF_TEAM_ROLES = ['am', 'pm', 'owner'];
 
+// The kickoff PDF's Process and First Steps copy, keyed by product type:
+//
+//   { 'Video': { process: [{ id, text, url }], firstSteps: [{ id, text, url }] } }
+//
+// Loaded from the `kickoff_content` table (see 2026-07-31-kickoff-content.sql).
+// Empty by default and NOT given hardcoded fallbacks, unlike the dropdown lists
+// above: an unauthored product type is reported as such in the Templates panel,
+// which is far better than a kickoff quietly printing invented steps that read
+// as though someone approved them.
+//
+// `id` is the Supabase row id. The panel keys per-project tweaks against it, so
+// it has to survive the round trip intact.
+export const KICKOFF_CONTENT = {};
+
 // How those raw role values read in a client-facing document.
 export const KICKOFF_ROLE_LABEL = {
   am:    'Account Manager',
@@ -222,6 +236,9 @@ export function applyReference(ref) {
   // dropdown; here the default IS empty, so a guard would only ever prevent a
   // real payload from landing.
   _replaceArray(PEOPLE_DIRECTORY, ref.people);
+  // Same reasoning: the default is empty, so the non-empty guard used above
+  // would only ever block a real payload from landing.
+  _replaceMap(KICKOFF_CONTENT, ref.kickoffContent);
   arr(ALL_TAGS,           ref.tags);
   arr(LANGUAGE_LIST,      ref.languages);
   arr(PRODUCT_TOPIC_LIST, ref.productTopics);
