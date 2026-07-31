@@ -120,11 +120,10 @@
       <div class="mf"><div class="mf-label">Due Date</div><input class="mi" type="date" id="pm-due"></div>
       <div class="mf"><div class="mf-label">OE Start</div><input class="mi" type="date" id="pm-oestart"></div>
       <div class="mf"><div class="mf-label">AM</div>
+        <!-- Options filled by openParentModal() from AM_LIST (the `people`
+             table, role = 'am'). Intentionally empty here. -->
         <select class="mi" id="pm-am">
           <option value="">—</option>
-          <option value="Heather">Heather</option>
-          <option value="Julie">Julie</option>
-          <option value="Kristy">Kristy</option>
         </select>
       </div>
     </div>
@@ -185,11 +184,9 @@
       </div>
       <div class="mf"><div class="mf-label">Due Date</div><input class="mi" type="date" id="sm-due"></div>
       <div class="mf"><div class="mf-label">AM</div>
+        <!-- Options filled by openSubtaskModal() from AM_LIST — see pm-am. -->
         <select class="mi" id="sm-am">
           <option value="">—</option>
-          <option value="Heather">Heather</option>
-          <option value="Julie">Julie</option>
-          <option value="Kristy">Kristy</option>
         </select>
       </div>
       <div class="mf"><div class="mf-label">New / Update</div>
