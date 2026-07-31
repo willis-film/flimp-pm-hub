@@ -2178,6 +2178,10 @@ select.info-in { cursor: pointer; padding-right: 4px; }
 .tp-line-t { font-size: 12px; color: var(--ink); line-height: 1.45; }
 .tp-line:not(.on) .tp-line-t { color: var(--ink-4); text-decoration: line-through; }
 .tp-line-link { color: var(--signal); font-size: 10px; }
+/* Which product types a merged First Steps line applies to. Computed, not
+   authored — hence not editable, and styled as annotation rather than copy. */
+.tp-line-tag { color: var(--ink-4); font-size: 10.5px; }
+.tp-pv-tag { color: var(--ink-4); font-size: 11px; }
 
 /* A line carrying a URL renders as a link, since that's how it prints. */
 .tp-pv-linked .tp-ed { color: var(--signal); text-decoration: underline; text-underline-offset: 2px; }

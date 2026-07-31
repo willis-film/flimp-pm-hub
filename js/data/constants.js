@@ -129,11 +129,16 @@ export const KICKOFF_ALWAYS = 'Andrew Willis';
 // names: those label a project's owner, not a job title.
 export const KICKOFF_TEAM_ROLES = ['am', 'pm', 'owner'];
 
-// The kickoff PDF's Process and First Steps copy, keyed by product type:
+// The kickoff PDF's Process and First Steps copy:
 //
-//   { 'Video': { process: [{ id, text, url }], firstSteps: [{ id, text, url }] } }
+//   { process:    [{ id, text, url, productTypes, newOrUpdate }],
+//     firstSteps: [{ id, text, url, productTypes, newOrUpdate }] }
 //
 // Loaded from the `kickoff_content` table (see 2026-07-31-kickoff-content.sql).
+// NOT keyed by product type — a line says where it APPLIES via `productTypes`
+// (empty = every type) and `newOrUpdate` (empty = both), so a line shared across
+// types is stored once. templates.js does the matching.
+//
 // Empty by default and NOT given hardcoded fallbacks, unlike the dropdown lists
 // above: an unauthored product type is reported as such in the Templates panel,
 // which is far better than a kickoff quietly printing invented steps that read
@@ -141,7 +146,7 @@ export const KICKOFF_TEAM_ROLES = ['am', 'pm', 'owner'];
 //
 // `id` is the Supabase row id. The panel keys per-project tweaks against it, so
 // it has to survive the round trip intact.
-export const KICKOFF_CONTENT = {};
+export const KICKOFF_CONTENT = { process: [], firstSteps: [] };
 
 // How those raw role values read in a client-facing document.
 export const KICKOFF_ROLE_LABEL = {

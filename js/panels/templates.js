@@ -112,9 +112,20 @@ const LIMITS = {
 // generated PDF — possible only because the generator draws these regions rather
 // than filling AcroForm fields, whose values are plain text with one appearance
 // and cannot carry a link at all.
-function typeContent(type, which) {
-  const entry = KICKOFF_CONTENT[type];
-  return (entry && entry[which]) || [];
+// Does a copy row apply to a deliverable of this type and variant?
+//
+// Empty `productTypes` means every type; empty `newOrUpdate` means both. A
+// deliverable with no New/Update set matches only variant-agnostic lines — we
+// don't know which it is, and guessing would put "Branding Updates" on a new
+// project. The panel warns about those deliverables rather than picking for you.
+function applies(row, type, variant) {
+  const typeOk = !row.productTypes.length || row.productTypes.includes(type);
+  const varOk  = !row.newOrUpdate || row.newOrUpdate === variant;
+  return typeOk && varOk;
+}
+
+function rowsFor(which, type, variant) {
+  return KICKOFF_CONTENT[which].filter(r => applies(r, type, variant));
 }
 
 // Deliverables with no product type set still need somewhere to go, rather than
@@ -193,9 +204,10 @@ function campaignItems(parent, st) {
       id:    k.id,
       row:   k,
       key:   'campaign:' + k.id,
-      label: ov(st, 'campaign:' + k.id, k.name),
-      type:  (k.productType || '').trim() || UNTYPED,
-      meta:  k.productTier || k.productType || ''
+      label:   ov(st, 'campaign:' + k.id, k.name),
+      type:    (k.productType || '').trim() || UNTYPED,
+      variant: (k.newOrUpdate || '').trim(),
+      meta:    k.productTier || k.productType || ''
     }));
 }
 
@@ -336,53 +348,108 @@ function pageFields(parent, st) {
 function lineKey(id)    { return `line:${id}`; }
 function lineUrlKey(id) { return `lineurl:${id}`; }
 
-function contentGroups(parent, st, which) {
+// One assembled line, with its per-project overrides applied.
+function toLine(st, row, tag = '') {
+  const key = lineKey(row.id), urlKey = lineUrlKey(row.id);
+  return {
+    key, urlKey, id: row.id, tag,
+    text:   ov(st, key, row.text),
+    url:    ov(st, urlKey, row.url || ''),
+    on:     !st.lineOff[key],
+    edited: isEdited(st, key) || isEdited(st, urlKey)
+  };
+}
+
+// The product types present in this project, in the order the Campaign list
+// shows them, each with the variants its deliverables carry.
+function typesPresent(parent, st) {
   const order = [];
+  const variants = new Map();
   for (const k of campaignItems(parent, st)) {
-    if (!order.includes(k.type)) order.push(k.type);
+    if (!order.includes(k.type)) { order.push(k.type); variants.set(k.type, new Set()); }
+    variants.get(k.type).add(k.variant);
   }
-  return order.map(type => {
-    const all = typeContent(type, which);
+  return order.map(type => ({ type, variants: [...variants.get(type)] }));
+}
+
+// PROCESS — grouped by product type under a heading, numbered, restarting at 1
+// per type. Different types have genuinely different production stages, so the
+// grouping carries information worth its cost in lines.
+function contentGroups(parent, st, which) {
+  return typesPresent(parent, st).map(({ type, variants }) => {
+    const seen = new Set();
+    const rows = [];
+    for (const v of variants) {
+      for (const r of rowsFor(which, type, v)) {
+        if (!seen.has(r.id)) { seen.add(r.id); rows.push(r); }
+      }
+    }
     const headKey = `head:${which}:${type}`;
     return {
       type,
       headKey,
-      heading: ov(st, headKey, type),
-      authored: all.length > 0,
-      lines: all.map(row => {
-        const key = lineKey(row.id), urlKey = lineUrlKey(row.id);
-        return {
-          key, urlKey, id: row.id,
-          text:   ov(st, key, row.text),
-          url:    ov(st, urlKey, row.url || ''),
-          on:     !st.lineOff[key],
-          edited: isEdited(st, key) || isEdited(st, urlKey)
-        };
-      })
+      heading:  ov(st, headKey, type),
+      authored: rows.length > 0,
+      lines:    rows.map(r => toLine(st, r))
     };
   });
 }
 
-// The literal text that goes into the field. Blank line between type blocks —
-// this is what the generator writes, so what the panel counts is what the PDF
-// gets.
-function renderContent(groups, which) {
+// FIRST STEPS — one merged, deduplicated list with no headings. A line shared by
+// three product types costs one line, not three, and is never repeated back to
+// the client.
+//
+// A line that doesn't apply to EVERY type in the project is tagged with the ones
+// it does — "Style Selection (Video)" — so the merge doesn't lose which
+// deliverable a step belongs to. A line applying to all of them needs no tag,
+// which is why the common ones stay short.
+function firstStepLines(parent, st) {
+  const present = typesPresent(parent, st);
+  const hits = new Map();                    // row id -> { row, types:Set }
+  for (const { type, variants } of present) {
+    for (const v of variants) {
+      for (const r of rowsFor('firstSteps', type, v)) {
+        if (!hits.has(r.id)) hits.set(r.id, { row: r, types: new Set() });
+        hits.get(r.id).types.add(type);
+      }
+    }
+  }
+  // KICKOFF_CONTENT is already in sort_order, so filtering it preserves the
+  // authored order rather than the order types happened to be encountered in.
+  return KICKOFF_CONTENT.firstSteps
+    .filter(r => hits.has(r.id))
+    .map(r => {
+      const { types } = hits.get(r.id);
+      const tag = types.size === present.length ? '' : [...types].join(', ');
+      return toLine(st, r, tag);
+    });
+}
+
+// The text of one assembled line, tag included. This is what the generator
+// draws, so it's also what gets counted against the region's capacity.
+function lineText(l) { return l.tag ? `${l.text} (${l.tag})` : l.text; }
+
+// The literal text of the Process region. Blank line between type blocks.
+function renderGroups(groups) {
   return groups
     .filter(g => g.lines.some(l => l.on))
     .map(g => {
       const kept = g.lines.filter(l => l.on);
-      const body = which === 'process'
-        ? kept.map((l, n) => `${n + 1}. ${l.text}`)   // restarts at 1 per type
-        : kept.map(l => `• ${l.text}`);
-      return [g.heading, ...body].join('\n');
+      return [g.heading, ...kept.map((l, n) => `${n + 1}. ${lineText(l)}`)].join('\n');
     })
     .join('\n\n');
 }
 
+// The literal text of the First Steps region — one flat bulleted list.
+function renderList(lines) {
+  return lines.filter(l => l.on).map(l => `• ${lineText(l)}`).join('\n');
+}
+
 // Wrapped line count for a rendered block, including the blank separators.
 function countLines(text, f) {
+  if (!text) return 0;              // an empty region costs nothing, not one line
   const per = charsPerLine(f);
-  return (text || '').split('\n')
+  return text.split('\n')
     .reduce((n, line) => n + Math.max(1, Math.ceil(line.length / per)), 0);
 }
 
@@ -390,12 +457,15 @@ function countLines(text, f) {
 // warnings and the preview all read the same numbers.
 function derived(parent, st) {
   const pg = contentGroups(parent, st, 'process');
-  const fg = contentGroups(parent, st, 'firstSteps');
-  const pText = renderContent(pg, 'process');
-  const fText = renderContent(fg, 'firstSteps');
+  const fl = firstStepLines(parent, st);
+  const pText = renderGroups(pg);
+  const fText = renderList(fl);
   return {
-    process:    { groups: pg, text: pText, lines: countLines(pText, FIELD.process),    cap: capacity(FIELD.process) },
-    firstSteps: { groups: fg, text: fText, lines: countLines(fText, FIELD.firstSteps), cap: capacity(FIELD.firstSteps) }
+    // `groups` for the grouped section, `lines` for the flat one — the two
+    // sections genuinely have different shapes now, and pretending otherwise
+    // would mean one of them faking a single group with an empty heading.
+    process:    { groups: pg,  text: pText, lines: countLines(pText, FIELD.process),    cap: capacity(FIELD.process) },
+    firstSteps: { items:  fl,  text: fText, lines: countLines(fText, FIELD.firstSteps), cap: capacity(FIELD.firstSteps) }
   };
 }
 
@@ -462,26 +532,33 @@ function warnings(parent, st) {
   const fw = fitWarning(d.firstSteps, 'First Steps', FIELD.firstSteps);
   if (fw) out.push(fw);
 
+  // Every assembled line across both sections, whatever shape its section is.
+  const allLines = [...d.process.groups.flatMap(g => g.lines), ...d.firstSteps.items];
+
   // A URL the PDF can't turn into a working link. Caught here rather than at
   // generation because by then the document is already made, and a dead link in
   // a client-facing kickoff is worse than a missing one.
-  const badLinks = [];
-  for (const section of [d.process, d.firstSteps]) {
-    for (const g of section.groups) {
-      for (const l of g.lines) {
-        if (l.on && l.url && !/^https?:\/\/\S+$/i.test(l.url)) badLinks.push(l.text);
-      }
-    }
-  }
+  const badLinks = allLines
+    .filter(l => l.on && l.url && !/^https?:\/\/\S+$/i.test(l.url))
+    .map(l => l.text);
   if (badLinks.length) {
     out.push(`Link doesn't look like a URL on: ${badLinks.join('; ')}. Links need the full address including https://.`);
   }
 
-  const unauthored = [...new Set(
-    [...d.process.groups, ...d.firstSteps.groups].filter(g => !g.authored).map(g => g.type)
-  )];
+  // A deliverable with no New/Update set matches only the lines that apply to
+  // both, so it silently collects fewer steps than its siblings. Worth saying,
+  // because the fix is one dropdown in the subtask table.
+  const noVariant = campaignItems(parent, st).filter(k => !k.variant).map(k => k.label);
+  if (noVariant.length) {
+    out.push(`No New/Update set on: ${noVariant.join(', ')}. Steps written for new or update work specifically won't apply to them.`);
+  }
+
+  const unauthored = d.process.groups.filter(g => !g.authored).map(g => g.type);
   if (unauthored.length) {
-    out.push(`No Process or First Steps content written yet for: ${unauthored.join(', ')}. Those deliverables contribute nothing to either section.`);
+    out.push(`No Process content written yet for: ${unauthored.join(', ')}. Those deliverables contribute nothing to that section.`);
+  }
+  if (!d.firstSteps.items.length && campaignItems(parent, st).length) {
+    out.push('No First Steps matched this project — nothing is written for these product types and New/Update combinations yet.');
   }
 
   const team = selectedTeam(parent, st);
@@ -641,10 +718,34 @@ function teamBody(pid, parent, st) {
 // product types in the project. What the form offers instead is line-level
 // review — switch off a standard step that doesn't apply this time — plus a live
 // count against the field's real capacity.
-function derivedBlock(pid, which, label, note, group, lines, cap) {
+function lineToggle(pid, l, marker) {
+  return `<label class="tp-line${l.on ? ' on' : ''}">
+    <input type="checkbox" ${l.on ? 'checked' : ''}
+      onchange="A.tpToggleLine('${pid}',this.dataset.k)" data-k="${esc(l.key)}">
+    <span class="tp-check-box"></span>
+    <span class="tp-line-n">${marker}</span>
+    <span class="tp-line-t">${esc(l.text)}${
+      l.tag ? ` <span class="tp-line-tag">(${esc(l.tag)})</span>` : ''}${
+      l.url ? ` <span class="tp-line-link" title="${esc(l.url)}">↗</span>` : ''}${
+      l.edited ? ' <span class="tp-edited-dot" title="Edited for this project">•</span>' : ''}</span>
+  </label>`;
+}
+
+function derivedShell(label, note, lines, cap, body) {
   const over = lines > cap;
-  const body = group.length
-    ? group.map(g => {
+  return `<div class="tp-derived">
+    <div class="tp-derived-h">${esc(label)}
+      <span class="tp-derived-c${over ? ' tp-over' : ''}">~${lines} of ~${cap} lines</span>
+    </div>
+    <div class="tp-derived-note">${note}</div>
+    ${body}
+  </div>`;
+}
+
+// Process — grouped, numbered, with a stub for any type nobody has written yet.
+function groupedBlock(pid, label, note, groups, lines, cap) {
+  const body = groups.length
+    ? groups.map(g => {
         if (!g.authored) {
           return `<div class="tp-grp">
             <div class="tp-grp-h">${esc(g.type)}</div>
@@ -654,30 +755,19 @@ function derivedBlock(pid, which, label, note, group, lines, cap) {
         let n = 0;
         return `<div class="tp-grp">
           <div class="tp-grp-h">${esc(g.type)}</div>
-          ${g.lines.map(l => {
-            if (l.on) n++;
-            const marker = which === 'process' ? `${l.on ? n : '–'}.` : '•';
-            return `<label class="tp-line${l.on ? ' on' : ''}">
-              <input type="checkbox" ${l.on ? 'checked' : ''}
-                onchange="A.tpToggleLine('${pid}',this.dataset.k)" data-k="${esc(l.key)}">
-              <span class="tp-check-box"></span>
-              <span class="tp-line-n">${marker}</span>
-              <span class="tp-line-t">${esc(l.text)}${
-                l.url ? ` <span class="tp-line-link" title="${esc(l.url)}">↗</span>` : ''}${
-                l.edited ? ' <span class="tp-edited-dot" title="Edited for this project">•</span>' : ''}</span>
-            </label>`;
-          }).join('')}
+          ${g.lines.map(l => { if (l.on) n++; return lineToggle(pid, l, `${l.on ? n : '–'}.`); }).join('')}
         </div>`;
       }).join('')
     : `<div class="tp-empty">No deliverables selected, so there is nothing to assemble.</div>`;
+  return derivedShell(label, note, lines, cap, body);
+}
 
-  return `<div class="tp-derived">
-    <div class="tp-derived-h">${esc(label)}
-      <span class="tp-derived-c${over ? ' tp-over' : ''}">~${lines} of ~${cap} lines</span>
-    </div>
-    <div class="tp-derived-note">${note}</div>
-    ${body}
-  </div>`;
+// First Steps — one flat deduplicated list, no type headings.
+function listBlock(pid, label, note, items, lines, cap) {
+  const body = items.length
+    ? `<div class="tp-grp">${items.map(l => lineToggle(pid, l, '•')).join('')}</div>`
+    : `<div class="tp-empty">Nothing matched — no First Steps are written for these product types and New/Update combinations yet.</div>`;
+  return derivedShell(label, note, lines, cap, body);
 }
 
 // The form column decides what is INCLUDED; the preview column decides how it
@@ -688,12 +778,12 @@ function fieldBody(pid, parent, st) {
   const d = derived(parent, st);
 
   return `<div class="tp-note">Wording is edited in the preview on the right — click any value to change it for this document. Switch lines off here to leave them out entirely.</div>
-    ${derivedBlock(pid, 'process', 'Process — page 1',
+    ${groupedBlock(pid, 'Process — page 1',
       `Numbered per product type, restarting at 1. Drawn at ${FIELD.process.font}pt, reduced toward ${FIELD.process.minFont}pt if it runs long.`,
       d.process.groups, d.process.lines, d.process.cap)}
-    ${derivedBlock(pid, 'firstSteps', 'First Steps — page 2',
-      `Bulleted per product type. Drawn at ${FIELD.firstSteps.font}pt, reduced toward ${FIELD.firstSteps.minFont}pt if it runs long.`,
-      d.firstSteps.groups, d.firstSteps.lines, d.firstSteps.cap)}`;
+    ${listBlock(pid, 'First Steps — page 2',
+      `One merged list, deduplicated across product types. A step that doesn't apply to all of them is tagged with the ones it does. Drawn at ${FIELD.firstSteps.font}pt, reduced toward ${FIELD.firstSteps.minFont}pt if it runs long.`,
+      d.firstSteps.items, d.firstSteps.lines, d.firstSteps.cap)}`;
 }
 
 // ── VIEW: preview column ─────────────────────────────────────────────────────
@@ -742,23 +832,35 @@ function fieldRow(name, value, extra = '') {
 // contact lines. A step that SHOULD link somewhere and doesn't is exactly the
 // kind of gap worth seeing before generating, and hiding empty ones would make
 // the absence invisible.
-function previewGroups(pid, st, groups, which) {
+// One line as the document prints it: the text (linked if it has a URL), its
+// applicability tag if it needs one, and the URL on a quieter row beneath.
+//
+// The tag is NOT editable. It isn't authored copy — it's computed from which
+// product types the line matched in this project, so an edit would be silently
+// recomputed away on the next render. Everything else here can be rewritten.
+function previewLine(pid, st, l) {
+  return `<li>
+    <span class="${l.url ? 'tp-pv-linked' : ''}">${editable(pid, l.key, l.text)}</span>${
+      l.tag ? ` <span class="tp-pv-tag">(${esc(l.tag)})</span>` : ''}${revert(pid, st, l.key)}
+    <div class="tp-pv-url">${editable(pid, l.urlKey, l.url, '', 'no link')}${revert(pid, st, l.urlKey)}</div>
+  </li>`;
+}
+
+// Process — one headed, numbered block per product type.
+function previewGroups(pid, st, groups) {
   const live = groups.filter(g => g.lines.some(l => l.on));
   if (!live.length) return '';
-  return live.map(g => {
-    const kept = g.lines.filter(l => l.on);
-    const items = kept.map(l => `<li>
-        <span class="${l.url ? 'tp-pv-linked' : ''}">${editable(pid, l.key, l.text)}</span>${revert(pid, st, l.key)}
-        <div class="tp-pv-url">${editable(pid, l.urlKey, l.url, '', 'no link')}${revert(pid, st, l.urlKey)}</div>
-      </li>`).join('');
-    const list = which === 'process'
-      ? `<ol class="tp-pv-ol">${items}</ol>`
-      : `<ul class="tp-pv-bullets">${items}</ul>`;
-    return `<div class="tp-pv-grp">
+  return live.map(g => `<div class="tp-pv-grp">
       <div class="tp-pv-grp-h">${editable(pid, g.headKey, g.heading)}${revert(pid, st, g.headKey)}</div>
-      ${list}
-    </div>`;
-  }).join('');
+      <ol class="tp-pv-ol">${g.lines.filter(l => l.on).map(l => previewLine(pid, st, l)).join('')}</ol>
+    </div>`).join('');
+}
+
+// First Steps — one flat bulleted list, no headings.
+function previewList(pid, st, items) {
+  const live = items.filter(l => l.on);
+  if (!live.length) return '';
+  return `<ul class="tp-pv-bullets">${live.map(l => previewLine(pid, st, l)).join('')}</ul>`;
 }
 
 function previewBody(parent, st) {
@@ -801,9 +903,9 @@ function previewBody(parent, st) {
     ${fieldRow('Project Name', editable(parent.id, 'projectName', pf.projectName) + revert(parent.id, st, 'projectName'))}
     ${fieldRow('Campaign', campaign)}
     ${fieldRow('Flimp Team', teamBlock)}
-    ${fieldRow('Process', previewGroups(parent.id, st, d.process.groups, 'process'))}
+    ${fieldRow('Process', previewGroups(parent.id, st, d.process.groups))}
     <div class="tp-pv-page">Page 2 — First Steps + Timeline</div>
-    ${fieldRow('First Steps', previewGroups(parent.id, st, d.firstSteps.groups, 'firstSteps'))}
+    ${fieldRow('First Steps', previewList(parent.id, st, d.firstSteps.items))}
     <div class="tp-pv-row"><div class="tp-pv-k">Timeline</div>${tlBlock}</div>
     ${warnBlock}`;
 }
@@ -948,14 +1050,15 @@ function derivedValue(parent, st, key) {
     return g ? g.heading : undefined;
   }
   // Copy lines are keyed on the Supabase row id alone, so which section they
-  // belong to isn't in the key — search both rather than parsing it out.
+  // belong to isn't in the key — search both rather than parsing it out. The
+  // two sections assemble differently, so both shapes get walked.
   if (key.startsWith('line:') || key.startsWith('lineurl:')) {
-    for (const which of ['process', 'firstSteps']) {
-      for (const g of contentGroups(parent, bare, which)) {
-        const line = g.lines.find(l => l.key === key || l.urlKey === key);
-        if (line) return key.startsWith('lineurl:') ? line.url : line.text;
-      }
-    }
+    const candidates = [
+      ...contentGroups(parent, bare, 'process').flatMap(g => g.lines),
+      ...firstStepLines(parent, bare)
+    ];
+    const line = candidates.find(l => l.key === key || l.urlKey === key);
+    if (line) return key.startsWith('lineurl:') ? line.url : line.text;
   }
   return undefined;
 }

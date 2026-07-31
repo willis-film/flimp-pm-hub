@@ -216,21 +216,29 @@ export default async function handler(req, res) {
         const target = o.kind === 'style' ? styleMap : tierMap;
         (target[o.product_type] = target[o.product_type] || []).push(o.value);
       }
-      // Shape kickoff_content into { productType: { process: [], firstSteps: [] } },
-      // the same grouping trick as product_options above. refTable() already
-      // ordered by sort_order, so push order IS print order.
+      // Shape kickoff_content into { process: [...], firstSteps: [...] }. NOT
+      // keyed by product type: a row describes a line and says where it applies,
+      // so the same row can serve several types. The client does the matching.
+      // refTable() already ordered by sort_order, so push order IS print order.
       //
-      // `id` travels to the client because the Templates panel keys per-project
-      // tweaks — a line switched off, or reworded for one kickoff — against it.
-      // Anything positional would silently repoint those tweaks the moment a row
-      // is reordered or deleted. Stringified so the key is stable regardless of
-      // how the id arrives over JSON.
-      const kickoffContent = {};
+      // `id` travels because the Templates panel keys per-project tweaks — a
+      // line switched off, or reworded for one kickoff — against it. Anything
+      // positional would silently repoint those tweaks the moment a row is
+      // reordered or deleted. Stringified so the key is stable regardless of how
+      // the id arrives over JSON.
+      //
+      // An empty `product_types` is normalised to [] meaning "every type", which
+      // is how Postgres returns both NULL and an empty array anyway.
+      const kickoffContent = { process: [], firstSteps: [] };
       for (const r of (kickoffRows || [])) {
-        const t = (kickoffContent[r.product_type] =
-          kickoffContent[r.product_type] || { process: [], firstSteps: [] });
         const bucket = r.section === 'first_steps' ? 'firstSteps' : 'process';
-        t[bucket].push({ id: String(r.id), text: r.value, url: r.url || '' });
+        kickoffContent[bucket].push({
+          id:           String(r.id),
+          text:         r.value,
+          url:          r.url || '',
+          productTypes: Array.isArray(r.product_types) ? r.product_types : [],
+          newOrUpdate:  r.new_or_update || ''
+        });
       }
 
       // Group people by role into plain name arrays. These drive the Info
