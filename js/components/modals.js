@@ -1,7 +1,7 @@
 // modals.js — modal + popup controllers: date picker popup, product-tier
 // cascade, the New/Edit Project modal, and the New/Edit Task modal.
 
-import { PRODUCT_TIER_MAP, PHASE_LABELS } from '../data/constants.js';
+import { PRODUCT_TIER_MAP, PHASE_LABELS, AM_LIST } from '../data/constants.js';
 import { esc, fmtDate, fmtNextActivity, newId } from '../utils.js';
 import { db, save } from '../store.js';
 import { A, register } from '../bus.js';
@@ -72,15 +72,32 @@ function updateModalTiers(type, selectedTier){
     : '<option value="">— select type first —</option>';
 }
 
+// AM options are built at open time rather than sitting in index.html, because
+// AM_LIST is replaced in place from the `people` table at boot (role = 'am').
+// A hardcoded list in the markup would quietly go stale the moment someone is
+// added or leaves in Supabase.
+function fillAmSelect(selectId, selected){
+  const sel=document.getElementById(selectId);
+  // A row edited today may hold an AM who has since left the table. Keep that
+  // name as an option so submitting an unrelated edit doesn't silently blank
+  // the field — the list is for picking, not for validating existing data.
+  const names=AM_LIST.slice();
+  if(selected&&!names.includes(selected)) names.push(selected);
+  sel.innerHTML='<option value="">—</option>'+names.map(a=>`<option value="${esc(a)}">${esc(a)}</option>`).join('');
+  sel.value=selected||'';   // set after the options exist, or it won't stick
+}
+
 function openParentModal(editId){
   editingParentId=editId||null;
   const row=editId?db.rows.find(r=>r.id===editId):null;
   document.getElementById('pm-modal-title').textContent=editId?'Edit Project':'New Project';
   document.getElementById('pm-name').value=row?row.name:'';
-  document.getElementById('pm-status').value=row?row.status:'production';
+  // A brand-new project starts at Kickoff — nothing is in production before the
+  // kickoff has happened, so that was the wrong first stop.
+  document.getElementById('pm-status').value=row?row.status:'kickoff';
   document.getElementById('pm-due').value=row?row.due||'':'';
   document.getElementById('pm-oestart').value=row?row.oeStart||'':'';
-  document.getElementById('pm-am').value=row?row.am||'':'';
+  fillAmSelect('pm-am', row?row.am||'':'');
   document.getElementById('pm-submit').textContent=editId?'Save':'Create Project';
   document.getElementById('parent-overlay').classList.add('open');
   setTimeout(()=>document.getElementById('pm-name').focus(),50);
@@ -112,7 +129,7 @@ function openSubtaskModal(defaultParentId,editId){
   document.getElementById('sm-type').value=row?row.productType||'':'';
   updateModalTiers(row?row.productType||'':'', row?row.productTier||'':'');
   document.getElementById('sm-due').value=row?row.due||'':'';
-  document.getElementById('sm-am').value=row?row.am||'':'';
+  fillAmSelect('sm-am', row?row.am||'':'');
   document.getElementById('sm-update').value=row?row.newOrUpdate||'':'';
   document.getElementById('sm-submit').textContent=editId?'Save':'Create Task';
   document.getElementById('subtask-overlay').classList.add('open');
