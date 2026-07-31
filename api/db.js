@@ -244,11 +244,17 @@ export default async function handler(req, res) {
       // aren't assigned to the project at all, which the role buckets above
       // can't express. Emitted separately rather than by enriching the buckets,
       // so the dropdowns keep receiving the flat string arrays they expect.
+      // `role` and `jobTitle` are not the same thing and both travel. `role` is
+      // the controlled vocabulary the code switches on; `jobTitle` is the free
+      // text that actually prints under someone's name in the kickoff team
+      // block, where "Senior Account Manager" and "Account Director" are both
+      // account managers.
       const peopleDirectory = (people || []).map(p => ({
-        name:  p.name,
-        role:  p.role,
-        email: p.email || '',
-        phone: p.phone || ''
+        name:     p.name,
+        role:     p.role,
+        jobTitle: p.job_title || '',
+        email:    p.email || '',
+        phone:    p.phone || ''
       }));
 
       // Tag chip colours, keyed by tag value (see the 2026-07-27 migration).

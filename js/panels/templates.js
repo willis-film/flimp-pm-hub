@@ -89,19 +89,12 @@ const LIMITS = {
   teamComfortable: 3
 };
 
-// Every field on the project or its items that names a human. Order here is the
-// order they appear in the Flimp Team block. `scope` says which row to read:
-// 'project' reads the parent, 'item' reads every subtask.
-const TEAM_ROLES = [
-  { field: 'projectOwner', label: 'Flimp Project Owner', scope: 'project' },
-  { field: 'am',           label: 'Account Manager',     scope: 'project' },
-  { field: 'itemOwner',    label: 'Item Owner',          scope: 'item'    },
-  { field: 'designer',     label: 'Designer',            scope: 'item'    },
-  { field: 'animator',     label: 'Animator',            scope: 'item'    },
-  { field: 'voArtist',     label: 'Voice Over',          scope: 'item'    },
-  { field: 'otherVendor1', label: 'Other Vendor',        scope: 'item'    },
-  { field: 'otherVendor2', label: 'Writer / Other Vendor', scope: 'item'  }
-];
+// NOTE: the team block no longer reads the project's assignment fields at all
+// (designer, animator, voArtist, otherVendor1/2, itemOwner, projectOwner). Two
+// changes retired them: candidates are now restricted to AMs and PMs, and the
+// title line comes from the person's own `job_title` rather than from whichever
+// slot they were found in. Both facts about a person — who they are and what
+// they're called — now come from one place, their `people` row.
 
 // ── PER-TYPE CONTENT ─────────────────────────────────────────────────────────
 // What the Process and First Steps sections SAY, keyed by product type. This is
@@ -238,33 +231,23 @@ function campaignItems(parent, st) {
 // constraint here runs the other way: the box comfortably holds three, so
 // defaulting people in would guarantee an overflow warning on every project.
 
-// Contact details live on the person, not the assignment, so they're looked up
-// by name against the directory. A name with no matching row still renders —
-// with blank contact lines — rather than vanishing from the team block.
-function contactFor(name) {
+// Everything the team block prints about a person, all of it from the directory
+// row rather than from the assignment. These are facts about the PERSON, so they
+// are identical on every kickoff they appear on and belong in one place.
+//
+// A name with no matching row still renders — with blank lines — rather than
+// vanishing from the team block. The panel names anyone in that state, since it
+// almost always means a spelling mismatch rather than a genuinely absent person.
+function personFor(name) {
   const rec = PEOPLE_DIRECTORY.find(p => p.name === name);
-  return { email: (rec && rec.email) || '', phone: (rec && rec.phone) || '' };
+  return {
+    found:    !!rec,
+    role:     (rec && rec.role)     || '',
+    jobTitle: (rec && rec.jobTitle) || '',
+    email:    (rec && rec.email)    || '',
+    phone:    (rec && rec.phone)    || ''
+  };
 }
-
-// Everyone holding a role on this project, deduped by name and carrying every
-// role they hold — one person is often two (designer on one item, animator on
-// another), and the document should name them once.
-function assignedRoles(parent) {
-  const kids = A.getChildren(parent.id);
-  const byName = new Map();
-  for (const role of TEAM_ROLES) {
-    const rows = role.scope === 'project' ? [parent] : kids;
-    for (const row of rows) {
-      const name = (row[role.field] || '').trim();
-      if (!name) continue;
-      if (!byName.has(name)) byName.set(name, []);
-      const roles = byName.get(name);
-      if (!roles.includes(role.label)) roles.push(role.label);
-    }
-  }
-  return byName;
-}
-
 const eligibleRole = role => KICKOFF_TEAM_ROLES.includes(role);
 
 // Everyone the dropdown may offer: the AMs and PMs in the directory.
@@ -279,14 +262,13 @@ function eligiblePeople() {
 // tightening the eligible roles should never silently drop a name from a kickoff
 // someone had already assembled. They can still be removed by hand.
 function teamCandidates(parent, st) {
-  const roles = assignedRoles(parent);
   const am = (parent.am || '').trim();
   const out = [];
   const seen = new Set();
   const add = (name, pinned, why) => {
     if (!name || seen.has(name)) return;
     seen.add(name);
-    out.push({ name, pinned, why, roles: roles.get(name) || [] });
+    out.push({ name, pinned, why });
   };
 
   add(KICKOFF_ALWAYS, true, 'Always on every kickoff');
@@ -296,15 +278,22 @@ function teamCandidates(parent, st) {
   return out;
 }
 
-// Roles come from the assignment where there is one — an AM who is also this
-// project's owner should read as such. Otherwise fall back to their directory
-// role, mapped to how it should read in a client-facing document.
+// The title line, in order of preference:
+//
+//   1. `job_title` from the directory — the person's actual title. Several
+//      account managers hold variations ("Senior Account Manager", "Account
+//      Director") and this is the only source that carries them.
+//   2. A generic label derived from their `role`, so an unfilled title still
+//      prints something sensible.
+//   3. Their raw role, then nothing.
+//
+// Deliberately NOT derived from the project assignment. That produced internal
+// jargon — "Flimp Project Owner" — in a document the client reads, and it can't
+// express a title variation at all. It also means nobody is special-cased here:
+// everyone's title comes from their own row.
 function roleTextFor(c) {
-  if (c.roles.length) return c.roles.join(' · ');
-  if (c.name === KICKOFF_ALWAYS) return 'Production';
-  const rec = PEOPLE_DIRECTORY.find(p => p.name === c.name);
-  const role = rec && rec.role;
-  return (role && KICKOFF_ROLE_LABEL[role]) || role || (c.pinned ? 'Account Manager' : '');
+  const p = personFor(c.name);
+  return p.jobTitle || KICKOFF_ROLE_LABEL[p.role] || p.role || '';
 }
 
 function isTeamOn(st, c) { return c.pinned || !!st.teamOn[c.name]; }
@@ -315,7 +304,7 @@ function selectedTeam(parent, st) {
   return teamCandidates(parent, st)
     .filter(c => isTeamOn(st, c))
     .map(c => {
-      const contact = contactFor(c.name);
+      const p = personFor(c.name);
       return {
         name:      c.name,
         pinned:    c.pinned,
@@ -325,8 +314,8 @@ function selectedTeam(parent, st) {
         phoneKey:  'teamphone:' + c.name,
         label:     ov(st, 'team:' + c.name, c.name),
         roleText:  ov(st, 'teamrole:' + c.name, roleTextFor(c)),
-        emailText: ov(st, 'teamemail:' + c.name, contact.email),
-        phoneText: ov(st, 'teamphone:' + c.name, contact.phone)
+        emailText: ov(st, 'teamemail:' + c.name, p.email),
+        phoneText: ov(st, 'teamphone:' + c.name, p.phone)
       };
     });
 }
@@ -564,10 +553,20 @@ function teamBody(pid, parent, st) {
   const pinned   = all.filter(c => c.pinned);
   const selected = all.filter(c => !c.pinned);
 
-  const missingContact = all
-    .filter(c => isTeamOn(st, c))
-    .filter(c => { const k = contactFor(c.name); return !k.email && !k.phone; })
-    .map(c => c.name);
+  // Two different problems, so they read differently. A name absent from
+  // `people` entirely is almost always a spelling mismatch between an assignment
+  // field and the directory, and prints with every line but the name blank. A
+  // name that's present but thin just needs a column filling in.
+  const on = all.filter(c => isTeamOn(st, c));
+  const unknown = on.filter(c => !personFor(c.name).found).map(c => c.name);
+  const thin = on
+    .filter(c => personFor(c.name).found)
+    .filter(c => { const p = personFor(c.name); return !p.email || !p.phone || !p.jobTitle; })
+    .map(c => {
+      const p = personFor(c.name);
+      const gaps = [!p.jobTitle && 'title', !p.email && 'email', !p.phone && 'phone'].filter(Boolean);
+      return `${c.name} (${gaps.join(', ')})`;
+    });
 
   const pinnedRows = pinned.map(c => `<div class="tp-pinned">
       <span class="tp-pinned-lock" title="${esc(c.why)}">◆</span>
@@ -614,8 +613,11 @@ function teamBody(pid, parent, st) {
     <div class="tp-subh">Add others</div>
     ${picker}
     ${chips}
-    ${missingContact.length
-      ? `<div class="tp-note">No email or phone on file for ${esc(missingContact.join(', '))} — their contact lines will print blank. Fill them in on the <code>people</code> table in Supabase, or type them straight into the preview for this document only.</div>`
+    ${unknown.length
+      ? `<div class="tp-note">Not in the <code>people</code> table: ${esc(unknown.join(', '))}. Everything but the name will print blank — usually this is a spelling difference between the project's assignment and the directory row.</div>`
+      : ''}
+    ${thin.length
+      ? `<div class="tp-note">Missing details — ${esc(thin.join('; '))}. Fill them in on the <code>people</code> table in Supabase, or type them straight into the preview for this document only.</div>`
       : ''}`;
 }
 
