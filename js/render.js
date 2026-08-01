@@ -223,10 +223,12 @@ function render(){
               <input type="date" id="oe-inp-${parent.id}" value="${parent.oeStart||''}" onchange="uf('${parent.id}','oeStart',this.value)" style="position:absolute;opacity:0;width:0;height:0;top:0;left:0">
             </div>
           </div>
-          <div class="fps-field" style="width:84px">
+          <!-- Width comes from --am-name-chars in main.css, not from the longest
+               name in AM_LIST: one long name shouldn't cost every strip the width. -->
+          <div class="fps-field fps-field-am">
             <div class="fps-field-label">AM</div>
             <div class="fps-field-val">
-              <select class="fps-select" onchange="uf('${parent.id}','am',this.value)">
+              <select class="fps-select" title="${esc(parent.am||'')}" onchange="uf('${parent.id}','am',this.value)">
                 <option value="">—</option>
                 ${AM_LIST.map(a=>`<option value="${a}"${parent.am===a?' selected':''}>${a}</option>`).join('')}
               </select>

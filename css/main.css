@@ -491,9 +491,27 @@ body::before {
 }
 .fps-input::placeholder { color: var(--ink-4); }
 .fps-input:focus { background: var(--signal-tint); border-radius: 3px; padding: 1px 4px; margin: -1px -4px; }
+/* AM slot: a fixed character budget, not "as wide as the longest name in the
+   list" — one long name shouldn't tax every strip. Raise or lower
+   --am-name-chars alone to trade real estate for coverage; anything longer
+   ellipsises and keeps its full text in the select's title. 1ch here is the
+   font's "0" advance (7.95px), wider than a typical name character (5.5–7.2px),
+   so the budget is conservative: N characters always fit, usually a few more.
+   The +27px is .fps-field's 24px of padding plus the select's 3px of slack. */
+.fps-field-am {
+  --am-name-chars: 16;
+  font-size: 12px; /* 1ch resolves against this, matching .fps-select */
+  width: calc(var(--am-name-chars) * 1ch + 27px);
+}
+
 .fps-select {
   background: none; border: none; font-family: var(--font-mono); font-size: 12px; color: var(--ink);
-  padding: 0; outline: none; cursor: pointer; max-width: 90px;
+  /* The 3px right pad is slack: it keeps a name whose width lands exactly on
+     the slot from ellipsising on a sub-pixel rounding. */
+  padding: 0 3px 0 0; outline: none; cursor: pointer;
+  /* Fill the slot rather than cap at a fixed width: a name longer than the
+     slot ellipsises instead of being clipped mid-glyph by .fps-field-val. */
+  width: 100%; max-width: 100%; text-overflow: ellipsis;
 }
 .fps-select:focus { background: var(--signal-tint); border-radius: 3px; }
 .fps-select option { background: var(--panel); color: var(--ink); }
