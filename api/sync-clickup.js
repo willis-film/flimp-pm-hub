@@ -35,6 +35,22 @@ const FIELD_NAME_PRODUCT_TYPE = 'Product Type';
 const FIELD_NAME_PRODUCT_TIER = 'Product Tier';
 const FIELD_NAME_PRODUCT_STYLE = 'Product Style';
 
+// The live field names carry trailing markers — 'Product Type*+',
+// 'Product Tier*+', 'Product Style*+' — where the workspace uses '*' and '+'
+// to flag its own conventions. Matching the bare literal above found nothing,
+// so every Product Type/Tier synced as ''. Trailing '*', '+' and whitespace
+// are stripped before comparing rather than baked into the constants: those
+// markers get toggled in ClickUp without warning, and hardcoding them just
+// moves the same silent breakage one rename down the road.
+//
+// Only TRAILING decoration is stripped, which keeps the target names distinct
+// from their neighbours — 'Product #1 Topic+' does not collapse onto
+// 'Product Topic*+', and none of the three targets collide with anything else
+// in the list.
+function normalizeFieldName(name) {
+  return String(name || '').trim().toLowerCase().replace(/[*+\s]+$/, '');
+}
+
 function getSupabase() {
   const { SUPABASE_URL, SUPABASE_SERVICE_KEY } = process.env;
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
@@ -47,15 +63,17 @@ function getSupabase() {
 // fields carry an identifier for the chosen option rather than its display
 // string, so that's resolved against type_config.options here.
 //
-// Which identifier is the catch: the v2 docs describe `value` as the option's
-// orderindex, but live responses commonly return the option's uuid instead.
-// Matching only on orderindex meant a uuid compared number-to-string, missed,
-// and the field came back '' — which is why Product Type/Tier arrived empty
-// and left the row's dropdowns unselected. Both are accepted now.
+// Which identifier varies: the v2 docs describe `value` as the option's
+// orderindex — which is what this workspace sends — but live responses
+// elsewhere return the option's uuid, where a strict === against orderindex
+// compares string to number and silently misses. Both are accepted.
+// (This breadth is defensive, not the fix for the empty Product Type/Tier
+// that prompted it — see normalizeFieldName above for that.)
 // Returns '' if the field isn't present on this task at all.
 function customFieldValue(task, fieldName) {
+  const target = normalizeFieldName(fieldName);
   const field = (task.custom_fields || []).find(
-    f => f.name.toLowerCase() === fieldName.toLowerCase()
+    f => normalizeFieldName(f.name) === target
   );
   if (!field || field.value === undefined || field.value === null || field.value === '') return '';
 
@@ -143,6 +161,23 @@ export default async function handler(req, res) {
           debugTasks.flatMap(t => (t.custom_fields || []).map(f => f.name))
         )].sort(),
         lookingFor: [FIELD_NAME_PRODUCT_TYPE, FIELD_NAME_PRODUCT_TIER, FIELD_NAME_PRODUCT_STYLE],
+        // The option NAMES ClickUp offers for the three target fields. Matching
+        // the field is only half the job: the app's dropdowns only display a
+        // value that also exists in Supabase's product_types / product_options,
+        // so these are what those tables have to agree with.
+        targetFieldOptions: [FIELD_NAME_PRODUCT_TYPE, FIELD_NAME_PRODUCT_TIER, FIELD_NAME_PRODUCT_STYLE]
+          .reduce((acc, wanted) => {
+            const target = normalizeFieldName(wanted);
+            for (const t of debugTasks) {
+              const f = (t.custom_fields || []).find(x => normalizeFieldName(x.name) === target);
+              if (f && f.type_config && Array.isArray(f.type_config.options)) {
+                acc[wanted] = { clickupFieldName: f.name, options: f.type_config.options.map(o => o.name) };
+                return acc;
+              }
+            }
+            acc[wanted] = { clickupFieldName: null, options: [] };
+            return acc;
+          }, {}),
         sample: debugTasks.slice(0, 3).map(t => ({
           id: t.id,
           name: t.name,
