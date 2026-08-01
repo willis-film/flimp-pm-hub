@@ -27,6 +27,11 @@ function submitAssignCuTask(){
     id:newId('r'),
     parentId:projectId,
     clickupId:cuTask.id,
+    // ClickUp's own task URL, carried over rather than rebuilt from the id.
+    // The Subtasks table falls back to deriving app.clickup.com/t/<id> when
+    // this is absent (rows assigned before this line existed), but the synced
+    // URL is the authoritative one — it's whatever ClickUp itself returned.
+    clickupUrl:cuTask.clickupUrl||'',
     collapsed:false,
     name:cuTask.name,
     status:statusMap[cuTask.status]||'kickoff',

@@ -398,9 +398,18 @@ function render(){
           </select>
         </td>
         <td style="text-align:center">
-          ${task.clickupUrl
-            ? `<a href="${esc(task.clickupUrl)}" target="_blank" style="font-size:12px;color:var(--accent);text-decoration:none;font-family:var(--font-mono)" title="${esc(task.clickupUrl)}">${esc(task.clickupUrl.split('/').pop())}</a>`
-            : '<span class="dash">—</span>'}
+          ${(()=>{
+            // clickupUrl first — that's ClickUp's own URL, copied onto the row
+            // by submitAssignCuTask(). Falling back to deriving it from the id
+            // covers every row assigned before that copy existed: those carry
+            // only clickupId, so reading clickupUrl alone left this column
+            // empty for every real synced subtask.
+            const cuUrl=task.clickupUrl||(task.clickupId?`https://app.clickup.com/t/${task.clickupId}`:'');
+            if(!cuUrl) return '<span class="dash">—</span>';
+            // Label reads off the linked URL, not clickupId, so the text can
+            // never name a different task than the href points at.
+            return `<a href="${esc(cuUrl)}" target="_blank" style="font-size:12px;color:var(--accent);text-decoration:none;font-family:var(--font-mono)" title="${esc(cuUrl)}">${esc(cuUrl.split('/').pop())}</a>`;
+          })()}
         </td>
         <td style="cursor:pointer" onclick="A.cycleNewUpdate('${task.id}')" title="Click to cycle">
           ${task.newOrUpdate==='New'?'<span class="pill pill-blue">New</span>':task.newOrUpdate==='Update'?'<span class="pill pill-orange">Update</span>':'<span class="dash">—</span>'}

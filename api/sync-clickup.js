@@ -43,19 +43,46 @@ function getSupabase() {
   return createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 }
 
-// Reads a named custom field's display value off a ClickUp task. Handles the
-// common shapes: dropdown fields carry their value as an option index into
-// type_config.options, not the display string, so that's resolved here too.
+// Reads a named custom field's display value off a ClickUp task. Dropdown
+// fields carry an identifier for the chosen option rather than its display
+// string, so that's resolved against type_config.options here.
+//
+// Which identifier is the catch: the v2 docs describe `value` as the option's
+// orderindex, but live responses commonly return the option's uuid instead.
+// Matching only on orderindex meant a uuid compared number-to-string, missed,
+// and the field came back '' — which is why Product Type/Tier arrived empty
+// and left the row's dropdowns unselected. Both are accepted now.
 // Returns '' if the field isn't present on this task at all.
 function customFieldValue(task, fieldName) {
   const field = (task.custom_fields || []).find(
     f => f.name.toLowerCase() === fieldName.toLowerCase()
   );
-  if (!field || field.value === undefined || field.value === null) return '';
-  if (field.type === 'drop_down' && field.type_config && Array.isArray(field.type_config.options)) {
-    const opt = field.type_config.options.find(o => o.orderindex === field.value);
-    return opt ? opt.name : '';
+  if (!field || field.value === undefined || field.value === null || field.value === '') return '';
+
+  const options = field.type_config && Array.isArray(field.type_config.options)
+    ? field.type_config.options
+    : [];
+
+  if (field.type === 'drop_down' && options.length) {
+    const opt = options.find(o => o.id === field.value)
+             || options.find(o => String(o.orderindex) === String(field.value));
+    return opt ? (opt.name || '') : '';
   }
+
+  // labels = ClickUp's multi-select. value is an array of option ids (or of
+  // option objects), so join the names — a single-select-shaped field left as
+  // multi-select in ClickUp still lands somewhere useful rather than ''.
+  if (field.type === 'labels' && options.length && Array.isArray(field.value)) {
+    return field.value
+      .map(v => {
+        const id = v && typeof v === 'object' ? v.id : v;
+        const opt = options.find(o => o.id === id);
+        return opt ? opt.name : '';
+      })
+      .filter(Boolean)
+      .join(', ');
+  }
+
   return typeof field.value === 'string' ? field.value : '';
 }
 
@@ -97,6 +124,44 @@ export default async function handler(req, res) {
   try {
     const { CLICKUP_API_TOKEN } = process.env;
     if (!CLICKUP_API_TOKEN) throw new Error('Missing env var: CLICKUP_API_TOKEN');
+
+    // ?debug=1 — read-only. Reports what ClickUp actually sends for each custom
+    // field, next to what customFieldValue() makes of it, and WRITES NOTHING.
+    // Exists because an empty product_type in clickup_tasks is ambiguous after
+    // the fact: it reads the same whether the option identifier didn't match,
+    // the field is named something other than the FIELD_NAME_* constants above,
+    // or the field simply isn't set on the task. This distinguishes the three.
+    // fieldNamesSeen is the answer to the second: if 'Product Type' isn't in
+    // that list, the constant is what needs changing, not the parser.
+    if (req.query && (req.query.debug === '1' || req.query.debug === 'true')) {
+      const debugTasks = await fetchAssignedTasks(CLICKUP_API_TOKEN);
+      return res.status(200).json({
+        ok: true,
+        mode: 'debug — nothing written to Supabase',
+        taskCount: debugTasks.length,
+        fieldNamesSeen: [...new Set(
+          debugTasks.flatMap(t => (t.custom_fields || []).map(f => f.name))
+        )].sort(),
+        lookingFor: [FIELD_NAME_PRODUCT_TYPE, FIELD_NAME_PRODUCT_TIER, FIELD_NAME_PRODUCT_STYLE],
+        sample: debugTasks.slice(0, 3).map(t => ({
+          id: t.id,
+          name: t.name,
+          customFields: (t.custom_fields || []).map(f => ({
+            name: f.name,
+            type: f.type,
+            value: f.value,
+            optionCount: f.type_config && Array.isArray(f.type_config.options)
+              ? f.type_config.options.length
+              : 0
+          })),
+          resolved: {
+            product_type:  customFieldValue(t, FIELD_NAME_PRODUCT_TYPE),
+            product_tier:  customFieldValue(t, FIELD_NAME_PRODUCT_TIER),
+            product_style: customFieldValue(t, FIELD_NAME_PRODUCT_STYLE)
+          }
+        }))
+      });
+    }
 
     const supabase = getSupabase();
     const rawTasks = await fetchAssignedTasks(CLICKUP_API_TOKEN);
