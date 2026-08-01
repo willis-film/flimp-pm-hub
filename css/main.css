@@ -495,15 +495,17 @@ body::before {
    list" — one long name shouldn't tax every strip. Raise or lower
    --am-name-chars alone to trade real estate for coverage; anything longer
    ellipsises and keeps its full text in the select's title.
-   --am-char-px is a measured worst case for this font at 12px, not 1ch: ch is
-   the "0" advance (7.95px) and over-reserves ~15px across a 16-char budget,
-   which reads as dead space after the name. The widest realistic 16-char name
-   sampled ("Samantha Mueller") is 110.9px — 6.93px/char, so 7 leaves a margin.
+   --am-char-px is measured, not 1ch: ch is the font's "0" advance (7.95px) and
+   over-reserves ~30px across this budget, which reads as dead space after the
+   name. It is tuned to the actual roster's longest name rather than to a
+   worst-case glyph run — "Kristy Willadsen", 16 chars at 95.6px (5.97px/char),
+   so 6.15 leaves a few px of margin. A 16-char name in wide glyphs
+   ("Samantha Mueller", 6.93px/char) ellipsises; widen this if one joins.
    The +28px is .fps-field's 24px of padding, the select's 3px of slack, and
    the field's 1px seam. */
 .fps-field-am {
   --am-name-chars: 16;
-  --am-char-px: 7;
+  --am-char-px: 6.15;
   width: calc(var(--am-name-chars) * var(--am-char-px) * 1px + 28px);
 }
 
