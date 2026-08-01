@@ -72,18 +72,18 @@ export const PRODUCT_STYLE_MAP = {
 
 export const PRODUCT_TIER_MAP = {
   'Video': ['Teaser','Customized Explainer','Premium Video','Custom Marketing'],
-  'Presentation Video': ['Straight Conversion','Straight Conversion (AI Assisted)','Branded Template','Custom Creative','Lockton Turnkey 10-min','Lockton Turnkey 20-min'],
+  'Presentation Video': ['Straight Conversion','Straight Conversion (AI Assisted)','Branded Template','Custom Creative','Lockton Turnkey 10-Min','Lockton Turnkey 20-Min'],
   'Library Videos': ['Basic'],
   'Microsite': ['Benefits Showcase','Onboarding Hub','Resource Center','Digital Postcard - Static','Digital Postcard - Responsive','Virtual Benefits Fair','Employee Newsletter','Mobile Contact Wallet','Mobile Contact Wallet Plus'],
-  'Benefit Guide': ['Alternate','Premium Guide','Custom','Foreign Language','Premium Navigation Enhanced Guide'],
-  'Companion Piece': ['Benefits-at-a-Glance (BAAG)','Flipbook','Flyer','Foreign Language','Home Mailer (18 x 6)','Home Mailer (8.5 x 11)','Poster','Powerpoint (Full Presentation)','Powerpoint (Template)','Rates Sheet','USPS Postcard','Brochure','Mini-guide','Total Rewards Statements','Benefits Reference Card','JPG Banner Design','Premium Navigation Enhanced Guide','Monitor Screen Display','Table Tent','Topical-at-a-Glance (TAAG)'],
+  'Benefit Guide': ['Alternate','Premium Guide','Custom','Foreign Language','Premium Navigation-Enhanced Guide'],
+  'Companion Piece': ['Benefits-at-a-Glance (BAAG)','Flipbook','Flyer','Foreign Language','Home Mailer (18 x 6)','Home Mailer (8.5 x 11)','Poster','PowerPoint (Full Presentation)','PowerPoint (Template)','Rates Sheet','USPS Postcard','Brochure','Mini-guide','Total Rewards Statements','Benefits Reference Card','JPG Banner Design','Premium Navigation-Enhanced Guide','Monitor Screen Display','Table Tent','Topical At a Glance (TAAG)'],
   'Print & Mail': ['Printing','Drop Shipping','Postage'],
   'Flimp Decisions': ['Decisions Medical','Decisions Voluntary','Decisions Analytics','Decisions Extra Groups','Decisions Extra Plans','Decisions - Analytics Tool','Decisions - Employee-facing Tool'],
   'Flimp Connect': ['Connect Flimp Managed','Connect Employer Account','Connect Single Office + Multi Tenant','Connect Multi Office + Multi Tenant'],
   'Web Development': ['Web Development','Software'],
   'AI Chatbot Agent': ['Client-Provided Guide Chatbot','Flimp-Created Guide Chatbot','Microsite Chatbot'],
   'Flimp Canvas': ['Design Studio','Video Library with Platform Access'],
-  'Other': ['Rush Fee','Other','Additional Edits','Hosting','English Closed Captions','Foreign-Language Closed Captions','Baked-in Subtitles','Full-Day On-Site Shoots','Voice-Over Narration (with no video)','Voice-Over Pickups','SCORM','Writing Services']
+  'Other': ['Rush Fee','Other','Additional Edits','Hosting','English Closed Captions','Foreign-Language Closed Captions','Baked-in Subtitles','Full-Day On-site Shoots','Voice-Over Narration (with no video)','Voice-Over Pickups','SCORM','Writing Services']
 };
 
 // ── INFO PANEL LOOKUPS ───────────────────────────────────────────────────────
