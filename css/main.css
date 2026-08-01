@@ -494,14 +494,17 @@ body::before {
 /* AM slot: a fixed character budget, not "as wide as the longest name in the
    list" — one long name shouldn't tax every strip. Raise or lower
    --am-name-chars alone to trade real estate for coverage; anything longer
-   ellipsises and keeps its full text in the select's title. 1ch here is the
-   font's "0" advance (7.95px), wider than a typical name character (5.5–7.2px),
-   so the budget is conservative: N characters always fit, usually a few more.
-   The +27px is .fps-field's 24px of padding plus the select's 3px of slack. */
+   ellipsises and keeps its full text in the select's title.
+   --am-char-px is a measured worst case for this font at 12px, not 1ch: ch is
+   the "0" advance (7.95px) and over-reserves ~15px across a 16-char budget,
+   which reads as dead space after the name. The widest realistic 16-char name
+   sampled ("Samantha Mueller") is 110.9px — 6.93px/char, so 7 leaves a margin.
+   The +28px is .fps-field's 24px of padding, the select's 3px of slack, and
+   the field's 1px seam. */
 .fps-field-am {
   --am-name-chars: 16;
-  font-size: 12px; /* 1ch resolves against this, matching .fps-select */
-  width: calc(var(--am-name-chars) * 1ch + 27px);
+  --am-char-px: 7;
+  width: calc(var(--am-name-chars) * var(--am-char-px) * 1px + 28px);
 }
 
 .fps-select {
