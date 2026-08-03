@@ -109,10 +109,7 @@ export const OWNER_LIST = ['Andrew Willis','Heather Klee','Julie','Kristy'];
 // Empty by default: unlike the dropdown lists there is no sensible hardcoded
 // fallback for somebody's real email address, and inventing one would be worse
 // than showing a blank. Populated from Supabase at boot.
-export const PEOPLE_DIRECTORY = [
-  { name:'Andrew Willis', role:'pm', jobTitle:'Senior Project Manager, Production Analytics', email:'awillis@flimp.net', phone:'555-0101' },
-  { name:'Julie', role:'am', jobTitle:'Senior Account Manager', email:'julie@flimp.net', phone:'555-0102' }
-];
+export const PEOPLE_DIRECTORY = [];
 
 // Whoever runs production is on every kickoff, so the document should never ask.
 // Matched against `people.name`, which is where the contact details come from —
@@ -154,31 +151,7 @@ export const KICKOFF_TEAM_ROLES = ['am', 'pm', 'owner'];
 //
 // `id` is the Supabase row id. The panel keys per-project tweaks against it, so
 // it has to survive the round trip intact.
-export const KICKOFF_CONTENT = {
-  process: [
-    { id:'p1',  text:'Project Kickoff', url:'', productTypes:[], newOrUpdate:'', depth:0, typeLabel:'' },
-    { id:'p2',  text:'Scripting - 1 minute = 150 words', url:'', productTypes:['Video'], newOrUpdate:'New', depth:0, typeLabel:'' },
-    { id:'p3',  text:'Open Enrollment Example', url:'https://flimp.live/oe-example', productTypes:['Video'], newOrUpdate:'New', depth:1, typeLabel:'' },
-    { id:'p4',  text:'Style Slides', url:'', productTypes:['Video'], newOrUpdate:'New', depth:0, typeLabel:'' },
-    { id:'p5',  text:'Storyboards', url:'', productTypes:['Video'], newOrUpdate:'New', depth:0, typeLabel:'' },
-    { id:'p7',  text:'Voice over', url:'', productTypes:['Video'], newOrUpdate:'', depth:0, typeLabel:'' },
-    { id:'p8',  text:'Animation', url:'', productTypes:['Video'], newOrUpdate:'', depth:0, typeLabel:'' },
-    { id:'p9',  text:'Intake Form', url:'', productTypes:['Microsite','Benefit Guide','Companion Piece'], newOrUpdate:'New', depth:0, typeLabel:'' },
-    { id:'p10', text:'Microsite Style Options', url:'https://flimp.live/microsite-styles', productTypes:['Microsite'], newOrUpdate:'New', depth:1, typeLabel:'' },
-    { id:'p11', text:'Benefit Guide & Companion Piece Style Options', url:'https://flimp.live/trad-styles', productTypes:['Benefit Guide','Companion Piece'], newOrUpdate:'New', depth:1, typeLabel:'Traditional' },
-    { id:'p12', text:'Initial Draft in ReviewStudio', url:'', productTypes:['Microsite','Benefit Guide','Companion Piece'], newOrUpdate:'New', depth:0, typeLabel:'' },
-    { id:'p14', text:'How To Use ReviewStudio', url:'https://flimp.live/reviewstudio', productTypes:['Microsite','Benefit Guide','Companion Piece'], newOrUpdate:'', depth:1, typeLabel:'' },
-    { id:'p15', text:'Rounds of Edits', url:'', productTypes:['Microsite','Benefit Guide','Companion Piece'], newOrUpdate:'', depth:0, typeLabel:'' },
-    { id:'p17', text:'Distribution', url:'', productTypes:[], newOrUpdate:'', depth:0, typeLabel:'' },
-    { id:'p18', text:'Distribution Toolkit', url:'https://flimp.live/Distribution-Resource-Center', productTypes:[], newOrUpdate:'', depth:1, typeLabel:'' }
-  ],
-  firstSteps: [
-    { id:'f1', text:'Style Selection', url:'', productTypes:['Video'], newOrUpdate:'New', depth:0, typeLabel:'' },
-    { id:'f2', text:'Starter Script', url:'', productTypes:['Video'], newOrUpdate:'New', depth:0, typeLabel:'' },
-    { id:'f3', text:'Intake Form', url:'https://flimp.live/intake', productTypes:['Microsite','Benefit Guide','Companion Piece'], newOrUpdate:'New', depth:0, typeLabel:'' },
-    { id:'f4', text:'Logos & Branding', url:'', productTypes:[], newOrUpdate:'New', depth:0, typeLabel:'' }
-  ]
-};
+export const KICKOFF_CONTENT = { process: [], firstSteps: [] };
 
 // How those raw role values read in a client-facing document.
 export const KICKOFF_ROLE_LABEL = {
