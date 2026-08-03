@@ -1078,7 +1078,7 @@ function templatesPanelHtml(parent) {
     <div class="tp-form">${steps}</div>
     <div class="tp-preview-col">
       <div class="tp-pv-bar">
-        <button class="tp-gen" onclick="A.tpGenerate('${pid}')">Generate PDF</button>
+        <button class="tp-gen" data-pid="${pid}" onclick="A.tpGenerate('${pid}')">Generate PDF</button>
         <span class="tp-gen-note" id="tp-gen-note-${pid}">Field readout — not a page render.</span>
       </div>
       <div class="tp-pv-scroll"><div class="tp-pv" id="tp-pv-${pid}">${previewBody(parent, st)}</div></div>
@@ -1216,19 +1216,114 @@ function tpRevert(pid, key) {
   save(); A.render();
 }
 
-// Generation is not built. Rather than POST at an endpoint that doesn't exist
-// and surface a raw 404, say so plainly and leave the collected state intact.
-function tpGenerate(pid) {
+// ── THE FILL PAYLOAD ─────────────────────────────────────────────────────────
+// Everything the generator needs, resolved to finished strings. This is the
+// seam: /api/kickoff-pdf.js knows nothing about rows, product types or the
+// New/Update axis, which is what lets it be tested from a JSON fixture with no
+// database — and what makes the preview above an honest picture of the output,
+// since both are built from exactly these values.
+//
+// Only lines that are switched ON travel, and their text carries the same tag
+// the preview shows, because the generator draws `text` verbatim.
+function buildPayload(parent, st) {
+  const pf = pageFields(parent, st);
+  const d  = derived(parent, st);
+  const wire = l => ({ text: lineText(l), url: l.url || '', depth: l.depth || 0 });
+
+  return {
+    filename: [pf.clientName, pf.projectName].filter(Boolean).join(' - ') || 'kickoff',
+    page1: {
+      clientName:  pf.clientName,
+      projectName: pf.projectName,
+      campaign: campaignItems(parent, st).map(k => ({ text: k.label, url: '', depth: 0 })),
+      team: selectedTeam(parent, st).map(p => ({
+        name:  p.label,
+        title: p.roleText,
+        email: p.emailText,
+        phone: p.phoneText
+      })),
+      process: d.process.groups
+        .filter(g => g.lines.some(l => l.on))
+        .map(g => ({ heading: g.heading, lines: g.lines.filter(l => l.on).map(wire) }))
+    },
+    page2: {
+      firstSteps: d.firstSteps.items.filter(l => l.on).map(wire)
+    },
+    timeline: A.timelineWeeks(parent)
+  };
+}
+
+// Posts the payload and hands the result to the browser as a download.
+//
+// The response is a PDF, not JSON, so failures need care: an error comes back as
+// JSON with a message worth showing, and reporting "something went wrong" when
+// the server said exactly what went wrong helps nobody.
+async function tpGenerate(pid) {
+  const r = db.rows.find(x => x.id === pid); if (!r) return;
   const note = document.getElementById('tp-gen-note-' + pid);
-  if (note) {
-    note.textContent = 'Not built yet — /api/kickoff-pdf.js does not exist. Inputs above are ready for it.';
-    note.classList.add('tp-gen-note-warn');
+  const say = (msg, warn) => {
+    if (!note) return;
+    note.textContent = msg;
+    note.classList.toggle('tp-gen-note-warn', !!warn);
+  };
+  const btn = document.querySelector(`.tp-gen[data-pid="${pid}"]`);
+  if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
+  say('Building the PDF…', false);
+
+  try {
+    const payload = buildPayload(r, tplState(r));
+    const res = await fetch('/api/kickoff-pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      let msg = `${res.status} ${res.statusText}`;
+      try { const j = await res.json(); if (j && j.error) msg = j.error; } catch {}
+      throw new Error(msg);
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (payload.filename || 'kickoff').replace(/[^\w.-]+/g, '-') + '.pdf';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    // Revoked on a delay: revoking immediately can cancel the download in some
+    // browsers before it has read the blob.
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+
+    // Anything the generator wants to say about the result — an overflowing
+    // region, a multi-page timeline — rides back in a header rather than being
+    // swallowed. Surfacing it is the difference between "it printed" and "it
+    // printed, and here's what got squeezed".
+    let notes = [];
+    try { notes = JSON.parse(res.headers.get('X-Kickoff-Notes') || '[]'); } catch {}
+    const pages = res.headers.get('X-Kickoff-Timeline-Pages');
+    say(notes.length
+      ? `Downloaded — ${notes.join('; ')}`
+      : `Downloaded${pages && +pages > 1 ? ` — timeline ran to ${pages} pages` : ''}.`,
+      notes.length > 0);
+  } catch (e) {
+    say(`Couldn't generate: ${e.message}`, true);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Generate PDF'; }
   }
-  A.toast && A.toast('PDF generation is not built yet');
 }
 
 register({
   templatesPanelHtml,
   tpSetKind, tpGoStep, tpToggleCampaign, tpToggleTeam, tpToggleLine,
-  tpEdit, tpEditKey, tpRevert, tpGenerate
+  tpEdit, tpEditKey, tpRevert, tpGenerate,
+  // Exposed so the payload can be pulled out of a real project and replayed
+  // against the generator offline — see test/kickoff-fixture.mjs. The contract
+  // between panel and generator is the thing most worth being able to test
+  // without a deploy.
+  kickoffPayload: pid => {
+    const r = db.rows.find(x => x.id === pid);
+    return r ? buildPayload(r, tplState(r)) : null;
+  }
 });
