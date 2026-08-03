@@ -131,6 +131,110 @@ function parseExport(text) {
   return { title, tasks, meta, position: {}, pastedAt: new Date().toISOString() };
 }
 
+// ── WEEK GROUPING ────────────────────────────────────────────────────────────
+// The kickoff PDF's page-2 table is drawn as week bands with task rows beneath
+// them. What's stored is a FLAT task list — parseExport deliberately keeps the
+// export's own shape — so the weeks have to be derived.
+//
+// This lives here rather than in the generator because the panel needs the same
+// numbers to report on, and a second implementation would be a second set of
+// week boundaries to disagree about. The generator receives the finished groups.
+//
+// Four decisions worth naming, none of them forced by the data:
+//
+//   WEEKS ARE PROJECT-RELATIVE, NOT ISO. "Week 3" means the third week of this
+//   project, not the third week of the calendar year. A client reading a kickoff
+//   wants to know how far in something falls; ISO week 32 tells them nothing.
+//   Week 1 is the week containing the earliest dated task.
+//
+//   BANDS RUN MONDAY TO FRIDAY. Production weeks are working weeks, and a band
+//   labelled "Aug 24 – Aug 30" implies weekend work that isn't happening. Tasks
+//   dated on a weekend still belong to their surrounding week — they're grouped
+//   by the Monday, so nothing is lost, the label just doesn't advertise it.
+//
+//   EMPTY WEEKS ARE SKIPPED, NUMBERING IS NOT. A fortnight's gap shows up as
+//   week 4 followed by week 6. Renumbering would compress it and quietly lie
+//   about elapsed time; emitting an empty band would spend one of a very small
+//   number of lines saying nothing.
+//
+//   A TASK SPANNING SEVERAL DELIVERABLES STAYS ONE ROW. The export merges them
+//   ("Kickoff" covers everything), and splitting them back out would print the
+//   same task three times.
+
+const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const dayLabel = d => `${MONTH_ABBR[d.getUTCMonth()]} ${d.getUTCDate()}`;
+
+// The Monday of the week containing an ISO date. Sunday is day 0 in JS, which
+// belongs to the week that STARTED six days earlier, not the one beginning
+// tomorrow — hence the || 7.
+function mondayOf(isoDate) {
+  const d = new Date(isoDate + 'T00:00:00Z');
+  if (isNaN(d)) return null;
+  const m = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  m.setUTCDate(m.getUTCDate() - ((m.getUTCDay() || 7) - 1));
+  return m;
+}
+const addDays = (d, n) => {
+  const c = new Date(d.getTime());
+  c.setUTCDate(c.getUTCDate() + n);
+  return c;
+};
+
+// parent.timeline -> { title, summary, weeks: [...], undated: [...] }
+//
+// Undated tasks are returned SEPARATELY rather than dropped or forced into a
+// week. A date the parser couldn't resolve is a real defect in the pasted plan,
+// and silently omitting those rows would make a short table look complete.
+function timelineWeeks(parent) {
+  const tl = parent && parent.timeline;
+  const empty = { title: '', summary: {}, weeks: [], undated: [] };
+  if (!tl || !Array.isArray(tl.tasks) || !tl.tasks.length) return empty;
+
+  const row = t => ({
+    party:       t.party || '',
+    deliverable: (t.deliverables || []).join(', '),
+    task:        t.task || '',
+    due:         t.due || '',          // the export's own label, e.g. "Aug 25"
+    date:        t.date || ''          // resolved ISO, for ordering
+  });
+
+  const dated   = tl.tasks.filter(t => t.date && mondayOf(t.date));
+  const undated = tl.tasks.filter(t => !t.date || !mondayOf(t.date)).map(row);
+  if (!dated.length) return { title: tl.title || '', summary: tl.meta || {}, weeks: [], undated };
+
+  // Week 1 is the week of the earliest task, so numbering is relative to when
+  // work actually starts rather than to whatever the summary line claims.
+  const baseline = dated
+    .map(t => mondayOf(t.date))
+    .reduce((a, b) => (b < a ? b : a));
+
+  const byMonday = new Map();
+  for (const t of dated) {
+    const key = iso(mondayOf(t.date));
+    if (!byMonday.has(key)) byMonday.set(key, []);
+    byMonday.get(key).push(t);
+  }
+
+  const weeks = [...byMonday.keys()].sort().map(key => {
+    const monday = new Date(key + 'T00:00:00Z');
+    const friday = addDays(monday, 4);
+    return {
+      week:  Math.round((monday - baseline) / 604800000) + 1,
+      start: key,
+      end:   iso(friday),
+      range: `${dayLabel(monday)} – ${dayLabel(friday)}`,
+      // Stable sort: same-date tasks keep the order the plan listed them in,
+      // which is the order whoever built the plan intended them to read.
+      tasks: byMonday.get(key)
+        .map((t, i) => ({ t, i }))
+        .sort((a, b) => (a.t.date < b.t.date ? -1 : a.t.date > b.t.date ? 1 : a.i - b.i))
+        .map(x => row(x.t))
+    };
+  });
+
+  return { title: tl.title || '', summary: tl.meta || {}, weeks, undated };
+}
+
 // ── HEALTH ───────────────────────────────────────────────────────────────────
 // The whole point. Two dates, one subtraction.
 
@@ -484,4 +588,4 @@ function tlClear(pid) {
 }
 
 register({ timelinePanelHtml, tlImport, tlSetPos, tlSetLink, tlRelink, tlClear,
-           parseTimelineExport: parseExport });
+           parseTimelineExport: parseExport, timelineWeeks });
