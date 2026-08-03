@@ -14,3 +14,7 @@ node_modules/
 # The launch config and dev server alongside it ARE committed; they're useful to
 # anyone running the app locally.
 .claude/settings.local.json
+
+# Generated kickoff samples from test/kickoff-fixture.mjs
+kickoff-sample.pdf
+_sample.pdf
