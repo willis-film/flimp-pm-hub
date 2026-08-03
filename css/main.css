@@ -2293,6 +2293,7 @@ select.info-in { cursor: pointer; padding-right: 4px; }
 }
 .tp-pv-v { font-size: 12px; color: var(--ink); line-height: 1.55; min-width: 0; word-break: break-word; }
 .tp-pv-sub { font-size: 10.5px; color: var(--ink-4); margin-top: 3px; }
+.tp-pv-sub-warn { color: var(--sig-production); }
 .tp-pv-blank { color: var(--ink-4); font-style: italic; }
 .tp-pv-bullets { margin: 0; padding-left: 16px; }
 .tp-pv-bullets li { margin-bottom: 2px; }

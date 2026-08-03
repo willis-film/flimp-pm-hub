@@ -471,41 +471,25 @@ function derived(parent, st) {
 
 // ── TIMELINE READINESS ───────────────────────────────────────────────────────
 // The page-2 table is drawn from `parent.timeline`, which the Timeline panel
-// stores as a FLAT task list — there is no week grouping in it. The real
-// reshaper (flat tasks → { week, range, tasks[] }) belongs with the generator;
-// this is only enough grouping to report what's there before generating.
+// stores as a FLAT task list. Grouping it into week bands is timeline.js's job —
+// see timelineWeeks() there — so this reads the same groups the generator will
+// draw rather than counting weeks a second, subtly different way.
 //
 // Deliberately does NOT estimate a page count: that needs the continuation
 // page's content rect, which is not known until the page-3 design lands.
-function isoWeekKey(isoDate) {
-  const d = new Date(isoDate + 'T00:00:00Z');
-  if (isNaN(d)) return null;
-  // Shift to the Thursday of this week — ISO weeks are numbered by the week
-  // containing Thursday, which is what makes the count stable across year ends.
-  const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-  t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7));
-  const jan1 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
-  const week = Math.ceil(((t - jan1) / 86400000 + 1) / 7);
-  return `${t.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
-}
-
 function timelineSummary(parent) {
-  const tl = parent.timeline;
-  if (!tl || !Array.isArray(tl.tasks) || !tl.tasks.length) {
+  const g = A.timelineWeeks(parent);
+  if (!g.weeks.length && !g.undated.length) {
     return { ok: false, note: 'No plan pasted — the Timeline panel is empty, so page 2 would generate with an empty table.' };
   }
-  const weeks = new Set();
-  let undated = 0;
-  for (const t of tl.tasks) {
-    const k = t.date ? isoWeekKey(t.date) : null;
-    if (k) weeks.add(k); else undated++;
-  }
+  const tasks = g.weeks.reduce((n, w) => n + w.tasks.length, 0);
   return {
     ok: true,
-    tasks: tl.tasks.length,
-    weeks: weeks.size,
-    undated,
-    meta: tl.meta || {}
+    tasks,
+    weeks: g.weeks.length,
+    undated: g.undated.length,
+    span: g.weeks.length ? `${g.weeks[0].range} → ${g.weeks[g.weeks.length - 1].range}` : '',
+    summary: g.summary
   };
 }
 
@@ -894,7 +878,9 @@ function previewBody(parent, st) {
     : '';
 
   const tlBlock = tl.ok
-    ? `<div class="tp-pv-v">${tl.tasks} task${tl.tasks === 1 ? '' : 's'} across ${tl.weeks} week${tl.weeks === 1 ? '' : 's'}${tl.undated ? ` · ${tl.undated} with no resolved date` : ''}
+    ? `<div class="tp-pv-v">${tl.tasks} task${tl.tasks === 1 ? '' : 's'} across ${tl.weeks} week${tl.weeks === 1 ? '' : 's'}
+        ${tl.span ? `<div class="tp-pv-sub">${esc(tl.span)}</div>` : ''}
+        ${tl.undated ? `<div class="tp-pv-sub tp-pv-sub-warn">${tl.undated} task${tl.undated === 1 ? '' : 's'} with no resolved date — those won't appear in any week band.</div>` : ''}
         <div class="tp-pv-sub">Drawn, not field-filled. Page count is decided at generation.</div></div>`
     : `<div class="tp-pv-v"><span class="tp-pv-blank">${esc(tl.note)}</span></div>`;
 
