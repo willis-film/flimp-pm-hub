@@ -20,19 +20,49 @@ import { line, fit } from './pdf-text.js';
 export const LAYOUT = {
   // ── PAGE 1 REGIONS ────────────────────────────────────────────────────────
   // x/y are the PDF rectangle's lower-left corner; PDF y counts UP from the
-  // bottom of the page. Read from the template's fields.
-  clientName:  { x: 41.1,  y: 658.1, w: 529.9, h: 45.8,  size: 45, minSize: 20, align: 'centre', colour: [0.083, 0.609, 0.26], bold: true },
-  projectName: { x: 41.9,  y: 614.2, w: 529.6, h: 41.0,  size: 20, minSize: 11, align: 'centre', colour: [0.038, 0.097, 0.132] },
-  campaign:    { x: 36.7,  y: 358.9, w: 332.6, h: 181.1, size: 12, minSize: 8,  align: 'left',   colour: [0, 0, 0] },
-  team:        { x: 425.5, y: 266.0, w: 150.0, h: 259.6, size: 12, minSize: 7,  align: 'left',   colour: [1, 1, 1] },
-  process:     { x: 35.3,  y: 61.8,  w: 333.9, h: 247.2, size: 15, minSize: 10, align: 'left',   colour: [0, 0, 0] },
+  // bottom of the page.
+  //
+  // The redesigned page 1 has no AcroForm fields, so these were measured off a
+  // render instead. A Letter page renders at exactly 1px per point at 72dpi, so
+  // pixel positions ARE points — only the y axis flips. Landmarks found:
+  //
+  //   grey title block   x 24..588   PDF y 590..722
+  //   "Campaign:" label              PDF y 552..574
+  //   green divider rule             PDF y 442..443
+  //   "Process:" label               PDF y 401..418
+  //   green team panel   x 415..587  PDF y 244..575
+  //
+  // Content regions sit between those landmarks with a little padding. Two
+  // changes from the old page worth knowing: Campaign lost height (100pt against
+  // 181), and Process gained a lot (356pt against 247), because the new layout
+  // gives it the whole left column down to the footer.
+  clientName:  { x: 40,  y: 650, w: 533, h: 56,  size: 45, minSize: 20, align: 'centre', colour: [0.020, 0.659, 0.329], bold: true },
+  projectName: { x: 40,  y: 602, w: 533, h: 44,  size: 20, minSize: 11, align: 'centre', colour: [0.035, 0.129, 0.176] },
+  campaign:    { x: 34,  y: 447, w: 360, h: 100, size: 12, minSize: 8,  align: 'left',   colour: [0, 0, 0] },
+  team:        { x: 428, y: 254, w: 146, h: 274, size: 12, minSize: 7,  align: 'left',   colour: [1, 1, 1] },
+  process:     { x: 34,  y: 40,  w: 360, h: 356, size: 15, minSize: 10, align: 'left',   colour: [0, 0, 0] },
 
   // ── PAGE 2 REGIONS ────────────────────────────────────────────────────────
-  // The template's fields say Helvetica here, but that's an artefact: page 2
-  // came from the merge that stripped the Rund fonts, so Helv was the fallback
-  // rather than a decision. Drawn in Rund to match page 1.
+  // Page 2 still has its fields, so these came off the AcroForm. Its own fields
+  // say Helvetica, but that's an artefact — page 2 came from the merge that
+  // stripped the Rund fonts, so Helv was the fallback rather than a decision.
+  // Drawn in Rund to match the rest.
   firstSteps:  { x: 212.1, y: 582.8, w: 355.5, h: 99.9,  size: 12, minSize: 8,  align: 'left',   colour: [0, 0, 0] },
   timeline:    { x: 26.8,  y: 46.7,  w: 559.1, h: 444.2 },
+
+  // ── PAGE 3: TIMELINE CONTINUATION ─────────────────────────────────────────
+  // The lighter continuation page — a "Timeline (con't)" heading, no First Steps
+  // panel, and nothing else. Measured the same way:
+  //
+  //   dark header                    PDF y 744..791
+  //   "Timeline (con't)" label       PDF y 705..724
+  //   footer                         PDF y   8..35
+  //
+  // 652pt of content against page 2's 444 — about 47% more room, because there's
+  // no First Steps box eating the top third. Continuation pages therefore hold
+  // noticeably more rows than the first one, which is exactly why the page count
+  // has to be computed against BOTH profiles rather than one.
+  timelineCont: { x: 26.8, y: 43, w: 559.1, h: 652 },
 
   // ── SHARED TEXT SETTINGS ──────────────────────────────────────────────────
   leading: 1.4,          // line height as a multiple of font size
@@ -244,21 +274,32 @@ function drawTaskRow(page, fonts, g, y, task) {
   return y - t.rowHeight;
 }
 
+// The region a given timeline page draws into. Page 1 of the table shares page 2
+// with the First Steps panel and is the short one; every continuation page is
+// the taller page-3 profile.
+const regionForPage = i => (i === 0 ? LAYOUT.timeline : LAYOUT.timelineCont);
+
 // How many pages the table will need. Every height involved is a fixed constant,
 // so this can be answered before anything is drawn — which is what lets the
 // caller copy exactly that many background pages up front. Copying pages is
 // async in pdf-lib and the drawing walk is not, so counting first is simpler
 // than threading promises through the cursor.
 //
-// Must stay in step with the walk in drawTimeline: same fit test, same order.
-export function timelinePageCount(region, timeline) {
+// Must stay in step with the walk in drawTimeline: same fit test, same order,
+// same per-page regions. The two profiles differ by ~200pt of height, so using
+// one for both would misjudge the count badly.
+export function timelinePageCount(timeline) {
   const t = LAYOUT.table;
-  const g = tableGeometry(region);
-  let y = g.top - t.headerHeight;
   let pages = 1;
+  let g = tableGeometry(regionForPage(0));
+  let y = g.top - t.headerHeight;
   for (const week of (timeline.weeks || [])) {
     const needed = t.bandHeight + week.tasks.length * t.rowHeight;
-    if (y - needed < g.bottom) { pages++; y = g.top - t.headerHeight; }
+    if (y - needed < g.bottom) {
+      g = tableGeometry(regionForPage(pages));
+      y = g.top - t.headerHeight;
+      pages++;
+    }
     y -= needed;
   }
   return pages;
@@ -267,18 +308,18 @@ export function timelinePageCount(region, timeline) {
 // Walks the weeks across the supplied pages. A week's band and its rows are
 // never split — a band stranded at the bottom with its tasks overleaf is worse
 // than a shorter page.
-export function drawTimeline(doc, fonts, pages, region, timeline) {
+export function drawTimeline(doc, fonts, pages, timeline) {
   const t = LAYOUT.table;
   let pi = 0;
   let page = pages[0];
-  let g = tableGeometry(region);
+  let g = tableGeometry(regionForPage(0));
   let y = drawTableHeader(page, fonts, g, g.top);
 
   for (const week of (timeline.weeks || [])) {
     const needed = t.bandHeight + week.tasks.length * t.rowHeight;
     if (y - needed < g.bottom && pi + 1 < pages.length) {
       page = pages[++pi];
-      g = tableGeometry(region);
+      g = tableGeometry(regionForPage(pi));
       y = drawTableHeader(page, fonts, g, g.top);
     }
     y = drawWeekBand(page, fonts, g, y, week);

@@ -70,15 +70,11 @@ export async function buildKickoffPdf(payload) {
 
   const page1Tpl = await loadTemplate('kickoff-page1.pdf');
   const page2Tpl = await loadTemplate('kickoff-page2.pdf');
+  // The continuation page: "Timeline (con't)" and nothing else. Because it
+  // carries no First Steps panel it has ~650pt of table area against page 2's
+  // ~444, which is why LAYOUT keeps two timeline rectangles rather than one.
+  const page3Tpl = await loadTemplate('kickoff-page3.pdf');
 
-  // Every continuation page is a fresh copy of the page-2 background.
-  //
-  // PROFILE B IS NOT BUILT. The spec calls for a lighter continuation page with
-  // no First Steps box and therefore a taller content area. That design doesn't
-  // exist yet, so overflow pages currently reuse page 2 — correct table, but
-  // with an empty First Steps box at the top and less room than the real
-  // continuation page will have. Swapping it is a matter of loading a third
-  // template and giving it its own `timeline` rectangle.
   const copyPage = async tpl => {
     const [copied] = await out.copyPages(tpl, [0]);
     return out.addPage(copied);
@@ -103,18 +99,18 @@ export async function buildKickoffPdf(payload) {
   // ── PAGE 2 AND ANY CONTINUATION PAGES ─────────────────────────────────────
   // Counted before drawing so the backgrounds can all be copied up front —
   // copying is async, the drawing walk isn't.
-  const needed = timelinePageCount(LAYOUT.timeline, tl);
+  const needed = timelinePageCount(tl);
   const timelinePages = [];
-  for (let i = 0; i < needed; i++) timelinePages.push(await copyPage(page2Tpl));
+  for (let i = 0; i < needed; i++) {
+    timelinePages.push(await copyPage(i === 0 ? page2Tpl : page3Tpl));
+  }
 
   // First Steps belongs to page 2 only; continuation pages carry the table alone.
   const fs = drawBlock(out, timelinePages[0], fonts, LAYOUT.firstSteps, bulletLines(p2.firstSteps || []));
   if (fs.overflow) notes.push(`firstSteps overflows its box even at ${LAYOUT.firstSteps.minSize}pt`);
 
-  drawTimeline(out, fonts, timelinePages, LAYOUT.timeline, tl);
-  if (needed > 1) {
-    notes.push(`timeline runs to ${needed} pages; continuation pages reuse the page-2 background until the page-3 design exists`);
-  }
+  drawTimeline(out, fonts, timelinePages, tl);
+  if (needed > 1) notes.push(`timeline runs to ${needed} pages`);
   if ((tl.undated || []).length) {
     notes.push(`${tl.undated.length} task(s) had no resolved date and are not in any week band`);
   }
