@@ -131,8 +131,13 @@ export const KICKOFF_TEAM_ROLES = ['am', 'pm', 'owner'];
 
 // The kickoff PDF's Process and First Steps copy:
 //
-//   { process:    [{ id, text, url, productTypes, newOrUpdate }],
-//     firstSteps: [{ id, text, url, productTypes, newOrUpdate }] }
+//   { process:    [{ id, text, url, productTypes, newOrUpdate, depth, typeLabel }],
+//     firstSteps: [{ id, text, url, productTypes, newOrUpdate, depth, typeLabel }] }
+//
+// `depth` 0 is a numbered step, 1 an indented resource line under the step above
+// it. `typeLabel` is a display name for a group of types — "Traditional" for
+// Benefit Guide + Companion Piece — used as the Process heading and in First
+// Steps tags so they don't have to list every type.
 //
 // Loaded from the `kickoff_content` table (see 2026-07-31-kickoff-content.sql).
 // NOT keyed by product type — a line says where it APPLIES via `productTypes`

@@ -2250,6 +2250,13 @@ select.info-in { cursor: pointer; padding-right: 4px; }
 .tp-pv-grp-h { font-size: 11px; font-weight: 600; color: var(--ink-2); margin-bottom: 2px; }
 .tp-pv-ol { margin: 0; padding-left: 18px; }
 .tp-pv-ol li { margin-bottom: 2px; }
+/* A resource link belonging to the step above it. Indented past the numbering
+   and outside the <ol>, so it consumes no step number. */
+.tp-pv-subitem { padding-left: 30px; margin: 1px 0 3px; font-size: 11.5px; }
+
+/* Same relationship in the form column's toggle list. */
+.tp-line-sub { padding-left: 18px; }
+.tp-line-sub .tp-line-t { font-size: 11.5px; color: var(--ink-2); }
 
 /* ── PREVIEW COLUMN — sticky ──────────────────────────────────────────────── */
 

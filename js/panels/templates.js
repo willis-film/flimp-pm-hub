@@ -128,6 +128,26 @@ function rowsFor(which, type, variant) {
   return KICKOFF_CONTENT[which].filter(r => applies(r, type, variant));
 }
 
+// Product type -> the display name its content groups under. Built from the
+// rows themselves: any row naming a type and carrying a `typeLabel` claims that
+// type for that label. Benefit Guide and Companion Piece take identical steps
+// throughout, so labelling both "Traditional" renders one heading instead of two
+// identical blocks — in the tightest region on the page.
+//
+// A type nobody has labelled groups under its own name, which is why this needs
+// no exhaustive mapping to be correct.
+function typeLabels() {
+  const m = new Map();
+  for (const which of ['process', 'firstSteps']) {
+    for (const r of KICKOFF_CONTENT[which]) {
+      if (!r.typeLabel) continue;
+      for (const t of r.productTypes) if (!m.has(t)) m.set(t, r.typeLabel);
+    }
+  }
+  return m;
+}
+const labelFor = (labels, type) => labels.get(type) || type;
+
 // Deliverables with no product type set still need somewhere to go, rather than
 // vanishing from a document that is supposed to list the whole project.
 const UNTYPED = 'Untyped';
@@ -349,15 +369,30 @@ function lineKey(id)    { return `line:${id}`; }
 function lineUrlKey(id) { return `lineurl:${id}`; }
 
 // One assembled line, with its per-project overrides applied.
-function toLine(st, row, tag = '') {
+//
+// A sub-item follows its parent and is switched off with it: hiding "Distribution"
+// while leaving "Distribution Toolkit" dangling under nothing would be worse than
+// either outcome the toggle is for.
+function toLine(st, row, tag = '', parentOff = false) {
   const key = lineKey(row.id), urlKey = lineUrlKey(row.id);
   return {
     key, urlKey, id: row.id, tag,
+    depth:  row.depth || 0,
     text:   ov(st, key, row.text),
     url:    ov(st, urlKey, row.url || ''),
-    on:     !st.lineOff[key],
+    on:     !st.lineOff[key] && !parentOff,
     edited: isEdited(st, key) || isEdited(st, urlKey)
   };
+}
+
+// Walks rows in order, carrying each depth-0 row's off-state down to the
+// depth-1 rows beneath it.
+function toLines(st, rows, tagFor = () => '') {
+  let parentOff = false;
+  return rows.map(r => {
+    if ((r.depth || 0) === 0) parentOff = !!st.lineOff[lineKey(r.id)];
+    return toLine(st, r, tagFor(r), (r.depth || 0) === 1 && parentOff);
+  });
 }
 
 // The product types present in this project, in the order the Campaign list
@@ -372,25 +407,50 @@ function typesPresent(parent, st) {
   return order.map(type => ({ type, variants: [...variants.get(type)] }));
 }
 
-// PROCESS — grouped by product type under a heading, numbered, restarting at 1
-// per type. Different types have genuinely different production stages, so the
-// grouping carries information worth its cost in lines.
+// The same list collapsed onto display labels, so Benefit Guide and Companion
+// Piece become one "Traditional" group carrying both types' variants rather than
+// two headings over identical steps.
+function groupsPresent(parent, st) {
+  const labels = typeLabels();
+  const order = [];
+  const byLabel = new Map();
+  for (const { type, variants } of typesPresent(parent, st)) {
+    const label = labelFor(labels, type);
+    if (!byLabel.has(label)) { order.push(label); byLabel.set(label, { label, types: [], variants: new Set() }); }
+    const g = byLabel.get(label);
+    g.types.push(type);
+    for (const v of variants) g.variants.add(v);
+  }
+  return order.map(l => {
+    const g = byLabel.get(l);
+    return { label: g.label, types: g.types, variants: [...g.variants] };
+  });
+}
+
+// PROCESS — grouped under a heading, numbered, restarting at 1 per group.
+// Different types have genuinely different production stages, so the grouping
+// carries information worth its cost in lines.
+//
+// Rows are taken in KICKOFF_CONTENT order rather than in the order the types
+// happened to match, which keeps a sub-item immediately after its parent and
+// preserves the sequence the copy was authored in.
 function contentGroups(parent, st, which) {
-  return typesPresent(parent, st).map(({ type, variants }) => {
-    const seen = new Set();
-    const rows = [];
-    for (const v of variants) {
-      for (const r of rowsFor(which, type, v)) {
-        if (!seen.has(r.id)) { seen.add(r.id); rows.push(r); }
+  return groupsPresent(parent, st).map(({ label, types, variants }) => {
+    const hit = new Set();
+    for (const type of types) {
+      for (const v of variants) {
+        for (const r of rowsFor(which, type, v)) hit.add(r.id);
       }
     }
-    const headKey = `head:${which}:${type}`;
+    const rows = KICKOFF_CONTENT[which].filter(r => hit.has(r.id));
+    const headKey = `head:${which}:${label}`;
     return {
-      type,
+      type:     label,
+      types,
       headKey,
-      heading:  ov(st, headKey, type),
+      heading:  ov(st, headKey, label),
       authored: rows.length > 0,
-      lines:    rows.map(r => toLine(st, r))
+      lines:    toLines(st, rows)
     };
   });
 }
@@ -404,45 +464,56 @@ function contentGroups(parent, st, which) {
 // deliverable a step belongs to. A line applying to all of them needs no tag,
 // which is why the common ones stay short.
 function firstStepLines(parent, st) {
-  const present = typesPresent(parent, st);
-  const hits = new Map();                    // row id -> { row, types:Set }
-  for (const { type, variants } of present) {
-    for (const v of variants) {
-      for (const r of rowsFor('firstSteps', type, v)) {
-        if (!hits.has(r.id)) hits.set(r.id, { row: r, types: new Set() });
-        hits.get(r.id).types.add(type);
+  const present = groupsPresent(parent, st);
+  const labels = typeLabels();
+  const hits = new Map();                    // row id -> Set of group labels
+  for (const { types, variants } of present) {
+    for (const type of types) {
+      for (const v of variants) {
+        for (const r of rowsFor('firstSteps', type, v)) {
+          if (!hits.has(r.id)) hits.set(r.id, new Set());
+          hits.get(r.id).add(labelFor(labels, type));
+        }
       }
     }
   }
   // KICKOFF_CONTENT is already in sort_order, so filtering it preserves the
   // authored order rather than the order types happened to be encountered in.
-  return KICKOFF_CONTENT.firstSteps
-    .filter(r => hits.has(r.id))
-    .map(r => {
-      const { types } = hits.get(r.id);
-      const tag = types.size === present.length ? '' : [...types].join(', ');
-      return toLine(st, r, tag);
-    });
+  const rows = KICKOFF_CONTENT.firstSteps.filter(r => hits.has(r.id));
+  // Tags name GROUPS, not raw types — "(Traditional)" rather than "(Benefit
+  // Guide, Companion Piece)", which is most of the length in a tight region.
+  return toLines(st, rows, r => {
+    const g = hits.get(r.id);
+    return g.size === present.length ? '' : [...g].join(', ');
+  });
 }
 
 // The text of one assembled line, tag included. This is what the generator
 // draws, so it's also what gets counted against the region's capacity.
 function lineText(l) { return l.tag ? `${l.text} (${l.tag})` : l.text; }
 
-// The literal text of the Process region. Blank line between type blocks.
+// Numbering counts only depth-0 steps; a sub-item is an indented continuation of
+// the step above it and doesn't consume a number.
+function numberLines(lines, bullet) {
+  let n = 0;
+  return lines.filter(l => l.on).map(l => {
+    if (l.depth === 1) return `    ${lineText(l)}`;
+    n++;
+    return bullet ? `• ${lineText(l)}` : `${n}. ${lineText(l)}`;
+  });
+}
+
+// The literal text of the Process region. Blank line between groups.
 function renderGroups(groups) {
   return groups
     .filter(g => g.lines.some(l => l.on))
-    .map(g => {
-      const kept = g.lines.filter(l => l.on);
-      return [g.heading, ...kept.map((l, n) => `${n + 1}. ${lineText(l)}`)].join('\n');
-    })
+    .map(g => [g.heading, ...numberLines(g.lines, false)].join('\n'))
     .join('\n\n');
 }
 
 // The literal text of the First Steps region — one flat bulleted list.
 function renderList(lines) {
-  return lines.filter(l => l.on).map(l => `• ${lineText(l)}`).join('\n');
+  return numberLines(lines, true).join('\n');
 }
 
 // Wrapped line count for a rendered block, including the blank separators.
@@ -730,7 +801,7 @@ function teamBody(pid, parent, st) {
 // review — switch off a standard step that doesn't apply this time — plus a live
 // count against the field's real capacity.
 function lineToggle(pid, l, marker) {
-  return `<label class="tp-line${l.on ? ' on' : ''}">
+  return `<label class="tp-line${l.on ? ' on' : ''}${l.depth === 1 ? ' tp-line-sub' : ''}">
     <input type="checkbox" ${l.on ? 'checked' : ''}
       onchange="A.tpToggleLine('${pid}',this.dataset.k)" data-k="${esc(l.key)}">
     <span class="tp-check-box"></span>
@@ -766,7 +837,11 @@ function groupedBlock(pid, label, note, groups, lines, cap) {
         let n = 0;
         return `<div class="tp-grp">
           <div class="tp-grp-h">${esc(g.type)}</div>
-          ${g.lines.map(l => { if (l.on) n++; return lineToggle(pid, l, `${l.on ? n : '–'}.`); }).join('')}
+          ${g.lines.map(l => {
+            if (l.depth === 1) return lineToggle(pid, l, '↳');
+            if (l.on) n++;
+            return lineToggle(pid, l, `${l.on ? n : '–'}.`);
+          }).join('')}
         </div>`;
       }).join('')
     : `<div class="tp-empty">No deliverables selected, so there is nothing to assemble.</div>`;
@@ -776,7 +851,7 @@ function groupedBlock(pid, label, note, groups, lines, cap) {
 // First Steps — one flat deduplicated list, no type headings.
 function listBlock(pid, label, note, items, lines, cap) {
   const body = items.length
-    ? `<div class="tp-grp">${items.map(l => lineToggle(pid, l, '•')).join('')}</div>`
+    ? `<div class="tp-grp">${items.map(l => lineToggle(pid, l, l.depth === 1 ? '↳' : '•')).join('')}</div>`
     : `<div class="tp-empty">Nothing matched — no First Steps are written for these product types and New/Update combinations yet.</div>`;
   return derivedShell(label, note, lines, cap, body);
 }
@@ -849,29 +924,66 @@ function fieldRow(name, value, extra = '') {
 // The tag is NOT editable. It isn't authored copy — it's computed from which
 // product types the line matched in this project, so an edit would be silently
 // recomputed away on the next render. Everything else here can be rewritten.
-function previewLine(pid, st, l) {
-  return `<li>
+function previewLine(pid, st, l, tag = 'li') {
+  return `<${tag}>
     <span class="${l.url ? 'tp-pv-linked' : ''}">${editable(pid, l.key, l.text)}</span>${
       l.tag ? ` <span class="tp-pv-tag">(${esc(l.tag)})</span>` : ''}${revert(pid, st, l.key)}
     <div class="tp-pv-url">${editable(pid, l.urlKey, l.url, '', 'no link')}${revert(pid, st, l.urlKey)}</div>
-  </li>`;
+  </${tag}>`;
 }
 
-// Process — one headed, numbered block per product type.
+// A run of lines as the region prints them. Sub-items sit OUTSIDE the ordered
+// list rather than as `<li>`s in it — an <ol> numbers everything it contains,
+// and a sub-item must not consume a step number. So each depth-0 step opens a
+// list, and a following depth-1 line closes it and renders indented.
+// `start` is carried across the breaks. Each sub-item closes the list and the
+// next step opens a new one, and without it every reopened <ol> would restart at
+// 1 — so a group with two sub-items numbered 1,2 … 1,2,3 … 1,2 instead of 1..7.
+function previewRun(pid, st, lines) {
+  const out = [];
+  let open = false, n = 0;
+  for (const l of lines.filter(x => x.on)) {
+    if (l.depth === 1) {
+      if (open) { out.push('</ol>'); open = false; }
+      out.push(`<div class="tp-pv-subitem">${previewLine(pid, st, l, 'div')}</div>`);
+    } else {
+      if (!open) { out.push(`<ol class="tp-pv-ol" start="${n + 1}">`); open = true; }
+      n++;
+      out.push(previewLine(pid, st, l));
+    }
+  }
+  if (open) out.push('</ol>');
+  return out.join('');
+}
+
+// Process — one headed, numbered block per group.
 function previewGroups(pid, st, groups) {
   const live = groups.filter(g => g.lines.some(l => l.on));
   if (!live.length) return '';
   return live.map(g => `<div class="tp-pv-grp">
       <div class="tp-pv-grp-h">${editable(pid, g.headKey, g.heading)}${revert(pid, st, g.headKey)}</div>
-      <ol class="tp-pv-ol">${g.lines.filter(l => l.on).map(l => previewLine(pid, st, l)).join('')}</ol>
+      ${previewRun(pid, st, g.lines)}
     </div>`).join('');
 }
 
-// First Steps — one flat bulleted list, no headings.
+// First Steps — one flat list, no headings. Bulleted rather than numbered, but
+// the sub-item handling is the same.
 function previewList(pid, st, items) {
   const live = items.filter(l => l.on);
   if (!live.length) return '';
-  return `<ul class="tp-pv-bullets">${live.map(l => previewLine(pid, st, l)).join('')}</ul>`;
+  const out = [];
+  let open = false;
+  for (const l of live) {
+    if (l.depth === 1) {
+      if (open) { out.push('</ul>'); open = false; }
+      out.push(`<div class="tp-pv-subitem">${previewLine(pid, st, l, 'div')}</div>`);
+    } else {
+      if (!open) { out.push('<ul class="tp-pv-bullets">'); open = true; }
+      out.push(previewLine(pid, st, l));
+    }
+  }
+  if (open) out.push('</ul>');
+  return out.join('');
 }
 
 function previewBody(parent, st) {

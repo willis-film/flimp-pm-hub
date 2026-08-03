@@ -264,7 +264,13 @@ export default async function handler(req, res) {
           text:         r.value,
           url:          r.url || '',
           productTypes: toTypeArray(r.product_types),
-          newOrUpdate:  r.new_or_update || ''
+          newOrUpdate:  r.new_or_update || '',
+          // 0 = numbered step, 1 = an indented resource line under the step
+          // above it. Numbering counts only depth 0.
+          depth:        Number(r.depth) === 1 ? 1 : 0,
+          // Display name for a group of product types — "Traditional" for
+          // Benefit Guide + Companion Piece, which take identical steps.
+          typeLabel:    (r.type_label || '').trim()
         });
       }
 
