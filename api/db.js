@@ -124,6 +124,26 @@ const NOT_NULL_DEFAULTS = {
 const toSnake = s => s.replace(/[A-Z]/g, c => '_' + c.toLowerCase());
 const toCamel = s => s.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase());
 
+// A Postgres text[] as a real array of trimmed strings, whether it arrives as a
+// JS array or as the raw literal '{Video,"Benefit Guide"}'. See the note at the
+// kickoff_content shaping below for why silently returning [] would be harmful
+// rather than merely lossy.
+function toTypeArray(v) {
+  if (Array.isArray(v)) return v.map(s => String(s).trim()).filter(Boolean);
+  if (typeof v === 'string') {
+    const s = v.trim();
+    if (!s || s === '{}') return [];
+    if (s.startsWith('{') && s.endsWith('}')) {
+      return s.slice(1, -1)
+        .split(',')
+        .map(x => x.trim().replace(/^"(.*)"$/, '$1').trim())
+        .filter(Boolean);
+    }
+    return [s];
+  }
+  return [];
+}
+
 // ── app row (camelCase) -> Postgres record (named columns + data blob) ─────
 function rowToRecord(r) {
   const record = { data: {} };
@@ -227,8 +247,15 @@ export default async function handler(req, res) {
       // reordered or deleted. Stringified so the key is stable regardless of how
       // the id arrives over JSON.
       //
-      // An empty `product_types` is normalised to [] meaning "every type", which
-      // is how Postgres returns both NULL and an empty array anyway.
+      // `product_types` is normalised to a real array of trimmed strings.
+      //
+      // This is not defensive padding. An empty array MEANS "applies to every
+      // product type", so anything that fails to parse and falls back to []
+      // doesn't go quiet — it makes that line apply to EVERYTHING, untagged, on
+      // every project. A text[] column normally arrives as a JS array, but it
+      // can come back as the raw Postgres literal ('{Video,Microsite}') via some
+      // driver and REST paths, and `Array.isArray` on that is false. So the
+      // literal is parsed rather than discarded.
       const kickoffContent = { process: [], firstSteps: [] };
       for (const r of (kickoffRows || [])) {
         const bucket = r.section === 'first_steps' ? 'firstSteps' : 'process';
@@ -236,7 +263,7 @@ export default async function handler(req, res) {
           id:           String(r.id),
           text:         r.value,
           url:          r.url || '',
-          productTypes: Array.isArray(r.product_types) ? r.product_types : [],
+          productTypes: toTypeArray(r.product_types),
           newOrUpdate:  r.new_or_update || ''
         });
       }

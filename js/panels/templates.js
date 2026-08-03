@@ -541,8 +541,35 @@ function warnings(parent, st) {
   if (unauthored.length) {
     out.push(`No Process content written yet for: ${unauthored.join(', ')}. Those deliverables contribute nothing to that section.`);
   }
+
+  // The nastier case than a wholly empty block: SOME types match and others
+  // don't. The section looks populated, so nothing seems wrong, while one
+  // deliverable's steps are quietly missing. Catch it per type.
+  const starved = typesPresent(parent, st)
+    .filter(({ type, variants }) =>
+      !variants.some(v => rowsFor('firstSteps', type, v).length))
+    .map(t => t.type);
+  if (starved.length && d.firstSteps.items.length) {
+    const referenced = [...new Set(KICKOFF_CONTENT.firstSteps.flatMap(r => r.productTypes))];
+    out.push(`No First Steps matched ${starved.join(', ')}. The content references ${referenced.length ? referenced.join(', ') : 'no specific types'} — check the spelling matches your product types exactly.`);
+  }
+
+  // "Nothing matched" has two very different causes and they need different
+  // fixes: copy that hasn't been written, versus copy that HAS been written
+  // against a product type spelled differently from the one on the subtasks.
+  // The second is invisible without help — the line simply never appears — so
+  // name both sides and let the mismatch show itself.
   if (!d.firstSteps.items.length && campaignItems(parent, st).length) {
-    out.push('No First Steps matched this project — nothing is written for these product types and New/Update combinations yet.');
+    const referenced = [...new Set(KICKOFF_CONTENT.firstSteps.flatMap(r => r.productTypes))];
+    const used = [...new Set(typesPresent(parent, st).map(t => t.type))];
+    const unmatched = used.filter(t => !referenced.includes(t));
+    out.push(
+      !KICKOFF_CONTENT.firstSteps.length
+        ? 'No First Steps content exists yet — the kickoff_content table has no first_steps rows.'
+        : unmatched.length && referenced.length
+          ? `No First Steps matched. This project uses ${used.join(', ')}; the content references ${referenced.join(', ')}. Those have to match exactly.`
+          : 'No First Steps matched this project — nothing is written for these product types and New/Update combinations yet.'
+    );
   }
 
   const team = selectedTeam(parent, st);
