@@ -106,7 +106,10 @@ export async function buildKickoffPdf(payload) {
   }
 
   // First Steps belongs to page 2 only; continuation pages carry the table alone.
-  const fs = drawBlock(out, timelinePages[0], fonts, LAYOUT.firstSteps, bulletLines(p2.firstSteps || []));
+  // Check marks rather than bullets: these are things the client is being asked
+  // to do, and a tick reads as a task list rather than a set of statements.
+  const fs = drawBlock(out, timelinePages[0], fonts, LAYOUT.firstSteps,
+    bulletLines(p2.firstSteps || [], 'check'));
   if (fs.overflow) notes.push(`firstSteps overflows its box even at ${LAYOUT.firstSteps.minSize}pt`);
 
   drawTimeline(out, fonts, timelinePages, tl);

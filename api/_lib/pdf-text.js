@@ -22,13 +22,19 @@
 //   gapAbove blank space before the line, in multiples of the line height
 //   bold    pick the bold face
 //   link    a URL — the drawn text becomes clickable
+//   scale   multiplier on the block's font size, so one block can mix sizes —
+//           a team member's name larger than their contact details
+//   marker  'check' draws a vector tick before the text (see kickoff-draw.js);
+//           the brand font has no check glyph, only a .notdef box
 export function line(text, opts = {}) {
   return {
     text:     text == null ? '' : String(text),
     indent:   opts.indent   || 0,
     gapAbove: opts.gapAbove || 0,
     bold:     !!opts.bold,
-    link:     opts.link     || ''
+    link:     opts.link     || '',
+    scale:    opts.scale    || 1,
+    marker:   opts.marker   || ''
   };
 }
 
@@ -66,29 +72,38 @@ export function wrap(font, text, size, width) {
 // physical lines? Returns null if it doesn't fit the height.
 //
 // `leading` is a multiple of the font size, matching how the panel estimates.
+// `size` is the block's BASE size; each line may scale off it, so rows carry
+// their own resolved size and the caller draws each at whatever it ended up as.
+// A marker reserves horizontal space so wrapped text doesn't run under it.
+export const MARKER_WIDTH = 0.95;   // as a multiple of the line's size
+
 export function layout(fonts, lines, { size, width, height, leading }) {
-  const lineHeight = size * leading;
   const rows = [];
   let y = 0;
   for (const l of lines) {
-    y += l.gapAbove * lineHeight;
+    const s = size * (l.scale || 1);
+    const lineHeight = s * leading;
+    y += (l.gapAbove || 0) * lineHeight;
     const font = l.bold ? fonts.bold : fonts.regular;
-    const pieces = wrap(font, l.text, size, width - l.indent);
+    const markerW = l.marker ? s * MARKER_WIDTH : 0;
+    const pieces = wrap(font, l.text, s, width - l.indent - markerW);
     for (const [i, piece] of pieces.entries()) {
       rows.push({
         text:   piece,
         indent: l.indent,
         bold:   l.bold,
-        // Only the FIRST physical row of a wrapped line carries the link, so a
-        // wrapped step doesn't produce two overlapping annotations.
+        size:   s,
+        markerW,
+        // Marker and link belong to the FIRST physical row only: a wrapped step
+        // shouldn't repeat its tick or produce two overlapping annotations.
+        marker: i === 0 ? l.marker : '',
         link:   i === 0 ? l.link : '',
         y
       });
       y += lineHeight;
     }
   }
-  const used = y;
-  return used <= height ? { rows, used, size, lineHeight } : null;
+  return y <= height ? { rows, used: y, size } : null;
 }
 
 // The largest size in [minSize, size] at which the block fits, or the block at

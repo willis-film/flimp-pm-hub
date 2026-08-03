@@ -15,7 +15,12 @@
 // point of drawing is that they can move.
 
 import { PDFName, PDFNumber, PDFString, PDFArray, rgb } from 'pdf-lib';
-import { line, fit } from './pdf-text.js';
+import { line, fit, MARKER_WIDTH } from './pdf-text.js';
+
+// Flimp text blue, #08212D. Every piece of body text the generator draws uses
+// this rather than pure black — one constant so it can never drift between the
+// page-1 regions and the timeline table.
+const INK = [0.031, 0.129, 0.176];
 
 export const LAYOUT = {
   // ── PAGE 1 REGIONS ────────────────────────────────────────────────────────
@@ -36,18 +41,21 @@ export const LAYOUT = {
   // changes from the old page worth knowing: Campaign lost height (100pt against
   // 181), and Process gained a lot (356pt against 247), because the new layout
   // gives it the whole left column down to the footer.
+  // Campaign and Process are inset from the artwork's "Campaign:" / "Process:"
+  // headings so the content reads as subordinate to them rather than starting
+  // at the same left edge. The heading sits at x 34; content starts at 48.
   clientName:  { x: 40,  y: 650, w: 533, h: 56,  size: 45, minSize: 20, align: 'centre', colour: [0.020, 0.659, 0.329], bold: true },
-  projectName: { x: 40,  y: 602, w: 533, h: 44,  size: 20, minSize: 11, align: 'centre', colour: [0.035, 0.129, 0.176] },
-  campaign:    { x: 34,  y: 447, w: 360, h: 100, size: 12, minSize: 8,  align: 'left',   colour: [0, 0, 0] },
+  projectName: { x: 40,  y: 602, w: 533, h: 44,  size: 20, minSize: 11, align: 'centre', colour: INK },
+  campaign:    { x: 48,  y: 447, w: 346, h: 100, size: 12, minSize: 8,  align: 'left',   colour: INK },
   team:        { x: 428, y: 254, w: 146, h: 274, size: 12, minSize: 7,  align: 'left',   colour: [1, 1, 1] },
-  process:     { x: 34,  y: 40,  w: 360, h: 356, size: 15, minSize: 10, align: 'left',   colour: [0, 0, 0] },
+  process:     { x: 48,  y: 40,  w: 346, h: 356, size: 15, minSize: 10, align: 'left',   colour: INK },
 
   // ── PAGE 2 REGIONS ────────────────────────────────────────────────────────
   // Page 2 still has its fields, so these came off the AcroForm. Its own fields
   // say Helvetica, but that's an artefact — page 2 came from the merge that
   // stripped the Rund fonts, so Helv was the fallback rather than a decision.
   // Drawn in Rund to match the rest.
-  firstSteps:  { x: 212.1, y: 582.8, w: 355.5, h: 99.9,  size: 12, minSize: 8,  align: 'left',   colour: [0, 0, 0] },
+  firstSteps:  { x: 212.1, y: 582.8, w: 355.5, h: 99.9,  size: 15, minSize: 9,  align: 'left',   colour: INK },
   timeline:    { x: 26.8,  y: 46.7,  w: 559.1, h: 444.2 },
 
   // ── PAGE 3: TIMELINE CONTINUATION ─────────────────────────────────────────
@@ -70,11 +78,22 @@ export const LAYOUT = {
   // font size. Roughly cap height — raise it if text looks like it's riding too
   // high in its box.
   firstBaseline: 0.85,
-  subIndent: 14,         // depth-1 lines, in points
+  // Depth-1 lines (the resource links under a step), in points. Enough to clear
+  // the "1. " numbering above so a sub-item reads as hanging off its step rather
+  // than as another step.
+  subIndent: 22,
   groupGap: 0.6,         // blank space before a Process heading, in line heights
   personGap: 0.5,        // blank space between people in the team block
+  // A team member's name against their title/email/phone. Without this the four
+  // lines are one grey mass and the name doesn't read as the heading it is.
+  teamNameScale: 1.25,
   linkColour: [0.083, 0.609, 0.26],
   underlineLinks: true,
+  // The vector tick used where a check mark is wanted. The brand font has no
+  // check glyph — ✓, ✔ and ☑ all measure identically, which is the .notdef box —
+  // so it's stroked rather than typed. Coordinates are multiples of the line's
+  // font size, so it scales with the text automatically.
+  check: { w: 0.62, dipX: 0.24, dipY: 0.02, startY: 0.26, endY: 0.60, weight: 0.11 },
 
   // ── TIMELINE TABLE ────────────────────────────────────────────────────────
   table: {
@@ -90,9 +109,9 @@ export const LAYOUT = {
     // not tab stops — proportional fonts have no tab alignment.
     cols: { party: 0.00, deliverable: 0.14, task: 0.46, due: 1.00 },
     bandFill:   [0.906, 0.925, 0.945],
-    bandText:   [0.11, 0.16, 0.20],
-    headerText: [0.42, 0.46, 0.50],
-    rowText:    [0.11, 0.16, 0.20],
+    bandText:   INK,
+    headerText: [0.42, 0.46, 0.50],   // column labels stay grey: chrome, not content
+    rowText:    INK,
     rule:       [0.85, 0.88, 0.91]
   }
 };
@@ -117,8 +136,28 @@ function addLink(doc, page, url, x, y, w, h) {
   annots.push(ref);
 }
 
+// A check mark, stroked rather than typed — see LAYOUT.check.
+function drawCheck(page, x, baseline, size, colour) {
+  const c = LAYOUT.check;
+  const w = Math.max(0.6, size * c.weight);
+  const opts = { thickness: w, color: col(colour), lineCap: 1 };   // 1 = round
+  page.drawLine({
+    start: { x, y: baseline + size * c.startY },
+    end:   { x: x + size * c.dipX, y: baseline + size * c.dipY },
+    ...opts
+  });
+  page.drawLine({
+    start: { x: x + size * c.dipX, y: baseline + size * c.dipY },
+    end:   { x: x + size * c.w,    y: baseline + size * c.endY },
+    ...opts
+  });
+}
+
 // Draws a laid-out block into a region. Returns whether it overflowed, so the
 // caller can report it rather than silently producing a clipped page.
+//
+// Rows carry their own size — a block can mix sizes, which is how a team
+// member's name sits larger than their contact lines.
 function drawBlock(doc, page, fonts, region, lines) {
   const l = fit(fonts, lines, {
     size: region.size, minSize: region.minSize,
@@ -126,29 +165,34 @@ function drawBlock(doc, page, fonts, region, lines) {
   });
   const top = region.y + region.h;
   for (const row of l.rows) {
-    if (!row.text) continue;
+    const size = row.size;
+    const y = top - LAYOUT.firstBaseline * size - row.y;
     const font = row.bold ? fonts.bold : fonts.regular;
-    const width = font.widthOfTextAtSize(row.text, l.size);
+    const left = region.x + row.indent;
+
+    if (row.marker === 'check') drawCheck(page, left, y, size, region.colour);
+    if (!row.text) continue;
+
+    const width = font.widthOfTextAtSize(row.text, size);
     const x = region.align === 'centre'
       ? region.x + (region.w - width) / 2
-      : region.x + row.indent;
-    const y = top - LAYOUT.firstBaseline * l.size - row.y;
+      : left + row.markerW;
 
     page.drawText(row.text, {
-      x, y, size: l.size, font,
+      x, y, size, font,
       color: col(row.link ? LAYOUT.linkColour : region.colour)
     });
 
     if (row.link) {
       if (LAYOUT.underlineLinks) {
         page.drawLine({
-          start: { x, y: y - l.size * 0.12 },
-          end:   { x: x + width, y: y - l.size * 0.12 },
-          thickness: Math.max(0.4, l.size * 0.05),
+          start: { x, y: y - size * 0.12 },
+          end:   { x: x + width, y: y - size * 0.12 },
+          thickness: Math.max(0.4, size * 0.05),
           color: col(LAYOUT.linkColour)
         });
       }
-      addLink(doc, page, row.link, x, y - l.size * 0.2, width, l.size * 1.1);
+      addLink(doc, page, row.link, x, y - size * 0.2, width, size * 1.1);
     }
   }
   return { overflow: l.overflow, size: l.size };
@@ -159,12 +203,18 @@ function drawBlock(doc, page, fonts, region, lines) {
 // engine wants. Kept apart from drawing so the shape of the content and the
 // mechanics of putting it on a page stay separable.
 
-const bulletLines = items => items.map(i =>
-  line((i.depth === 1 ? '' : '• ') + i.text, {
-    indent: i.depth === 1 ? LAYOUT.subIndent : 0,
+// `marker` is 'bullet' (typed, the font has one) or 'check' (stroked, it
+// doesn't). Sub-items get neither — they hang off the line above rather than
+// being items in their own right.
+const bulletLines = (items, marker = 'bullet') => items.map(i => {
+  const sub = i.depth === 1;
+  const useCheck = !sub && marker === 'check';
+  return line((sub || useCheck ? '' : '• ') + i.text, {
+    indent: sub ? LAYOUT.subIndent : 0,
+    marker: useCheck ? 'check' : '',
     link:   i.url || ''
-  })
-);
+  });
+});
 
 // Process: a heading, then steps numbered 1..n per group, with sub-items
 // indented and consuming no number.
@@ -190,7 +240,11 @@ function processLines(groups) {
 function teamLines(team) {
   const out = [];
   team.forEach((p, i) => {
-    out.push(line(p.name, { bold: true, gapAbove: i ? LAYOUT.personGap : 0 }));
+    out.push(line(p.name, {
+      bold: true,
+      scale: LAYOUT.teamNameScale,       // so the name reads as a heading
+      gapAbove: i ? LAYOUT.personGap : 0
+    }));
     for (const v of [p.title, p.email, p.phone]) if (v) out.push(line(v));
   });
   return out;
