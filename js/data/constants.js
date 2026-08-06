@@ -151,7 +151,9 @@ export const KICKOFF_TEAM_ROLES = ['am', 'pm', 'owner'];
 //
 // `id` is the Supabase row id. The panel keys per-project tweaks against it, so
 // it has to survive the round trip intact.
-export const KICKOFF_CONTENT = { process: [], firstSteps: [] };
+// `links` are the Resources buttons on page 1 — a label, a URL, and the product
+// types the button applies to. Same table, third section.
+export const KICKOFF_CONTENT = { process: [], firstSteps: [], links: [] };
 
 // How those raw role values read in a client-facing document.
 export const KICKOFF_ROLE_LABEL = {

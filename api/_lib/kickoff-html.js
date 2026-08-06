@@ -122,24 +122,20 @@ function mergeIdenticalTracks(groups) {
   return out;
 }
 
-// Every depth-1 line carrying a URL becomes a Resources pill. In the old
-// layout these hung under their step; hoisting them into one row is what makes
-// the step list clean, and it also de-duplicates a link shared by two tracks.
+// The Resources buttons, taken from the payload as a finished list. The panel
+// picks them by product type out of kickoff_content's `links` section, so
+// nothing is matched or shortened here.
 //
-// `label` is the pill's short text. kickoff_content has no such column yet, so
-// the full line text is the fallback — and it is far too long for a 150pt pill
-// (see the note in the report). Add a `short_label` column and this reads it.
-function resourcePills(groups) {
-  const seen = new Map();
-  for (const g of groups) {
-    for (const l of g.lines) {
-      if (l.depth === 1 && l.url && !seen.has(l.url)) {
-        seen.set(l.url, l.label || l.text);
-      }
-    }
-  }
-  return [...seen].map(([url, label]) => ({ url, label }));
-}
+// These used to be scavenged from the depth-1 lines under process steps, which
+// meant a button's text was a sentence written to read beneath a step —
+// "Benefit Guide & Companion Piece Style Options" — against a fixed 150pt pill
+// that does not wrap. Links being their own section is what lets them be
+// authored short.
+//
+// NOTE: depth-1 lines are no longer rendered anywhere. trackBlock() prints only
+// depth-0 steps, so any sub-item still sitting in the `process` section prints
+// nowhere at all rather than printing badly.
+const resourcePills = links => (links || []).filter(l => l.url && l.label);
 
 // ── PAGE 1 ──────────────────────────────────────────────────────────────────
 
@@ -343,7 +339,7 @@ function build(payload) {
   const { page1, page2, timeline: tl = {} } = payload;
   const name = [page1.clientName, page1.projectName].filter(Boolean).join(' — ');
   const groups = mergeIdenticalTracks(page1.process || []);
-  const pills = resourcePills(page1.process || []);
+  const pills = resourcePills(page1.links);
   const team = page1.team || [];
 
   const meta = [

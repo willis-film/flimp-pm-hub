@@ -512,6 +512,27 @@ function contentGroups(parent, st, which) {
   return [...hoistUniversal(groups.filter(g => g.authored), rows), ...empty];
 }
 
+// RESOURCES — the buttons along the foot of page 1.
+//
+// Chosen by product type like everything else, but with no grouping and no
+// numbering: a flat row of labelled links. Order is the table's own sort_order,
+// so the same set of buttons looks the same on every kickoff that shows it.
+//
+// A link with no product types applies to every project and is included even
+// when the project has no deliverables yet — unlike a process step, a button
+// like Distribution Toolkit is true regardless of what is being made.
+//
+// Rows with no URL are dropped. A button that goes nowhere is worse than a
+// missing button, and the panel has no way to make one useful.
+function projectLinks(parent, st) {
+  const types = typesPresent(parent, st);
+  return KICKOFF_CONTENT.links.filter(r => {
+    if (!r.url) return false;
+    if (!r.productTypes.length) return true;
+    return types.some(({ type, variants }) => variants.some(v => applies(r, type, v)));
+  });
+}
+
 // FIRST STEPS — one merged, deduplicated list with no headings. A line shared by
 // three product types costs one line, not three, and is never repeated back to
 // the client.
@@ -1317,7 +1338,9 @@ function buildPayload(parent, st) {
       })),
       process: d.process.groups
         .filter(g => g.lines.some(l => l.on))
-        .map(g => ({ heading: g.heading, lines: g.lines.filter(l => l.on).map(wire) }))
+        .map(g => ({ heading: g.heading, lines: g.lines.filter(l => l.on).map(wire) })),
+      // Finished label/url pairs — the generator does no matching of its own.
+      links: projectLinks(parent, st).map(l => ({ label: l.text, url: l.url }))
     },
     page2: {
       firstSteps: d.firstSteps.items.filter(l => l.on).map(wire)

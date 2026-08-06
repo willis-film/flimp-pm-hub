@@ -256,9 +256,25 @@ export default async function handler(req, res) {
       // can come back as the raw Postgres literal ('{Video,Microsite}') via some
       // driver and REST paths, and `Array.isArray` on that is false. So the
       // literal is parsed rather than discarded.
-      const kickoffContent = { process: [], firstSteps: [] };
+      //
+      // `links` are the Resources buttons along the foot of page 1. They live in
+      // this table rather than their own because a button needs exactly what a
+      // content line has — a label, a URL, and the types it applies to.
+      //
+      // The bucket is an EXPLICIT map and an unknown section is SKIPPED. This
+      // was a two-way ternary defaulting to 'process', which meant any section
+      // added in Supabase before this file knew about it printed as numbered
+      // process steps on every kickoff. Ignoring an unrecognised section is the
+      // safe failure: a missing button is visible, an invented step is not.
+      const SECTION_BUCKET = {
+        process:     'process',
+        first_steps: 'firstSteps',
+        links:       'links'
+      };
+      const kickoffContent = { process: [], firstSteps: [], links: [] };
       for (const r of (kickoffRows || [])) {
-        const bucket = r.section === 'first_steps' ? 'firstSteps' : 'process';
+        const bucket = SECTION_BUCKET[r.section];
+        if (!bucket) continue;
         kickoffContent[bucket].push({
           id:           String(r.id),
           text:         r.value,
