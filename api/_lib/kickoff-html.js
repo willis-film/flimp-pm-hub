@@ -100,6 +100,18 @@ function splitNote(l) {
   return m ? [m[1], m[2]] : [l.text, ''];
 }
 
+// A process step carrying a URL becomes a link. The step text is the link, not
+// a separate marker: the design has no room for one, and a step that IS a
+// resource ("Intake Form") reads better as a link than as a step with a
+// footnote hanging off it.
+//
+// Underlined in brand green, matching the roster's email addresses — the house
+// treatment for a link on white. Colour stays INK: green text at 11pt on white
+// is the contrast problem the old document had.
+const linked = (text, url) => url
+  ? `<a href="${esc(url)}" style="color:${INK}; border-bottom:0.5pt solid ${GREEN}">${esc(text)}</a>`
+  : esc(text);
+
 // Two product types that produce the SAME steps are one track wearing two
 // labels — the design shows this as "Traditional & Microsite". Merging is
 // derived from the steps themselves rather than configured, so it can't drift
@@ -178,7 +190,7 @@ const campaignBlock = items => !items.length ? '' : `
 const plainRun = (g, trailing) => g.lines.filter(l => l.depth === 0).map(l => `
             <div style="display:flex; align-items:center; gap:8pt; padding:${trailing ? '9pt 0 1pt' : '1pt 0'}${trailing ? `; border-top:0.5pt solid ${HAIR}` : ''}">
               <span style="${S.dot}"></span>
-              <span style="font-size:11pt; font-weight:400; line-height:1.3">${esc(l.text)}</span>
+              <span style="font-size:11pt; font-weight:400; line-height:1.3">${linked(l.text, l.url)}</span>
             </div>`).join('');
 
 function trackBlock(g, last) {
@@ -195,7 +207,7 @@ function trackBlock(g, last) {
                   const [title, note] = splitNote(l);
                   return `<li style="${S.step}">
                   <span style="${S.stepNum}">${i + 1}</span>
-                  <span style="${S.stepTxt}">${esc(title)}${note ? `<span style="${S.note}">&nbsp;&nbsp;${esc(note)}</span>` : ''}</span>
+                  <span style="${S.stepTxt}">${linked(title, l.url)}${note ? `<span style="${S.note}">&nbsp;&nbsp;${esc(note)}</span>` : ''}</span>
                 </li>`;
                 }).join('\n                ')}
               </ol>
