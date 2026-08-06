@@ -205,7 +205,7 @@ function isEdited(st, key) { return st.overrides[key] !== undefined; }
 // none beyond the picker yet.
 function stepList(st) {
   return st.kind === 'kickoff'
-    ? ['kind', 'campaign', 'team', 'fields']
+    ? ['kind', 'campaign', 'team', 'details', 'fields']
     : ['kind'];
 }
 function stepIndex(st, name) { return stepList(st).indexOf(name) + 1; }
@@ -345,8 +345,24 @@ function selectedTeam(parent, st) {
 function pageFields(parent, st) {
   return {
     clientName:  ov(st, 'clientName',  parent.clientAccount || parent.name || ''),
-    projectName: ov(st, 'projectName', parent.name || '')
+    projectName: ov(st, 'projectName', parent.name || ''),
+    // The client's own contact, from the Info panel's "Client point of contact".
+    // Free text entered as "Name · email"; only the name reaches the plaque,
+    // which is an identification strip rather than a contact card — the roster
+    // below it carries addresses properly.
+    mainPoc:     ov(st, 'mainPoc',     parent.clientContact || ''),
+    // Today unless someone says otherwise. Nothing upstream records when the
+    // kickoff call actually happens, and a kickoff document is nearly always
+    // generated the day it is held — so the default is right far more often
+    // than it is wrong, and it is editable when it isn't.
+    kickoffDate: ov(st, 'kickoffDate', todayLabel())
   };
+}
+
+// Matches the format timeline.summary already emits ("Sep 10"), so the two
+// dates in the plaque don't sit in different notations.
+function todayLabel() {
+  return new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 // ── PROCESS / FIRST STEPS ASSEMBLY ───────────────────────────────────────────
@@ -467,7 +483,7 @@ function hoistUniversal(groups, rows) {
     .map(g => ({ ...g, lines: g.lines.filter(l => !l.universal) }))
     .filter(g => g.lines.length);
 
-  const run = (lines, key) => ({ type: '', types: [], headKey: key, heading: '', authored: true, lines });
+  const run = (lines, key) => ({ type: '', types: [], deliverables: [], headKey: key, heading: '', authored: true, lines });
   return [
     ...(lead.length ? [run(lead, 'lead')] : []),
     ...trimmed,
@@ -488,6 +504,24 @@ function hoistUniversal(groups, rows) {
 // preserves the sequence the copy was authored in.
 function contentGroups(parent, st, which) {
   const rows = KICKOFF_CONTENT[which];
+  // The deliverables each track covers, printed small and grey beside its
+  // heading — "Main Video" against VIDEO, "Companion Piece, Microsite" against
+  // TRADITIONAL & MICROSITE. It names the client's ACTUAL deliverables, which
+  // is what makes a track heading mean something to them rather than being
+  // internal vocabulary.
+  //
+  // Taken from the product TIER, which is the saleable name for a deliverable,
+  // falling back to the product type where no tier is set. campaignItems()
+  // already resolves that pair as `meta`.
+  //
+  // Deduplicated: three Companion Pieces on one project is one word in the
+  // caption, not three.
+  const items = campaignItems(parent, st);
+  const deliverablesFor = types =>
+    [...new Set(items.filter(k => types.includes(k.type))
+                     .map(k => (k.meta || '').trim() || k.type)
+                     .filter(Boolean))];
+
   const groups = groupsPresent(parent, st).map(({ label, types, variants }) => {
     const hit = new Set();
     for (const type of types) {
@@ -500,6 +534,7 @@ function contentGroups(parent, st, which) {
     return {
       type:     label,
       types,
+      deliverables: deliverablesFor(types),
       headKey,
       heading:  ov(st, headKey, label),
       authored: mine.length > 0,
@@ -952,6 +987,41 @@ function listBlock(pid, label, note, items, lines, cap) {
 // is WORDED. Client and project name used to have inputs here, but they are
 // edited directly in the preview now — two places to change the same value is
 // how they drift apart.
+// DETAILS — the handful of values typed rather than derived.
+//
+// Client and project name live here too, not just Main POC and the kickoff
+// date. They were only editable by clicking them in the preview column, which
+// is easy to miss entirely; they are the same class of thing as the other two —
+// document-level values worth confirming before generating — and they belong
+// with them.
+//
+// Everything here is an override in the same sense as any reworded process
+// line: edited for THIS document, revertable to the project record, and never
+// written back to the row.
+function detailsBody(pid, parent, st) {
+  const pf = pageFields(parent, st);
+  const row = (label, key, note) => `<div class="tp-fieldrow">
+      <div class="tp-fieldlabel">${esc(label)}</div>
+      <div class="tp-fieldval">${editable(pid, key, pf[key])}${revert(pid, st, key)}</div>
+      ${note ? `<div class="tp-fieldnote">${esc(note)}</div>` : ''}
+    </div>`;
+
+  return `<div class="tp-note">These four print in the plaque at the top of page 1. Click any value to change it for this document.</div>
+    ${row('Client name',  'clientName')}
+    ${row('Project name', 'projectName')}
+    ${row('Kickoff date', 'kickoffDate', "Defaults to today, in the same short form as the timeline's dates.")}
+    ${row('Main POC',     'mainPoc',
+      parent.clientContact
+        ? 'From the client point of contact on the Info panel. Only the name prints.'
+        : 'No client point of contact is set on the Info panel — type one here, or leave it blank to drop the field.')}`;
+}
+
+function detailsSummary(parent, st) {
+  const pf = pageFields(parent, st);
+  const poc = String(pf.mainPoc || '').split('·')[0].trim();
+  return [pf.kickoffDate, poc || 'no POC'].filter(Boolean).join(' · ');
+}
+
 function fieldBody(pid, parent, st) {
   const d = derived(parent, st);
 
@@ -1164,6 +1234,8 @@ function templatesPanelHtml(parent) {
       () => campaignBody(pid, parent, st), () => campaignSummary(parent, st)),
     stepFrame(pid, st, 'team', 'Flimp Team',
       () => teamBody(pid, parent, st), () => teamSummary(parent, st)),
+    stepFrame(pid, st, 'details', 'Details',
+      () => detailsBody(pid, parent, st), () => detailsSummary(parent, st)),
     stepFrame(pid, st, 'fields', 'Fill & confirm',
       () => fieldBody(pid, parent, st), () => 'Filled')
   ].join('');
@@ -1248,7 +1320,7 @@ function tpToggleLine(pid, key) {
 // subtask or revised copy, with nothing on screen to say why.
 function derivedValue(parent, st, key) {
   const bare = { ...st, overrides: {} };
-  if (key === 'clientName' || key === 'projectName') return pageFields(parent, bare)[key];
+  if (['clientName', 'projectName', 'mainPoc', 'kickoffDate'].includes(key)) return pageFields(parent, bare)[key];
   if (key.startsWith('campaign:')) {
     const item = campaignItems(parent, bare).find(k => k.key === key);
     return item ? item.label : undefined;
@@ -1329,6 +1401,8 @@ function buildPayload(parent, st) {
     page1: {
       clientName:  pf.clientName,
       projectName: pf.projectName,
+      mainPoc:     pf.mainPoc,
+      kickoffDate: pf.kickoffDate,
       campaign: campaignItems(parent, st).map(k => ({ text: k.label, url: '', depth: 0 })),
       team: selectedTeam(parent, st).map(p => ({
         name:  p.label,
@@ -1338,7 +1412,11 @@ function buildPayload(parent, st) {
       })),
       process: d.process.groups
         .filter(g => g.lines.some(l => l.on))
-        .map(g => ({ heading: g.heading, lines: g.lines.filter(l => l.on).map(wire) })),
+        .map(g => ({
+          heading: g.heading,
+          deliverables: g.deliverables || [],
+          lines: g.lines.filter(l => l.on).map(wire)
+        })),
       // Finished label/url pairs — the generator does no matching of its own.
       links: projectLinks(parent, st).map(l => ({ label: l.text, url: l.url }))
     },

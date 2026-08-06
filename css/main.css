@@ -2341,3 +2341,16 @@ select.info-in { cursor: pointer; padding-right: 4px; }
 /* Hoisted whole-project steps in the preview: listed, but not numbered. */
 .tp-pv-plain { margin: 0; padding-left: 18px; list-style: none; }
 .tp-pv-plain li { margin-bottom: 2px; }
+
+/* Details step — the handful of values typed rather than derived. Stacked
+   label-over-value rather than the preview column's two-column grid: this is a
+   form being filled, and the values are long enough (a job title, a name and
+   email) that a narrow value column would wrap every one of them. */
+.tp-fieldrow { margin-bottom: 14px; }
+.tp-fieldrow:last-child { margin-bottom: 0; }
+.tp-fieldlabel {
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.9px;
+  text-transform: uppercase; color: var(--ink-4); margin-bottom: 3px;
+}
+.tp-fieldval { font-size: 13px; color: var(--ink); line-height: 1.5; word-break: break-word; }
+.tp-fieldnote { font-size: 11px; color: var(--ink-4); margin-top: 3px; line-height: 1.45; }
