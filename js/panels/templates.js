@@ -559,13 +559,32 @@ function contentGroups(parent, st, which) {
 //
 // Rows with no URL are dropped. A button that goes nowhere is worse than a
 // missing button, and the panel has no way to make one useful.
+// Per-project overrides key on the Supabase row id, exactly as process and
+// first-steps lines do — never on position, so reordering the links section
+// can't silently repoint an edit at a different button.
+function linkKey(id)    { return `link:${id}`; }
+function linkUrlKey(id) { return `linkurl:${id}`; }
+
 function projectLinks(parent, st) {
   const types = typesPresent(parent, st);
-  return KICKOFF_CONTENT.links.filter(r => {
-    if (!r.url) return false;
-    if (!r.productTypes.length) return true;
-    return types.some(({ type, variants }) => variants.some(v => applies(r, type, v)));
-  });
+  return KICKOFF_CONTENT.links
+    .filter(r => {
+      if (!r.productTypes.length) return true;
+      return types.some(({ type, variants }) => variants.some(v => applies(r, type, v)));
+    })
+    .map(r => {
+      const key = linkKey(r.id), urlKey = linkUrlKey(r.id);
+      const label = ov(st, key, r.text);
+      const url   = ov(st, urlKey, r.url || '');
+      return {
+        id: r.id, key, urlKey, label, url,
+        on: !st.lineOff[key],
+        edited: isEdited(st, key) || isEdited(st, urlKey)
+      };
+    })
+    // Resolved AFTER overrides: a row with no URL in Supabase can be given one
+    // for this document, and a URL can be cleared to drop the button.
+    .filter(l => l.url);
 }
 
 // FIRST STEPS — one merged, deduplicated list with no headings. A line shared by
@@ -983,6 +1002,32 @@ function listBlock(pid, label, note, items, lines, cap) {
   return derivedShell(label, note, lines, cap, body);
 }
 
+// RESOURCES — the buttons on page 1. Switched on and off here; the label and
+// the address are edited in the preview, like every other piece of wording.
+//
+// These were invisible in this panel until now, which made them look like they
+// weren't loading from Supabase at all — there was simply nothing on screen
+// that showed what had matched.
+function linkBlock(pid, links) {
+  const body = links.length
+    ? `<div class="tp-grp">${links.map(l => `
+        <label class="tp-line${l.on ? ' on' : ''}">
+          <input type="checkbox" ${l.on ? 'checked' : ''}
+            onchange="A.tpToggleLine('${pid}',this.dataset.k)" data-k="${esc(l.key)}">
+          <span class="tp-check-box"></span>
+          <span class="tp-line-n">▭</span>
+          <span class="tp-line-t">${esc(l.label)}${
+            l.edited ? ' <span class="tp-edited-dot" title="Edited for this project">•</span>' : ''}
+            <span class="tp-line-link" title="${esc(l.url)}">↗</span></span>
+        </label>`).join('')}</div>`
+    : `<div class="tp-empty">No links matched — nothing in the links section of kickoff_content applies to these product types yet.</div>`;
+  return `<div class="tp-derived">
+    <div class="tp-derived-h">Resources — page 1</div>
+    <div class="tp-derived-note">Buttons along the foot of page 1. Chosen by product type; a link with no address is left out.</div>
+    ${body}
+  </div>`;
+}
+
 // The form column decides what is INCLUDED; the preview column decides how it
 // is WORDED. Client and project name used to have inputs here, but they are
 // edited directly in the preview now — two places to change the same value is
@@ -1029,6 +1074,7 @@ function fieldBody(pid, parent, st) {
     ${groupedBlock(pid, 'Process — page 1',
       `Numbered per product type, restarting at 1. Drawn at ${FIELD.process.font}pt, reduced toward ${FIELD.process.minFont}pt if it runs long.`,
       d.process.groups, d.process.lines, d.process.cap)}
+    ${linkBlock(pid, projectLinks(parent, st))}
     ${listBlock(pid, 'First Steps — page 2',
       `One merged list, deduplicated across product types. A step that doesn't apply to all of them is tagged with the ones it does. Drawn at ${FIELD.firstSteps.font}pt, reduced toward ${FIELD.firstSteps.minFont}pt if it runs long.`,
       d.firstSteps.items, d.firstSteps.lines, d.firstSteps.cap)}`;
@@ -1132,6 +1178,18 @@ function previewGroups(pid, st, groups) {
 
 // First Steps — one flat list, no headings. Bulleted rather than numbered, but
 // the sub-item handling is the same.
+// Resources in the preview: label and address both editable, because a link
+// that has moved is the most likely thing anyone needs to change on the way to
+// generating, and the address is invisible on the printed page.
+function previewLinks(pid, st, links) {
+  const live = links.filter(l => l.on);
+  if (!live.length) return '<span class="tp-pv-blank">No links matched these product types.</span>';
+  return `<ul class="tp-pv-bullets">${live.map(l => `<li>
+      ${editable(pid, l.key, l.label)}${revert(pid, st, l.key)}
+      <div class="tp-pv-sub">${editable(pid, l.urlKey, l.url, '', 'no address')}${revert(pid, st, l.urlKey)}</div>
+    </li>`).join('')}</ul>`;
+}
+
 function previewList(pid, st, items) {
   const live = items.filter(l => l.on);
   if (!live.length) return '';
@@ -1193,6 +1251,7 @@ function previewBody(parent, st) {
     ${fieldRow('Campaign', campaign)}
     ${fieldRow('Flimp Team', teamBlock)}
     ${fieldRow('Process', previewGroups(parent.id, st, d.process.groups))}
+    ${fieldRow('Resources', previewLinks(parent.id, st, projectLinks(parent, st)))}
     <div class="tp-pv-page">Page 2 — First Steps + Timeline</div>
     ${fieldRow('First Steps', previewList(parent.id, st, d.firstSteps.items))}
     <div class="tp-pv-row"><div class="tp-pv-k">Timeline</div>${tlBlock}</div>
@@ -1321,6 +1380,12 @@ function tpToggleLine(pid, key) {
 function derivedValue(parent, st, key) {
   const bare = { ...st, overrides: {} };
   if (['clientName', 'projectName', 'mainPoc', 'kickoffDate'].includes(key)) return pageFields(parent, bare)[key];
+  if (key.startsWith('link:') || key.startsWith('linkurl:')) {
+    const id = key.slice(key.indexOf(':') + 1);
+    const row = KICKOFF_CONTENT.links.find(r => String(r.id) === id);
+    if (!row) return undefined;
+    return key.startsWith('linkurl:') ? (row.url || '') : row.text;
+  }
   if (key.startsWith('campaign:')) {
     const item = campaignItems(parent, bare).find(k => k.key === key);
     return item ? item.label : undefined;
@@ -1418,7 +1483,7 @@ function buildPayload(parent, st) {
           lines: g.lines.filter(l => l.on).map(wire)
         })),
       // Finished label/url pairs — the generator does no matching of its own.
-      links: projectLinks(parent, st).map(l => ({ label: l.text, url: l.url }))
+      links: projectLinks(parent, st).filter(l => l.on).map(l => ({ label: l.label, url: l.url }))
     },
     page2: {
       firstSteps: d.firstSteps.items.filter(l => l.on).map(wire)
