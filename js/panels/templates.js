@@ -378,6 +378,9 @@ function toLine(st, row, tag = '', parentOff = false) {
   return {
     key, urlKey, id: row.id, tag,
     depth:  row.depth || 0,
+    // A line with no product types applies to the whole project rather than to
+    // any one deliverable — see hoistUniversal().
+    universal: !row.productTypes.length,
     text:   ov(st, key, row.text),
     url:    ov(st, urlKey, row.url || ''),
     on:     !st.lineOff[key] && !parentOff,
@@ -427,32 +430,86 @@ function groupsPresent(parent, st) {
   });
 }
 
-// PROCESS — grouped under a heading, numbered, restarting at 1 per group.
-// Different types have genuinely different production stages, so the grouping
-// carries information worth its cost in lines.
+// A step with no product types applies to the whole PROJECT, not to any one
+// deliverable — "Project Kickoff", "Distribution". Printed inside every group
+// it repeats once per product type, which is both wasteful and untrue: there is
+// one kickoff call and one distribution, not three.
+//
+// So they're lifted out into heading-less runs that bookend the groups. Which
+// end depends on where the copy puts them: a universal step sorting before every
+// type-specific one leads, anything else trails. That reads as one process with
+// labelled phases in the middle, and on a three-type project it's the difference
+// between 29 lines and 23 — between overflowing the box and fitting at 11pt.
+//
+// A line's identity is its row id, so hoisting doesn't disturb any per-project
+// toggle or override attached to it.
+function hoistUniversal(groups, rows) {
+  const order = new Map(rows.map((r, i) => [r.id, i]));
+  const present = new Map();               // universal line id -> the line
+  for (const g of groups) {
+    for (const l of g.lines) if (l.universal && !present.has(l.id)) present.set(l.id, l);
+  }
+  if (!present.size) return groups;
+
+  // The earliest type-specific line decides what counts as "leading".
+  let firstSpecific = Infinity;
+  for (const g of groups) {
+    for (const l of g.lines) {
+      if (!l.universal) firstSpecific = Math.min(firstSpecific, order.get(l.id) ?? Infinity);
+    }
+  }
+
+  const universal = [...present.values()].sort((a, b) => order.get(a.id) - order.get(b.id));
+  const lead = universal.filter(l => (order.get(l.id) ?? 0) < firstSpecific);
+  const tail = universal.filter(l => (order.get(l.id) ?? 0) >= firstSpecific);
+
+  const trimmed = groups
+    .map(g => ({ ...g, lines: g.lines.filter(l => !l.universal) }))
+    .filter(g => g.lines.length);
+
+  const run = (lines, key) => ({ type: '', types: [], headKey: key, heading: '', authored: true, lines });
+  return [
+    ...(lead.length ? [run(lead, 'lead')] : []),
+    ...trimmed,
+    ...(tail.length ? [run(tail, 'tail')] : [])
+  ];
+}
+
+// PROCESS — grouped under a heading. Different types have genuinely different
+// production stages, so the grouping carries information worth its cost in
+// lines; the steps common to all of them are hoisted out (see above).
+//
+// Numbering runs CONTINUOUSLY through the whole section rather than restarting
+// per group. Once the shared steps bookend the groups, a restart would number
+// the kickoff 1 and then the first Video step 1 again.
 //
 // Rows are taken in KICKOFF_CONTENT order rather than in the order the types
 // happened to match, which keeps a sub-item immediately after its parent and
 // preserves the sequence the copy was authored in.
 function contentGroups(parent, st, which) {
-  return groupsPresent(parent, st).map(({ label, types, variants }) => {
+  const rows = KICKOFF_CONTENT[which];
+  const groups = groupsPresent(parent, st).map(({ label, types, variants }) => {
     const hit = new Set();
     for (const type of types) {
       for (const v of variants) {
         for (const r of rowsFor(which, type, v)) hit.add(r.id);
       }
     }
-    const rows = KICKOFF_CONTENT[which].filter(r => hit.has(r.id));
+    const mine = rows.filter(r => hit.has(r.id));
     const headKey = `head:${which}:${label}`;
     return {
       type:     label,
       types,
       headKey,
       heading:  ov(st, headKey, label),
-      authored: rows.length > 0,
-      lines:    toLines(st, rows)
+      authored: mine.length > 0,
+      lines:    toLines(st, mine)
     };
   });
+  // Unauthored groups are kept so the panel can still report them; they have no
+  // lines to hoist out of anyway.
+  const empty = groups.filter(g => !g.authored);
+  return [...hoistUniversal(groups.filter(g => g.authored), rows), ...empty];
 }
 
 // FIRST STEPS — one merged, deduplicated list with no headings. A line shared by
@@ -494,26 +551,35 @@ function lineText(l) { return l.tag ? `${l.text} (${l.tag})` : l.text; }
 
 // Numbering counts only depth-0 steps; a sub-item is an indented continuation of
 // the step above it and doesn't consume a number.
-function numberLines(lines, bullet) {
+//
+// `mode` is 'number' (a track's own 1..n), 'bullet', or 'plain'. Plain is for
+// the hoisted whole-project steps: numbering those alongside the tracks would
+// imply a single running order, which is exactly the thing that isn't true.
+function numberLines(lines, mode) {
   let n = 0;
   return lines.filter(l => l.on).map(l => {
     if (l.depth === 1) return `    ${lineText(l)}`;
     n++;
-    return bullet ? `• ${lineText(l)}` : `${n}. ${lineText(l)}`;
+    if (mode === 'bullet') return `• ${lineText(l)}`;
+    if (mode === 'plain')  return lineText(l);
+    return `${n}. ${lineText(l)}`;
   });
 }
 
-// The literal text of the Process region. Blank line between groups.
+// The literal text of the Process region. Each track numbers from 1 — the tracks
+// run CONCURRENTLY, so one sequence spanning them would say the Traditional work
+// starts when the Video work finishes. Whole-project steps bookend, unnumbered.
 function renderGroups(groups) {
   return groups
     .filter(g => g.lines.some(l => l.on))
-    .map(g => [g.heading, ...numberLines(g.lines, false)].join('\n'))
+    .map(g => [g.heading, ...numberLines(g.lines, g.heading ? 'number' : 'plain')]
+      .filter(Boolean).join('\n'))
     .join('\n\n');
 }
 
 // The literal text of the First Steps region — one flat bulleted list.
 function renderList(lines) {
-  return numberLines(lines, true).join('\n');
+  return numberLines(lines, 'bullet').join('\n');
 }
 
 // Wrapped line count for a rendered block, including the blank separators.
@@ -834,11 +900,16 @@ function groupedBlock(pid, label, note, groups, lines, cap) {
             <div class="tp-grp-none">No content written for this product type yet.</div>
           </div>`;
         }
-        let n = 0;
+        // A heading-less run is a hoisted set of project-wide steps.
+        const head = g.heading
+          ? `<div class="tp-grp-h">${esc(g.heading)}</div>`
+          : `<div class="tp-grp-h tp-grp-h-all">Whole project</div>`;
+        let n = 0;                              // each track counts from 1
         return `<div class="tp-grp">
-          <div class="tp-grp-h">${esc(g.type)}</div>
+          ${head}
           ${g.lines.map(l => {
             if (l.depth === 1) return lineToggle(pid, l, '↳');
+            if (!g.heading) return lineToggle(pid, l, '');
             if (l.on) n++;
             return lineToggle(pid, l, `${l.on ? n : '–'}.`);
           }).join('')}
@@ -939,31 +1010,33 @@ function previewLine(pid, st, l, tag = 'li') {
 // `start` is carried across the breaks. Each sub-item closes the list and the
 // next step opens a new one, and without it every reopened <ol> would restart at
 // 1 — so a group with two sub-items numbered 1,2 … 1,2,3 … 1,2 instead of 1..7.
-function previewRun(pid, st, lines) {
+function previewRun(pid, st, lines, numbered = true) {
   const out = [];
-  let open = false, n = 0;
+  let open = false;
   for (const l of lines.filter(x => x.on)) {
     if (l.depth === 1) {
       if (open) { out.push('</ol>'); open = false; }
       out.push(`<div class="tp-pv-subitem">${previewLine(pid, st, l, 'div')}</div>`);
     } else {
-      if (!open) { out.push(`<ol class="tp-pv-ol" start="${n + 1}">`); open = true; }
-      n++;
+      if (!open) { out.push(numbered ? '<ol class="tp-pv-ol">' : '<ul class="tp-pv-plain">'); open = true; }
       out.push(previewLine(pid, st, l));
     }
   }
-  if (open) out.push('</ol>');
+  if (open) out.push(numbered ? '</ol>' : '</ul>');
   return out.join('');
 }
 
-// Process — one headed, numbered block per group.
+// Process — headed blocks with one number sequence running through all of them,
+// and heading-less runs for the steps that apply to the whole project.
 function previewGroups(pid, st, groups) {
   const live = groups.filter(g => g.lines.some(l => l.on));
   if (!live.length) return '';
-  return live.map(g => `<div class="tp-pv-grp">
-      <div class="tp-pv-grp-h">${editable(pid, g.headKey, g.heading)}${revert(pid, st, g.headKey)}</div>
-      ${previewRun(pid, st, g.lines)}
-    </div>`).join('');
+  return live.map(g => {
+    const head = g.heading
+      ? `<div class="tp-pv-grp-h">${editable(pid, g.headKey, g.heading)}${revert(pid, st, g.headKey)}</div>`
+      : '';
+    return `<div class="tp-pv-grp">${head}${previewRun(pid, st, g.lines, !!g.heading)}</div>`;
+  }).join('');
 }
 
 // First Steps — one flat list, no headings. Bulleted rather than numbered, but

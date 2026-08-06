@@ -2331,3 +2331,13 @@ select.info-in { cursor: pointer; padding-right: 4px; }
   .tp-split { grid-template-columns: 1fr; }
   .tp-preview-col { position: static; }
 }
+
+/* A hoisted run of steps that apply to the whole project rather than to one
+   product type. Labelled, but distinct from a real product-type heading. */
+.tp-grp-h-all {
+  color: var(--ink-4); font-weight: 500; font-style: italic;
+  border-bottom-style: dashed;
+}
+/* Hoisted whole-project steps in the preview: listed, but not numbered. */
+.tp-pv-plain { margin: 0; padding-left: 18px; list-style: none; }
+.tp-pv-plain li { margin-bottom: 2px; }

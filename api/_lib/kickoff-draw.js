@@ -218,14 +218,24 @@ const bulletLines = (items, marker = 'bullet') => items.map(i => {
 
 // Process: a heading, then steps numbered 1..n per group, with sub-items
 // indented and consuming no number.
+// EACH TRACK NUMBERS FROM 1. The product-type groups run CONCURRENTLY — the
+// Traditional work doesn't start when the Video work finishes — so a single
+// sequence spanning them would assert a chronology that isn't real.
+//
+// A group with no heading is a hoisted run of steps that apply to the whole
+// project (see hoistUniversal() in js/panels/templates.js). Those print
+// unnumbered, bookending the tracks: one kickoff, then the tracks in parallel,
+// then one distribution.
 function processLines(groups) {
   const out = [];
   groups.forEach((g, gi) => {
-    out.push(line(g.heading, { bold: true, gapAbove: gi ? LAYOUT.groupGap : 0 }));
+    if (g.heading) out.push(line(g.heading, { bold: true, gapAbove: gi ? LAYOUT.groupGap : 0 }));
     let n = 0;
     for (const l of g.lines) {
       if (l.depth === 1) {
         out.push(line(l.text, { indent: LAYOUT.subIndent, link: l.url || '' }));
+      } else if (!g.heading) {
+        out.push(line(l.text, { link: l.url || '', gapAbove: gi ? LAYOUT.groupGap : 0 }));
       } else {
         n++;
         out.push(line(`${n}. ${l.text}`, { link: l.url || '' }));
