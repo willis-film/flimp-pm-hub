@@ -1,0 +1,89 @@
+{
+  "filename": "Grange Insurance - HSA Seed Campaign 2026",
+  "page1": {
+    "clientName": "Grange Insurance",
+    "projectName": "HSA Seed Campaign 2026",
+    "mainPoc": "Dana Whitfield · dwhitfield@grangeinsurance.com",
+    "campaign": [
+      { "text": "Grange Insurance – HSA Seed Campaign – Main Video", "url": "", "depth": 0 },
+      { "text": "Grange – HSA Companion Piece", "url": "", "depth": 0 },
+      { "text": "Grange – HSA Microsite Update", "url": "", "depth": 0 }
+    ],
+    "team": [
+      { "name": "Andrew Willis", "title": "Senior Project Manager, Production Analytics", "email": "awillis@flimp.net", "phone": "555-0101" },
+      { "name": "Julie Marchetti", "title": "Senior Account Manager", "email": "julie@flimp.net", "phone": "555-0102" },
+      { "name": "Heather Klee", "title": "Creative Director", "email": "hklee@flimp.net", "phone": "555-0103" }
+    ],
+    "process": [
+      { "heading": "", "deliverables": [], "lines": [
+        { "text": "Project Kickoff", "url": "", "depth": 0 }
+      ]},
+      { "heading": "Video", "deliverables": ["Main Video"], "lines": [
+        { "text": "Scripting — 1 min = 150 words", "url": "", "depth": 0 },
+        { "text": "Open Enrollment Example", "label": "OE Example", "url": "https://flimp.live/oe-example", "depth": 1 },
+        { "text": "Style Slides", "url": "", "depth": 0 },
+        { "text": "Storyboards", "url": "", "depth": 0 },
+        { "text": "How To Use Boords", "label": "How To Use Boords", "url": "https://flimp.live/boords", "depth": 1 },
+        { "text": "Voice over", "url": "", "depth": 0 },
+        { "text": "VO Options", "label": "VO Options", "url": "https://flimp.live/vo-options", "depth": 1 },
+        { "text": "Animation", "url": "", "depth": 0 }
+      ]},
+      { "heading": "Traditional", "deliverables": ["Companion Piece"], "lines": [
+        { "text": "Intake Form — one per product", "url": "", "depth": 0 },
+        { "text": "Benefit Guide & Companion Piece Style Options", "label": "Flimp Styles", "url": "https://flimp.live/styles", "depth": 1 },
+        { "text": "Initial Draft in ReviewStudio", "url": "", "depth": 0 },
+        { "text": "How To Use ReviewStudio", "label": "How To Use ReviewStudio", "url": "https://flimp.live/reviewstudio", "depth": 1 },
+        { "text": "Rounds of Edits", "url": "", "depth": 0 }
+      ]},
+      { "heading": "Microsite", "deliverables": ["Microsite"], "lines": [
+        { "text": "Intake Form — one per product", "url": "", "depth": 0 },
+        { "text": "Microsite Style Options", "label": "Flimp Styles", "url": "https://flimp.live/styles", "depth": 1 },
+        { "text": "Initial Draft in ReviewStudio", "url": "", "depth": 0 },
+        { "text": "Rounds of Edits", "url": "", "depth": 0 }
+      ]},
+      { "heading": "", "deliverables": [], "lines": [
+        { "text": "Distribution", "url": "", "depth": 0 },
+        { "text": "Distribution Toolkit", "label": "Distribution Toolkit", "url": "https://flimp.live/Distribution-Resource-Center", "depth": 1 }
+      ]}
+    ]
+  },
+  "page2": {
+    "firstSteps": [
+      { "text": "Style Selection (Video)", "url": "", "depth": 0 },
+      { "text": "Starter Script (Video)", "url": "", "depth": 0 },
+      { "text": "Intake Form (Traditional, Microsite)", "url": "https://flimp.live/intake", "depth": 0 },
+      { "text": "Logos & Branding", "url": "", "depth": 0 }
+    ]
+  },
+  "timeline": {
+    "title": "",
+    "summary": { "Project Start": "Aug 3", "Working Days": "28", "Due Date": "Sep 10" },
+    "weeks": [
+      { "week": 1, "range": "Aug 3 – Aug 7", "tasks": [
+        { "party": "Flimp",  "deliverable": "All", "task": "Project Kickoff call", "due": "Aug 3" },
+        { "party": "Client", "deliverable": "Main Video", "task": "Provide content and brand assets", "due": "Aug 5" }
+      ]},
+      { "week": 2, "range": "Aug 10 – Aug 14", "tasks": [
+        { "party": "Flimp",  "deliverable": "Main Video", "task": "Script draft", "due": "Aug 11" },
+        { "party": "Client", "deliverable": "Main Video", "task": "Script review", "due": "Aug 13" },
+        { "party": "Flimp",  "deliverable": "Microsite", "task": "Intake form issued", "due": "Aug 14" }
+      ]},
+      { "week": 3, "range": "Aug 17 – Aug 21", "tasks": [
+        { "party": "Flimp",  "deliverable": "Main Video", "task": "Style slides", "due": "Aug 18" },
+        { "party": "Flimp",  "deliverable": "Companion Piece", "task": "Design draft in ReviewStudio", "due": "Aug 20" }
+      ]},
+      { "week": 4, "range": "Aug 24 – Aug 28", "tasks": [
+        { "party": "Client", "deliverable": "Companion Piece", "task": "Round 1 review", "due": "Aug 25" },
+        { "party": "Flimp",  "deliverable": "Main Video", "task": "Storyboards", "due": "Aug 27" }
+      ]},
+      { "week": 5, "range": "Aug 31 – Sep 4", "tasks": [
+        { "party": "Flimp",  "deliverable": "Main Video", "task": "Animation V1", "due": "Sep 1" },
+        { "party": "Client", "deliverable": "Main Video", "task": "V1 review", "due": "Sep 3" }
+      ]},
+      { "week": 6, "range": "Sep 7 – Sep 11", "tasks": [
+        { "party": "Flimp",  "deliverable": "All", "task": "Distribution", "due": "Sep 10" }
+      ]}
+    ],
+    "undated": []
+  }
+}

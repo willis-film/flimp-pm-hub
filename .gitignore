@@ -18,3 +18,4 @@ node_modules/
 # Generated kickoff samples from test/kickoff-fixture.mjs
 kickoff-sample.pdf
 _sample.pdf
+.preview/
