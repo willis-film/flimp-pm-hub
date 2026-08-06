@@ -100,6 +100,20 @@ function splitNote(l) {
   return m ? [m[1], m[2]] : [l.text, ''];
 }
 
+// Opens in a new tab, so following a link from the HTML doesn't navigate away
+// from the document. rel=noopener because target=_blank without it hands the
+// opened page a reference back to this one.
+//
+// This has NO effect in the exported PDF: a PDF link annotation carries a URI
+// and nothing else — the format has no target — so the viewer decides. Chrome's
+// built-in viewer replaces the current tab; Preview and Acrobat hand off to the
+// default browser. Left in because the endpoint serves HTML and the document is
+// worth sharing in that form.
+//
+// NOT applied to mailto: a blank tab that immediately hands off to a mail
+// client and then sits there empty is worse than no target at all.
+const NEWTAB = ' target="_blank" rel="noopener"';
+
 // A process step carrying a URL becomes a link. The step text is the link, not
 // a separate marker: the design has no room for one, and a step that IS a
 // resource ("Intake Form") reads better as a link than as a step with a
@@ -109,7 +123,7 @@ function splitNote(l) {
 // treatment for a link on white. Colour stays INK: green text at 11pt on white
 // is the contrast problem the old document had.
 const linked = (text, url) => url
-  ? `<a href="${esc(url)}" style="color:${INK}; border-bottom:0.5pt solid ${GREEN}">${esc(text)}</a>`
+  ? `<a href="${esc(url)}"${NEWTAB} style="color:${INK}; border-bottom:0.5pt solid ${GREEN}">${esc(text)}</a>`
   : esc(text);
 
 // Two product types that produce the SAME steps are one track wearing two
@@ -263,7 +277,7 @@ const resourcesBlock = pills => !pills.length ? '' : `
       <section style="margin-top:auto; padding:11pt 16pt 13pt; background:${WASH}; border-radius:6pt">
         <h2 style="margin:0 0 10pt; font-size:8.5pt; font-weight:700; letter-spacing:0.11em; text-transform:uppercase; color:${MUTED}; line-height:1; padding-bottom:7pt; border-bottom:0.5pt solid ${RULE}">Resources</h2>
         <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:6pt">
-          ${pills.map(p => `<a href="${esc(p.url)}" style="${S.pill}">${esc(p.label)}</a>`).join('\n          ')}
+          ${pills.map(p => `<a href="${esc(p.url)}"${NEWTAB} style="${S.pill}">${esc(p.label)}</a>`).join('\n          ')}
         </div>
       </section>`;
 
@@ -282,7 +296,7 @@ const firstStepsBlock = items => `
           <ul style="list-style:none; margin:0; padding:0; display:flex; flex-direction:column">
             ${items.map(l => `<li style="position:relative; padding:0 0 5pt 20pt; font-size:11pt; font-weight:400; line-height:1.3; color:${INK}">
               <span style="position:absolute; left:0; top:2.5pt; width:9pt; height:9pt; border:1pt solid ${INK}; border-radius:1.5pt"></span>
-              ${l.url ? `<a href="${esc(l.url)}" style="color:${INK}; border-bottom:1pt solid ${INK}">${esc(l.text)}</a>` : esc(l.text)}
+              ${l.url ? `<a href="${esc(l.url)}"${NEWTAB} style="color:${INK}; border-bottom:1pt solid ${INK}">${esc(l.text)}</a>` : esc(l.text)}
             </li>`).join('\n            ')}
           </ul>
         </section>`;
