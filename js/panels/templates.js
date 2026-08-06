@@ -1354,6 +1354,91 @@ function buildPayload(parent, st) {
 // The response is a PDF, not JSON, so failures need care: an error comes back as
 // JSON with a message worth showing, and reporting "something went wrong" when
 // the server said exactly what went wrong helps nobody.
+// Prints a finished document without navigating away from the panel.
+//
+// The document goes into a hidden SAME-ORIGIN iframe and that frame is printed,
+// not this window. Printing this window would carry the whole app UI into the
+// print job; the frame contains only the document and its stylesheet.
+//
+// A blob URL rather than srcdoc: the document is ~1.2MB of inlined fonts and
+// artwork, and an attribute that size would be re-parsed as markup on every
+// render of the panel.
+//
+// FONTS ARE FINE IN A HIDDEN FRAME, which is worth recording because it looks
+// like they wouldn't be. Measured: the frame lays "Grange Insurance" out at
+// 287px in Rund against 355px in the fallback — identical to a visible tab. An
+// earlier check suggested otherwise, but it measured the <h1> box (block-level,
+// so always the container width) rather than the text.
+//
+// The wait before print() is not padding: an undecoded face relays the whole
+// document. But it is NOT requestAnimationFrame, in either window — Chrome
+// doesn't run animation frames for a frame it isn't rendering, and the parent's
+// stop firing whenever the tab is backgrounded, which is exactly when someone
+// leaves a slow generate running. Both were measured timing out rather than
+// firing. fonts.ready is the wait that matters; layout needs none, because
+// print() forces one synchronously before it spools.
+function printDocument(html) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+    const frame = document.createElement('iframe');
+    frame.setAttribute('aria-hidden', 'true');
+    frame.style.cssText =
+      'position:fixed; right:0; bottom:0; width:1px; height:1px; opacity:0; border:0';
+
+    // The frame has to OUTLIVE print(): removing it while the job is still
+    // spooling cancels the print in Chrome. So cleanup hangs off afterprint,
+    // with a long timer behind it because afterprint doesn't fire everywhere.
+    let done = false;
+    const finish = (fn, arg) => {
+      if (done) return;
+      done = true;
+      URL.revokeObjectURL(url);
+      frame.remove();
+      fn(arg);
+    };
+    const cleanup = () => finish(resolve);
+    const fail = e => finish(reject, e);
+
+    const settled = async win => {
+      if (win.document.fonts && win.document.fonts.ready) await win.document.fonts.ready;
+      // A macrotask, so the component's upgrade callbacks have run. setTimeout
+      // is clamped in a background tab but always fires; rAF may never.
+      await new Promise(r => setTimeout(r, 100));
+    };
+
+    frame.onload = async () => {
+      try {
+        const win = frame.contentWindow;
+        // Raced, so a browser that resolves none of it still prints rather than
+        // leaving the button stuck on "Preparing…".
+        await Promise.race([settled(win), new Promise(r => setTimeout(r, 5000))]);
+        win.addEventListener('afterprint', cleanup, { once: true });
+        win.focus();
+        win.print();
+        setTimeout(cleanup, 60000);
+      } catch (e) {
+        fail(e);
+      }
+    };
+    frame.onerror = () => fail(new Error('Could not open the document for printing'));
+
+    document.body.appendChild(frame);
+    frame.src = url;
+  });
+}
+
+// Builds the document and hands it to the browser's own print-to-PDF.
+//
+// There is no way to produce a real PDF from a page silently: browsers do not
+// expose print-to-PDF to JavaScript, and window.print() always shows the
+// dialog. The alternative — rasterising the DOM with html2canvas — returns a
+// picture of the document rather than the document: no selectable text, and
+// every link dead, which on a page whose Resources row is six buttons is the
+// wrong trade. So the dialog is the price, and it buys real vector output with
+// working links.
+//
+// The document's <title> is what Chrome offers as the filename, so the title
+// the generator sets is doing real work here.
 async function tpGenerate(pid) {
   const r = db.rows.find(x => x.id === pid); if (!r) return;
   const note = document.getElementById('tp-gen-note-' + pid);
@@ -1363,46 +1448,31 @@ async function tpGenerate(pid) {
     note.classList.toggle('tp-gen-note-warn', !!warn);
   };
   const btn = document.querySelector(`.tp-gen[data-pid="${pid}"]`);
-  if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
-  say('Building the PDF…', false);
+  if (btn) { btn.disabled = true; btn.textContent = 'Preparing…'; }
+  say('Building the document…', false);
 
   try {
     const payload = buildPayload(r, tplState(r));
-    const res = await fetch('/api/kickoff-pdf', {
+    const res = await fetch('/api/kickoff-html', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
 
+    // A failure comes back as JSON with a message worth showing. Reporting
+    // "something went wrong" when the server said exactly what went wrong
+    // helps nobody.
     if (!res.ok) {
       let msg = `${res.status} ${res.statusText}`;
       try { const j = await res.json(); if (j && j.error) msg = j.error; } catch {}
       throw new Error(msg);
     }
 
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = (payload.filename || 'kickoff').replace(/[^\w.-]+/g, '-') + '.pdf';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    // Revoked on a delay: revoking immediately can cancel the download in some
-    // browsers before it has read the blob.
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
-
-    // Anything the generator wants to say about the result — an overflowing
-    // region, a multi-page timeline — rides back in a header rather than being
-    // swallowed. Surfacing it is the difference between "it printed" and "it
-    // printed, and here's what got squeezed".
-    let notes = [];
-    try { notes = JSON.parse(res.headers.get('X-Kickoff-Notes') || '[]'); } catch {}
-    const pages = res.headers.get('X-Kickoff-Timeline-Pages');
-    say(notes.length
-      ? `Downloaded — ${notes.join('; ')}`
-      : `Downloaded${pages && +pages > 1 ? ` — timeline ran to ${pages} pages` : ''}.`,
-      notes.length > 0);
+    const html = await res.text();
+    const pages = res.headers.get('X-Kickoff-Pages');
+    say(`Opening the print dialog${pages ? ` — ${pages} pages` : ''}. Choose “Save as PDF”.`, false);
+    await printDocument(html);
+    say('Print dialog closed.', false);
   } catch (e) {
     say(`Couldn't generate: ${e.message}`, true);
   } finally {
