@@ -987,13 +987,17 @@ function stripCommentPreviewHTML(row){
   return `<span class="fps-comment-line">${esc(last.text)}</span>${chip}`;
 }
 
-// Thread inside the popover, below the composer: oldest first, newest last —
-// same order as the detail panel's list. The list opens scrolled to the bottom
-// so the newest comment is the one in view.
+// Thread inside the popover, below the composer: newest first, so the comment
+// that matters most sits against the box you just typed in. Note this is the
+// reverse of the detail panel's list.
+//
+// The ids and the indexes handed to the edit/delete handlers stay the *array*
+// index, not the display position — row.comments is still stored oldest-first,
+// and splicing by display position would delete the wrong comment.
 function stripCommentListHTML(row){
   const cs=row.comments||[];
   if(!cs.length) return `<div class="scp-empty">No comments yet.</div>`;
-  return cs.map((c,i)=>`
+  return cs.map((c,i)=>({c,i})).reverse().map(({c,i})=>`
     <div class="scp-row" id="scp-row-${i}">
       <div class="scp-row-text" ondblclick="A.editStripComment('${row.id}',${i})">${esc(c.text)}</div>
       <div class="scp-row-tools">
@@ -1019,7 +1023,7 @@ function openStripComment(id){
     <div class="scp-list" id="scp-list">${stripCommentListHTML(row)}</div>`;
   pop.classList.add('open');
   const list=document.getElementById('scp-list');
-  list.scrollTop=list.scrollHeight;
+  list.scrollTop=0;                 // newest first — the top is the live end
   const ta=document.getElementById('scp-input');
   ta.addEventListener('input',()=>autoGrow(ta));
   ta.addEventListener('keydown',e=>{
@@ -1095,7 +1099,7 @@ function refreshStripComment(id){
   if(bars) bars.outerHTML=signalBarsHTML(row);
   if(_scId===id){
     const list=document.getElementById('scp-list');
-    if(list){ list.innerHTML=stripCommentListHTML(row); list.scrollTop=list.scrollHeight; }
+    if(list){ list.innerHTML=stripCommentListHTML(row); list.scrollTop=0; }
     positionStripComment();
   }
   if(ui.detailId===id) openDetail(id);
