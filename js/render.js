@@ -987,8 +987,9 @@ function stripCommentPreviewHTML(row){
   return `<span class="fps-comment-line">${esc(last.text)}</span>${chip}`;
 }
 
-// Thread inside the popover: oldest first, newest at the bottom next to the
-// composer — same order as the detail panel's list.
+// Thread inside the popover, below the composer: oldest first, newest last —
+// same order as the detail panel's list. The list opens scrolled to the bottom
+// so the newest comment is the one in view.
 function stripCommentListHTML(row){
   const cs=row.comments||[];
   if(!cs.length) return `<div class="scp-empty">No comments yet.</div>`;
@@ -1013,9 +1014,9 @@ function openStripComment(id){
   if(_scId&&_scId!==id) closeStripComment();
   _scId=id;
   pop.innerHTML=`
-    <div class="scp-list" id="scp-list">${stripCommentListHTML(row)}</div>
     <textarea class="scp-input" id="scp-input" rows="1"
-      placeholder="Add a comment… (Enter to post)"></textarea>`;
+      placeholder="Add a comment… (Enter to post)"></textarea>
+    <div class="scp-list" id="scp-list">${stripCommentListHTML(row)}</div>`;
   pop.classList.add('open');
   const list=document.getElementById('scp-list');
   list.scrollTop=list.scrollHeight;
