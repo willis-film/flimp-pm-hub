@@ -88,6 +88,9 @@ function signalBarsHTML(row){
 function latestComment(row){ return row.comments&&row.comments.length ? row.comments[row.comments.length-1] : null; }
 
 function render(){
+  // Every strip is about to be replaced, including the one the comment popover
+  // is anchored to — it would be left floating over a rebuilt board.
+  closeStripComment();
   const wrap=document.getElementById('list-wrap');
   wrap.innerHTML='';
 
@@ -180,18 +183,11 @@ function render(){
           <div class="fps-field" style="width:440px;flex-shrink:1;min-width:150px">
             <div class="fps-field-label">Latest Comment</div>
             <div class="fps-field-val">
-              <div class="fps-comment-wrap" id="fc-${parent.id}">
-                <div class="fps-comment-preview" onclick="openStripComment('${parent.id}')" title="Click to add comment" style="cursor:pointer">
-                  ${(parent.comments&&parent.comments.length)
-                    ? esc(parent.comments[parent.comments.length-1].text.slice(0,120))
-                    : '<span style="color:var(--ink-4)">Click to add a comment…</span>'}
-                </div>
-                <div class="fps-comment-composer" id="fcc-${parent.id}" style="display:none;margin-top:4px">
-                  <input class="fps-comment-input" id="fci-${parent.id}" placeholder="Add a comment…"
-                    onkeydown="if(event.key==='Enter'&&this.value.trim()){stripPostComment('${parent.id}',this.value);this.value='';closeStripComment('${parent.id}');event.preventDefault()}
-                               if(event.key==='Escape'){closeStripComment('${parent.id}');event.preventDefault()}">
-                </div>
-              </div>
+              <div class="fps-comment-preview" id="fcp-${parent.id}" role="button" tabindex="0"
+                   title="${stripCommentTitle(parent)}"
+                   onclick="A.openStripComment('${parent.id}')"
+                   onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();A.openStripComment('${parent.id}')}"
+                >${stripCommentPreviewHTML(parent)}</div>
             </div>
           </div>
           <div class="fps-field" style="width:110px;flex-shrink:0">
@@ -960,25 +956,215 @@ function renderComments(row){
     </div>`).join('');
 }
 
+// ── STRIP COMMENTS ─────────────────────────────────────────────────────────
+// The strip shows one line of the latest comment plus a count chip. Everything
+// else — the full thread, the composer, edit and delete — lives in a popover.
+//
+// The popover is a single body-level element (#strip-comment-pop, in
+// index.html) rather than markup inside each strip: .fps and .fps-fields both
+// set overflow:hidden for the plate look, so anything drawn inside the strip
+// gets clipped at the field seam. Same reason .date-popup / .status-menu are
+// positioned fixed at body level.
+
+// Row id whose popover is currently open, or null.
+let _scId = null;
+
+function stripCommentTitle(row){
+  const last=latestComment(row);
+  return esc(last ? last.text : 'Click to add a comment');
+}
+
+// The one-line readout in the strip. Height is deliberately fixed at one line:
+// .fps-fields stretches every field to the tallest one, so a wrapping comment
+// would grow the whole strip — the popover is where the full text is read.
+function stripCommentPreviewHTML(row){
+  const cs=row.comments||[];
+  const last=cs[cs.length-1];
+  if(!last) return `<span class="fps-comment-empty">Click to add a comment…</span>`;
+  const chip=cs.length>1
+    ? `<span class="fps-comment-count" title="${cs.length} comments">${cs.length}</span>`
+    : '';
+  return `<span class="fps-comment-line">${esc(last.text)}</span>${chip}`;
+}
+
+// Thread inside the popover: oldest first, newest at the bottom next to the
+// composer — same order as the detail panel's list.
+function stripCommentListHTML(row){
+  const cs=row.comments||[];
+  if(!cs.length) return `<div class="scp-empty">No comments yet.</div>`;
+  return cs.map((c,i)=>`
+    <div class="scp-row" id="scp-row-${i}">
+      <div class="scp-row-text" ondblclick="A.editStripComment('${row.id}',${i})">${esc(c.text)}</div>
+      <div class="scp-row-tools">
+        <span class="scp-row-time" title="${esc(fmtAbsTime(c))}">${esc(fmtRelTime(c))}</span>
+        <button class="scp-icon" title="Edit" aria-label="Edit comment" onclick="A.editStripComment('${row.id}',${i})">
+          <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 2.5l2 2L6 12l-2.6.6.6-2.6 7.5-7.5z"/><path d="M10.5 3.5l2 2"/></svg>
+        </button>
+        <button class="scp-icon scp-icon-del" title="Delete" aria-label="Delete comment" onclick="A.delStripComment('${row.id}',${i})">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+function openStripComment(id){
+  const row=db.rows.find(r=>r.id===id); if(!row) return;
+  const pop=document.getElementById('strip-comment-pop');
+  const anchor=document.getElementById('fcp-'+id);
+  if(!pop||!anchor) return;
+  if(_scId&&_scId!==id) closeStripComment();
+  _scId=id;
+  pop.innerHTML=`
+    <div class="scp-list" id="scp-list">${stripCommentListHTML(row)}</div>
+    <textarea class="scp-input" id="scp-input" rows="1"
+      placeholder="Add a comment… (Enter to post)"></textarea>`;
+  pop.classList.add('open');
+  const list=document.getElementById('scp-list');
+  list.scrollTop=list.scrollHeight;
+  const ta=document.getElementById('scp-input');
+  ta.addEventListener('input',()=>autoGrow(ta));
+  ta.addEventListener('keydown',e=>{
+    if(e.key==='Enter'&&!e.shiftKey){
+      e.preventDefault();
+      if(ta.value.trim()){ stripPostComment(id,ta.value); ta.value=''; autoGrow(ta); }
+    } else if(e.key==='Escape'){
+      e.preventDefault(); e.stopPropagation(); closeStripComment();
+    }
+  });
+  positionStripComment();
+  ta.focus();
+  document.addEventListener('mousedown',stripCommentAway,true);
+  window.addEventListener('resize',positionStripComment);
+  document.getElementById('list-wrap').addEventListener('scroll',positionStripComment);
+}
+
+// Anchored under the preview, flipped above it when the strip sits low in the
+// viewport, and clamped to the window on both axes.
+function positionStripComment(){
+  if(!_scId) return;
+  const pop=document.getElementById('strip-comment-pop');
+  const anchor=document.getElementById('fcp-'+_scId);
+  if(!pop||!anchor) return;
+  const r=anchor.getBoundingClientRect();
+  const w=Math.min(Math.max(r.width+26,320),460);
+  pop.style.width=w+'px';
+  pop.style.left=Math.max(12,Math.min(r.left-10,window.innerWidth-w-12))+'px';
+  const h=pop.offsetHeight;
+  const roomBelow=window.innerHeight-r.bottom-14;
+  pop.style.top=(roomBelow>=h||roomBelow>=r.top-14 ? r.bottom+6 : Math.max(12,r.top-h-6))+'px';
+}
+
+function stripCommentAway(e){
+  const pop=document.getElementById('strip-comment-pop');
+  const anchor=_scId?document.getElementById('fcp-'+_scId):null;
+  if(pop&&pop.contains(e.target)) return;
+  if(anchor&&anchor.contains(e.target)) return;   // the preview toggles itself
+  closeStripComment();
+}
+
+function closeStripComment(){
+  if(!_scId) return;
+  const pop=document.getElementById('strip-comment-pop');
+  if(pop){ pop.classList.remove('open'); pop.innerHTML=''; pop.style.width=''; }
+  document.removeEventListener('mousedown',stripCommentAway,true);
+  window.removeEventListener('resize',positionStripComment);
+  const lw=document.getElementById('list-wrap');
+  if(lw) lw.removeEventListener('scroll',positionStripComment);
+  _scId=null;
+}
+
+function autoGrow(ta){
+  ta.style.height='auto';
+  ta.style.height=Math.min(ta.scrollHeight,120)+'px';
+}
+
+// Posting used to call render(), which rebuilt every strip — that threw away
+// the popover mid-conversation and cost a full relayout per comment. Only the
+// three things a comment actually changes are repainted: the preview line, the
+// signal-strength bars (they read the newest comment timestamp), and the open
+// thread.
+function refreshStripComment(id){
+  const row=db.rows.find(r=>r.id===id); if(!row) return;
+  const prev=document.getElementById('fcp-'+id);
+  if(prev){
+    prev.innerHTML=stripCommentPreviewHTML(row);
+    const last=latestComment(row);
+    prev.title=last?last.text:'Click to add a comment';
+  }
+  const strip=document.getElementById('fps-'+id);
+  const bars=strip&&strip.querySelector('.sig-strength');
+  if(bars) bars.outerHTML=signalBarsHTML(row);
+  if(_scId===id){
+    const list=document.getElementById('scp-list');
+    if(list){ list.innerHTML=stripCommentListHTML(row); list.scrollTop=list.scrollHeight; }
+    positionStripComment();
+  }
+  if(ui.detailId===id) openDetail(id);
+}
+
 function stripPostComment(id, txt){
   const row=db.rows.find(r=>r.id===id); if(!row||!txt.trim())return;
   if(!row.comments) row.comments=[];
   row.comments.push({author:'Willis',at:new Date().toISOString(),text:txt.trim()});
-  save(); render();
-  if(ui.detailId===id) openDetail(id);
+  save();
+  refreshStripComment(id);
 }
 
-function openStripComment(id){
-  const composer=document.getElementById('fcc-'+id);
-  const input=document.getElementById('fci-'+id);
-  if(!composer||!input) return;
-  composer.style.display='block';
-  input.focus();
+function editStripComment(id, idx){
+  const row=db.rows.find(r=>r.id===id);
+  if(!row||!row.comments||!row.comments[idx]) return;
+  const holder=document.querySelector(`#scp-row-${idx} .scp-row-text`);
+  if(!holder) return;
+  holder.parentElement.classList.add('editing');
+  holder.innerHTML=`<textarea class="scp-edit"></textarea>`;
+  const ta=holder.firstElementChild;
+  ta.value=row.comments[idx].text;
+  ta.addEventListener('keydown',e=>{
+    if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); saveStripCommentEdit(id,idx,ta.value); }
+    else if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); exitStripCommentEdit(id,idx); }
+  });
+  ta.addEventListener('blur',()=>saveStripCommentEdit(id,idx,ta.value));
+  autoGrow(ta);
+  ta.focus();
+  ta.setSelectionRange(ta.value.length,ta.value.length);
 }
 
-function closeStripComment(id){
-  const composer=document.getElementById('fcc-'+id);
-  if(composer) composer.style.display='none';
+// `at` is left alone on purpose: it is when the comment was made, and the
+// signal bars key off it. Fixing a typo shouldn't refresh a stale project.
+function saveStripCommentEdit(id, idx, txt){
+  const row=db.rows.find(r=>r.id===id);
+  if(!row||!row.comments||!row.comments[idx]) return;
+  if(txt.trim()&&txt.trim()!==row.comments[idx].text){
+    row.comments[idx].text=txt.trim();
+    save();
+  }
+  exitStripCommentEdit(id,idx);
+}
+
+// Leaves edit mode by patching this one row's text back in, never by rebuilding
+// the list. The usual way out is blur — and blur fires on mousedown, so a
+// rebuild here would tear out the delete button the user is mid-click on and
+// the click would land on nothing.
+function exitStripCommentEdit(id, idx){
+  const row=db.rows.find(r=>r.id===id);
+  const c=row&&row.comments&&row.comments[idx];
+  const rowEl=document.getElementById('scp-row-'+idx);
+  if(!c||!rowEl) return;
+  rowEl.classList.remove('editing');
+  const holder=rowEl.querySelector('.scp-row-text');
+  if(holder) holder.textContent=c.text;
+  const prev=document.getElementById('fcp-'+id);
+  if(prev&&idx===row.comments.length-1){
+    prev.innerHTML=stripCommentPreviewHTML(row);
+    prev.title=c.text;
+  }
+  positionStripComment();
+}
+
+function delStripComment(id, idx){
+  const row=db.rows.find(r=>r.id===id);
+  if(!row||!row.comments||!row.comments[idx]) return;
+  row.comments.splice(idx,1);
+  save();
+  refreshStripComment(id);
 }
 
 function postComment(id){
@@ -997,4 +1183,4 @@ function delComment(id,idx){
 }
 
 // Register on the app bus so other modules + inline handlers can reach these.
-register({ getChildren, latestComment, render, toggleSection, toggleLinkEdit, setPanel, toggleParent, setStatus, cycleStatus, toggleField, toggleBranding, toggleTag, uf, deleteRow, openDetail, closeDetail, renderComments, stripPostComment, openStripComment, closeStripComment, postComment, delComment });
+register({ getChildren, latestComment, render, toggleSection, toggleLinkEdit, setPanel, toggleParent, setStatus, cycleStatus, toggleField, toggleBranding, toggleTag, uf, deleteRow, openDetail, closeDetail, renderComments, stripPostComment, openStripComment, closeStripComment, editStripComment, saveStripCommentEdit, delStripComment, postComment, delComment });

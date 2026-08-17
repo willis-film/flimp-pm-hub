@@ -17,7 +17,11 @@
     {{gmailLabelTags}}   pre-rendered label pills (gmailLabelTags(project))
     {{statusOptions}}    <option> list for the status <select>
     {{tagsHtml}}         rendered tag chips or em-dash
-    {{commentPreview}}   latest comment text (sliced) or placeholder
+    {{commentPreview}}   one-line latest comment + count chip, or placeholder
+                         (stripCommentPreviewHTML(row) in render.js — the full
+                         thread, composer and edit/delete live in the
+                         #strip-comment-pop popover, not in the strip)
+    {{commentTitle}}     esc(latest comment text) for the preview's tooltip
     {{nextActivityLabel}}/{{nextActivityClass}}  formatted next-activity + past/today/soon class
     {{daysStr}}     days-left value (overdue-wrapped when negative)
     {{dueLabel}}/{{oeLabel}}  formatted dates or em-dash
@@ -55,13 +59,9 @@
       <div class="fps-field" style="width:440px;flex-shrink:1;min-width:150px">
         <div class="fps-field-label">Latest Comment</div>
         <div class="fps-field-val">
-          <div class="fps-comment-wrap" id="fc-{{id}}">
-            <div class="fps-comment-preview" onclick="openStripComment('{{id}}')"
-                 title="Click to add comment" style="cursor:pointer">{{commentPreview}}</div>
-            <div class="fps-comment-composer" id="fcc-{{id}}" style="display:none;margin-top:4px">
-              <input class="fps-comment-input" id="fci-{{id}}" placeholder="Add a comment…">
-            </div>
-          </div>
+          <div class="fps-comment-preview" id="fcp-{{id}}" role="button" tabindex="0"
+               title="{{commentTitle}}"
+               onclick="A.openStripComment('{{id}}')">{{commentPreview}}</div>
         </div>
       </div>
 

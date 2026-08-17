@@ -1043,12 +1043,71 @@ input[type=checkbox] { accent-color: var(--signal); width: 15px; height: 15px; c
 .comment-box::placeholder { color: var(--ink-4); }
 .no-comments { font-size: 13px; color: var(--ink-3); }
 
-.fps-comment-wrap { display: flex; flex-direction: column; gap: 2px; width: 100%; }
-.fps-comment-preview { font-family: var(--font); font-size: 12px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.35; padding: 2px 3px; border-radius: 3px; transition: background .13s; }
+/* ── STRIP COMMENT READOUT ───────────────────────────────────────────────────
+   One line, always: .fps-fields stretches every field to the tallest, so a
+   comment allowed to wrap would set the height of the whole strip. Full text
+   lives in the popover below. */
+.fps-comment-preview {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  font-family: var(--font); font-size: 12px; color: var(--ink-2); line-height: 1.35;
+  padding: 2px 3px; border-radius: 3px; cursor: pointer; transition: background .13s;
+}
 .fps-comment-preview:hover { background: rgba(28,42,51,0.04); color: var(--ink); }
-.fps-comment-input { background: var(--panel); border: 1px solid var(--line-2); border-radius: 4px; font-family: var(--font); font-size: 12px; color: var(--ink); padding: 4px 7px; width: 100%; outline: none; transition: border-color .13s; }
-.fps-comment-input:focus { border-color: var(--signal); }
-.fps-comment-input::placeholder { color: var(--ink-4); }
+.fps-comment-preview:focus-visible { outline: 2px solid var(--signal); outline-offset: 1px; }
+.fps-comment-line { min-width: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fps-comment-empty { color: var(--ink-4); }
+.fps-comment-count {
+  flex-shrink: 0; font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
+  color: var(--ink-3); background: var(--panel-3); border-radius: 8px;
+  padding: 1px 6px; line-height: 1.5;
+}
+.fps-comment-preview:hover .fps-comment-count { background: var(--signal-tint); color: var(--signal-deep); }
+
+/* ── STRIP COMMENT POPOVER ──────────────────────────────────────────────────
+   Fixed at body level (positioned by render.js) because .fps and .fps-fields
+   both clip — same reason as .date-popup and .status-menu. */
+.scp {
+  position: fixed; display: none; flex-direction: column;
+  background: var(--panel); border: 1px solid var(--line-2); border-radius: var(--radius);
+  box-shadow: var(--shadow-pop); z-index: 9999; padding: 9px; gap: 8px;
+}
+.scp.open { display: flex; }
+.scp-list { display: flex; flex-direction: column; gap: 2px; max-height: 240px; overflow-y: auto; }
+.scp-empty { font-size: 12.5px; color: var(--ink-3); padding: 4px 6px; }
+.scp-row {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 6px 7px; border-radius: var(--radius-sm); transition: background .13s;
+}
+.scp-row:hover, .scp-row.editing { background: var(--panel-2); }
+.scp-row-text {
+  flex: 1; min-width: 0; font-size: 12.5px; color: var(--ink); line-height: 1.5;
+  white-space: pre-wrap; overflow-wrap: anywhere; cursor: text;
+}
+.scp-row-tools { flex-shrink: 0; display: flex; align-items: center; gap: 3px; }
+.scp-row-time {
+  font-family: var(--font-mono); font-size: 10px; color: var(--ink-4);
+  white-space: nowrap; margin-right: 2px;
+}
+.scp-icon {
+  width: 19px; height: 19px; padding: 0; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: none; border-radius: 4px; cursor: pointer;
+  color: var(--ink-4); font-size: 10px; line-height: 1;
+  opacity: 0; transition: color .13s, background .13s, opacity .13s;
+}
+.scp-row:hover .scp-icon, .scp-icon:focus-visible { opacity: 1; }
+.scp-icon:hover { color: var(--signal); background: var(--panel-3); }
+.scp-icon-del:hover { color: var(--oxblood); background: var(--oxblood-tint); }
+.scp-input, .scp-edit {
+  width: 100%; background: var(--panel); color: var(--ink);
+  border: 1px solid var(--line-2); border-radius: var(--radius-sm);
+  font-family: var(--font); font-size: 12.5px; line-height: 1.5;
+  padding: 7px 9px; outline: none; resize: none; overflow-y: auto;
+  transition: border-color .13s, box-shadow .13s;
+}
+.scp-input:focus, .scp-edit:focus { border-color: var(--signal); box-shadow: 0 0 0 3px var(--signal-glow); }
+.scp-input::placeholder { color: var(--ink-4); }
+.scp-edit { padding: 4px 6px; }
 
 /* ── ACTIVITY LOG ────────────────────────────────────────────────────────── */
 .activity-list { display: flex; flex-direction: column; gap: 0; }
