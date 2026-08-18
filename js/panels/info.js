@@ -201,8 +201,9 @@ function itemForm(r) {
   const styles = PRODUCT_STYLE_MAP[r.productType] || [];
 
   // Style is genuinely inapplicable for most product types — PRODUCT_STYLE_MAP
-  // only covers Video, Presentation Video, and Microsite. An empty dropdown
-  // would imply a choice exists. It doesn't; say so instead.
+  // covers only Video, Presentation Video, Microsite, Benefit Guide and
+  // Companion Piece. An empty dropdown would imply a choice exists. It doesn't;
+  // say so instead.
   const styleCtl = styles.length
     ? sel(r.id, 'productStyle', r.productStyle, styles)
     : well(r.productType ? 'No styles for this product type' : 'Select a product type first', 'info-well-na');

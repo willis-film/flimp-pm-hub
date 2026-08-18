@@ -7,11 +7,11 @@ export const SEED_DB = {
   clickupTasks: [
     { id:'cu1', name:'Grange – HSA Main Video',         status:'in progress', due:'2026-04-30', productType:'Video',                productTier:'Customized Explainer',        productStyle:'Business Casual', clickupUrl:'https://app.clickup.com/t/868hya1cv' },
     { id:'cu2', name:'Grange – HSA Companion Piece',    status:'to do',       due:'2026-05-07', productType:'Companion Piece',        productTier:'Benefits-at-a-Glance (BAAG)', productStyle:'',               clickupUrl:'https://app.clickup.com/t/868hya2dw' },
-    { id:'cu3', name:'Grange – HSA Microsite Update',   status:'in review',   due:'2026-04-22', productType:'Microsite',              productTier:'Benefits Showcase',           productStyle:'Bold Lines',      clickupUrl:'https://app.clickup.com/t/868hya3ex' },
+    { id:'cu3', name:'Grange – HSA Microsite Update',   status:'in review',   due:'2026-04-22', productType:'Microsite',              productTier:'Benefits Showcase',           productStyle:'Bold Icons',      clickupUrl:'https://app.clickup.com/t/868hya3ex' },
     { id:'cu4', name:'Universal – PPT Conversion',      status:'complete',    due:'2026-02-11', productType:'Presentation Video',     productTier:'Straight Conversion',         productStyle:'Business Casual', clickupUrl:'https://app.clickup.com/t/868hya4fy' },
     { id:'cu5', name:'Universal – Benefit Guide',       status:'in progress', due:'2026-02-18', productType:'Benefit Guide',          productTier:'Premium Guide',               productStyle:'',               clickupUrl:'https://app.clickup.com/t/868hya5gz' },
     { id:'cu6', name:'Lockton – Explainer Video',       status:'to do',       due:'2026-05-15', productType:'Video',                  productTier:'Premium Video',               productStyle:'Retrosketch',     clickupUrl:'https://app.clickup.com/t/868hya6ha' },
-    { id:'cu7', name:'Anthem – Microsite Redesign',     status:'in review',   due:'2026-04-28', productType:'Microsite',              productTier:'Onboarding Hub',              productStyle:'Moving Images - Organic', clickupUrl:'https://app.clickup.com/t/868hya7ib' },
+    { id:'cu7', name:'Anthem – Microsite Redesign',     status:'in review',   due:'2026-04-28', productType:'Microsite',              productTier:'Onboarding Hub',              productStyle:'Photo Circles', clickupUrl:'https://app.clickup.com/t/868hya7ib' },
     { id:'cu8', name:'MetLife – AI Chatbot Setup',      status:'to do',       due:'2026-06-01', productType:'AI Chatbot Agent',       productTier:'Microsite Chatbot',           productStyle:'',               clickupUrl:'https://app.clickup.com/t/868hya8jc' },
   ],
   gmailLabelDefs: [
@@ -90,7 +90,7 @@ export const SEED_DB = {
       status:'done', phase:'', tags:[],
       due:'2026-04-22', oeStart:'', io:false, branding:false,
       am:'', newOrUpdate:'',
-      productType:'Microsite', productTier:'Benefits Showcase', productStyle:'Bold Lines',
+      productType:'Microsite', productTier:'Benefits Showcase', productStyle:'Bold Icons',
       clickupUrl:'https://app.clickup.com/t/868hya3ex',
       zohoLink:'', dropboxLink:'', nextActivity:null, comments:[]
     },
@@ -128,7 +128,7 @@ export const SEED_DB = {
       status:'kickoff', phase:'client-content', tags:['PPTV'],
       due:'2026-03-15', oeStart:'', io:false, branding:false,
       am:'Julie', newOrUpdate:'New',
-      productType:'Presentation Video', productTier:'Custom Creative', productStyle:'Bold Lines',
+      productType:'Presentation Video', productTier:'Custom Creative', productStyle:'Bold Icons',
       designer:'Mark Eyberg', animator:'', voArtist:'Chris Vallencourt',
       distributionDate:'',
       zohoLink:'crm.zoho.com', dropboxLink:'dropbox.com/uc-pptv',

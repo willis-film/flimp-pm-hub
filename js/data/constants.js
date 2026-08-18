@@ -64,10 +64,23 @@ export const VO_LIST       = ['Angela DeNiro (née Aprea)','Anne Herbst','Bill D
 
 export const PRODUCT_TYPE_LIST = ['Presentation Video','Video','Library Videos','Microsite','Benefit Guide','Companion Piece','Print & Mail','Flimp Decisions','Flimp Connect','Web Development','AI Chatbot Agent','Flimp Canvas','Other'];
 
+// One shared list of twelve for every type that has styles — the ten standard
+// styles plus Retrosketch and Custom — mirroring the product_options rows
+// created by supabase/2026-08-17-product-styles.sql. Kept in that exact order,
+// and in sync with that table: this map is what the dropdowns use until the
+// reference block loads, so a disagreement means the options visibly change
+// mid-boot.
+//
+// Microsite's trailing Generic is the one option outside the standard twelve —
+// kept because rows still use it, and sorted last so it doesn't interrupt them.
+const STANDARD_STYLES = ['Photo Sketch','Scrapbook','Doodle','Collage','Classic Photos','Bold Icons','Photo Circles','Grids','Business Casual','Perspective','Retrosketch','Custom'];
+
 export const PRODUCT_STYLE_MAP = {
-  'Video':              ['Business Casual','Bold Lines','Moving Images - Original','Moving Images - Circles','Moving Images - Grids','Perspective','Retrosketch','Custom'],
-  'Presentation Video': ['Business Casual','Bold Lines','Moving Images - Original','Moving Images - Circles','Moving Images - Grids','Perspective','Retrosketch','Custom'],
-  'Microsite':          ['Business Casual','Bold Lines','Moving Images - Organic','Moving Images - Square','Perspective','Retrosketch','Generic','Custom'],
+  'Video':              [...STANDARD_STYLES],
+  'Presentation Video': [...STANDARD_STYLES],
+  'Microsite':          [...STANDARD_STYLES, 'Generic'],
+  'Benefit Guide':      [...STANDARD_STYLES],
+  'Companion Piece':    [...STANDARD_STYLES],
 };
 
 export const PRODUCT_TIER_MAP = {
