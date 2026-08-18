@@ -41,10 +41,17 @@ function openTaskDatePicker(taskId, field, anchorId){
 
 function datePopupChange(val){
   if(_dpRowId&&_dpField){
+    const row=db.rows.find(r=>r.id===_dpRowId);
     A.uf(_dpRowId,_dpField,val);
-    // Refresh the clicked label directly
-    const lbl=document.getElementById((_dpField==='due'?'due-lbl-':_dpField==='oeStart'?'oe-lbl-':'na-lbl-')+_dpRowId);
-    if(lbl) lbl.textContent=val?(_dpField==='nextActivity'?(fmtNextActivity(val)||val):fmtDate(val)):'—';
+    // Parent strips re-render inside uf() — their date fields switch shape
+    // between filled and empty (a static prefix appears, the dotted placeholder
+    // goes), which a textContent patch cannot express. Patching here after the
+    // rebuild would also stamp the full-year fmtDate back over the strip's
+    // year-less format. Subtask rows still use the direct patch.
+    if(row && row.parentId!==null){
+      const lbl=document.getElementById((_dpField==='due'?'due-lbl-':_dpField==='oeStart'?'oe-lbl-':'na-lbl-')+_dpRowId);
+      if(lbl) lbl.textContent=val?(_dpField==='nextActivity'?(fmtNextActivity(val)||val):fmtDate(val)):'—';
+    }
   } else if(_dpTaskId&&_dpTaskField){
     A.ufTask(_dpTaskId,_dpTaskField,val);
     const prefix=_dpTaskField==='due'?'tdue-lbl-':'dist-lbl-';

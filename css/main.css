@@ -98,6 +98,12 @@
   --spine-off: 11px;
   --rail-w: 224px;
 
+  /* One hairline weight for every internal rule on the strip: the seams between
+     metadata slots, the seams inside the tool grid, and the boundary between the
+     two. They must match — that shared weight is what makes the strip read as a
+     single ruled sheet rather than a row of boxes bolted together. */
+  --rule-w: 0.5px;
+
   /* ── type — Montserrat throughout (aligns with the Frequency Tower wordmark) ── */
   --font:          'Montserrat', -apple-system, BlinkMacSystemFont, Calibri, sans-serif;
   --font-headline: 'Montserrat', 'Calibri', sans-serif;
@@ -454,35 +460,111 @@ body::before {
   letter-spacing: 0.15px; transition: color .13s;
 }
 .fps-name:hover { color: var(--signal); }
+/* Hover-reveal. The pencil is only relevant when you are pointing at the strip,
+   so it stays out of the way until then — one less persistent glyph per row.
+   Deliberately NOT applied to the signal bars (a readout, worth reading without
+   pointing at it) or the Gmail chip's × (removal is routine here, and a control
+   that appears only under the pointer is undiscoverable). */
 .fps-edit-icon {
   flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
   width: 22px; height: 22px; padding: 0;
   background: none; border: none; cursor: pointer; border-radius: 4px;
-  color: var(--ink-4); transition: color .13s, background .13s; line-height: 0;
+  color: var(--ink-4); transition: color .13s, background .13s, opacity .13s; line-height: 0;
+  opacity: 0;
 }
+.fps:hover .fps-edit-icon, .fps-edit-icon:focus-visible { opacity: 1; }
 .fps-edit-icon:hover { color: var(--signal); background: var(--panel-3); }
 .fps-toggle { background: none; border: none; cursor: pointer; color: var(--ink-3); font-size: 11px; padding: 2px 4px; border-radius: 3px; transition: all .13s; flex-shrink: 0; line-height: 1; }
 .fps-toggle:hover { background: var(--panel-3); color: var(--ink); }
 .fps-actions { display: flex; gap: 4px; flex-shrink: 0; }
 
-/* BOTTOM ROW: the instrument readout — mono field slots split by seams */
-.fps-fields { display: flex; align-items: stretch; gap: 0; flex-wrap: nowrap; overflow: hidden; }
+/* BOTTOM ROW: the instrument readout — ONE self-labelling row.
+   The separate uppercase label row is gone: every value now identifies itself,
+   either by a static prefix (Due, OE, →) or by being unambiguous on its own (a
+   name, a tag chip, a link's own label). Consequences worth knowing before
+   editing:
+     · Slot widths are fixed to the FILLED state, never to content. `Due 12/11`
+       sets the width and `Due` alone sits in whitespace — content-sized slots
+       would move fields between strips and break position-based scanning.
+     · An empty slot renders its label in placeholder grey under a dotted
+       underline (.fps-empty) rather than collapsing. A blank field is
+       outstanding work and should stay visible.
+     · Placeholders are NOUNS ("Comment", not "Add comment") so they read as the
+       same kind of thing as the filled prefixes.
+   The row is single-line, so .fps-field is now a centred flex row, not a
+   two-row column. */
+.fps-fields { display: flex; align-items: center; gap: 0; flex-wrap: nowrap; overflow: hidden; }
 .fps-field {
-  display: flex; flex-direction: column; justify-content: center; gap: 3px;
-  padding: 2px 12px; border-right: 1px solid var(--line); min-width: 0; flex-shrink: 0;
+  display: flex; align-items: center; height: 22px;
+  padding: 2px 12px; border-right: var(--rule-w) solid var(--line);
+  min-width: 0; flex-shrink: 0;
+  font-family: var(--font-mono); font-size: 12.5px; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .fps-field:first-child { padding-left: 2px; }
 .fps-field:last-child { border-right: none; }
-.fps-field-label {
-  font-family: var(--font-mono); font-size: 9px; font-weight: 500; color: var(--ink-3);
-  text-transform: uppercase; letter-spacing: 1.3px; line-height: 1;
+/* Kept as the positioning slot the link editor anchors to — toggleLinkEdit()
+   in render.js finds it with closest('.fps-field-val'). */
+.fps-field-val { display: flex; align-items: center; min-width: 0; }
+
+/* Static prefix. Never enters the input: the value alone becomes editable, so
+   the field cannot change width while you are typing in it. */
+.fps-pre { color: var(--ink-3); margin-right: 5px; flex-shrink: 0; }
+
+/* The one empty-state treatment, used by every enterable field. */
+.fps-empty {
+  color: var(--ink-3); border-bottom: 1px dotted var(--ink-4);
+  padding-bottom: 1px; cursor: pointer; transition: color .13s, border-color .13s;
 }
-.fps-field-val {
-  font-family: var(--font-mono); font-size: 12.5px; color: var(--ink); line-height: 1.25;
+.fps-empty:hover { color: var(--signal); border-bottom-color: var(--signal); }
+.fps-tag-empty {
+  display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 4px;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.4px;
+  border: 1px dashed var(--line-2); color: var(--ink-3); cursor: pointer;
+}
+.fps-tag-empty:hover { border-color: var(--signal); color: var(--signal); }
+
+/* Days Left is DERIVED from Due Date: it has no add affordance, and it renders
+   nothing at all when Due is empty — its absence is the instruction to set the
+   due date first. The only conditional colour on the strip. */
+.fps-days-val { font-variant-numeric: tabular-nums; font-weight: 500; }
+.fps-days-val.is-warn { color: var(--sig-limbo); font-weight: 600; }
+.fps-days-val.is-crit { color: var(--sig-alert); font-weight: 600; }
+
+/* Branding: "client branding has been received". A chip in the same vocabulary
+   as the tag chips, carrying its own label, so the slot needs no separate word.
+   Unset is the dashed empty-tag treatment — an un-received asset is outstanding
+   work and reads as such beside the other placeholders. */
+.fps-brand {
+  display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 4px;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.4px;
+  border: 1px dashed var(--line-2); background: none; color: var(--ink-3);
+  cursor: pointer; transition: all .13s;
+}
+.fps-brand:hover { border-color: var(--signal); color: var(--signal); }
+.fps-brand.on {
+  border-style: solid; border-color: #C2DDF2;
+  background: var(--signal-tint); color: var(--signal-deep);
+}
+.fps-brand:focus-visible { outline: 2px solid var(--signal); outline-offset: 1px; }
+
+/* Link fields carry their own LABEL as the link text — "Zoho", not "crm.zoh…".
+   The truncated hostname was unreadable and unused, so replacing it deletes a
+   label and a useless value in one move. The full URL stays in the title. */
+.fps-link {
+  font-size: 12.5px; color: var(--signal); text-decoration: none;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.fps-field-val.muted { color: var(--ink-4); }
-.fps-days-val { font-variant-numeric: tabular-nums; font-weight: 500; }
+.fps-link:hover { text-decoration: underline; }
+.fps-link-btn {
+  cursor: pointer; color: var(--ink-4); font-size: 10px; flex-shrink: 0;
+  transition: color .13s; opacity: 0;
+}
+.fps:hover .fps-link-btn, .fps-link-btn:focus-visible { opacity: 1; }
+.fps-link-btn:hover { color: var(--signal); }
+/* While the editor is open the ✕ must stay visible even if the pointer has
+   left the strip — focus is in the input, not on the strip. */
+.fps-link-editing .fps-link-btn { opacity: 1; }
 
 /* inline editable fields */
 .fps-input {
@@ -509,45 +591,67 @@ body::before {
   width: calc(var(--am-name-chars) * var(--am-char-px) * 1px + 28px);
 }
 
+/* AM. Still a <select>, but with the native caret suppressed: every other value
+   in this row is click-to-edit with no persistent affordance, so a caret would
+   make AM the only field advertising itself. (The status badge keeps its
+   chevron — it sits on the title row, not in this band, and it was the one
+   control carrying no affordance at all.) */
 .fps-select {
-  background: none; border: none; font-family: var(--font-mono); font-size: 12px; color: var(--ink);
+  background: none; border: none; font-family: var(--font-mono); font-size: 12.5px; color: var(--ink);
   /* The 3px right pad is slack: it keeps a name whose width lands exactly on
      the slot from ellipsising on a sub-pixel rounding. */
   padding: 0 3px 0 0; outline: none; cursor: pointer;
   /* Fill the slot rather than cap at a fixed width: a name longer than the
-     slot ellipsises instead of being clipped mid-glyph by .fps-field-val. */
+     slot ellipsises instead of being clipped mid-glyph. */
   width: 100%; max-width: 100%; text-overflow: ellipsis;
+  -webkit-appearance: none; appearance: none;
+  border-bottom: 1px solid transparent; transition: color .13s, border-color .13s;
 }
+.fps-select::-ms-expand { display: none; }
+.fps-select:hover { color: var(--signal); border-bottom-color: var(--signal); }
 .fps-select:focus { background: var(--signal-tint); border-radius: 3px; }
 .fps-select option { background: var(--panel); color: var(--ink); }
+/* Unset AM matches the other placeholders instead of reading as a name. */
+.fps-select.is-empty { color: var(--ink-3); border-bottom: 1px dotted var(--ink-4); }
+.fps-select.is-empty:hover { color: var(--signal); border-bottom-color: var(--signal); }
 
-/* checkboxes */
-.fps-cb {
-  width: 17px; height: 17px; border: 1.5px solid var(--line-2); border-radius: 4px; cursor: pointer;
-  display: inline-flex; align-items: center; justify-content: center; transition: all .13s;
-  flex-shrink: 0; background: var(--panel);
-}
-.fps-cb:hover { border-color: var(--signal); }
-.fps-cb.on { background: var(--signal); border-color: var(--signal); }
-.fps-cb.on::after { content: '✓'; font-size: 11px; color: #fff; line-height: 1; font-weight: 700; }
+/* .fps-cb (the strip's square checkbox) was removed with the label row — its
+   only user was Branding, which is now the self-labelling .fps-brand chip. The
+   detail panel uses native <input type="checkbox">, not this class. */
 
 /* status badge / select on strip */
+/* The badge is the status-change CONTROL, not a status label, and nothing marked
+   it as interactive — hence the explicit chevron.
+   Load-bearing: this stays a <select> emitting ALL five options, because a
+   select sizes itself to its widest option and that is the ONLY thing giving
+   every strip's badge the same width. Replacing it with a span, or emitting
+   only the selected option, silently makes the badge content-sized and breaks
+   position-based scanning across the rack. `appearance: none` suppresses the
+   native arrow but preserves that auto-sizing. */
 .fps-status {
-  display: inline-flex; align-items: center; padding: 3px 11px; border-radius: 20px;
+  display: inline-flex; align-items: center; padding: 3px 24px 3px 11px; border-radius: 20px;
   font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.6px;
   text-transform: uppercase; white-space: nowrap; cursor: pointer; border: 1px solid transparent;
   outline: none; text-align: center; text-align-last: center; transition: filter .13s;
+  -webkit-appearance: none; appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' opacity='.55'%3E%3Cpath d='M1 1l3 3 3-3'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 9px center;
 }
+.fps-status::-ms-expand { display: none; }
 .fps-status:hover { filter: brightness(0.97); }
 .fps-status option { font-family: var(--font); background: var(--panel); }
-.fps-status-kickoff    { background: #EEF1F4; color: #455565; border-color: #D3DBE2; }
-.fps-status-production { background: #FBEAEB; color: #A82530; border-color: #F0C6C9; }
-.fps-status-limbo      { background: #FBF1DC; color: #8A6712; border-color: #EFDCA8; }
-.fps-status-done       { background: #E4F1FB; color: #1F6394; border-color: #C2DDF2; }
-.fps-status-closed     { background: #E4F3EA; color: #267247; border-color: #BFE3CC; }
+/* background-COLOR, not the `background` shorthand: the shorthand would reset
+   the chevron background-image declared on .fps-status above. */
+.fps-status-kickoff    { background-color: #EEF1F4; color: #455565; border-color: #D3DBE2; }
+.fps-status-production { background-color: #FBEAEB; color: #A82530; border-color: #F0C6C9; }
+.fps-status-limbo      { background-color: #FBF1DC; color: #8A6712; border-color: #EFDCA8; }
+.fps-status-done       { background-color: #E4F1FB; color: #1F6394; border-color: #C2DDF2; }
+.fps-status-closed     { background-color: #E4F3EA; color: #267247; border-color: #BFE3CC; }
 
-/* overdue readout */
-.overdue-val { color: var(--sig-alert); font-weight: 600; }
+/* .overdue-val was the old overdue readout — a bare negative number in red.
+   Superseded by .fps-days-val.is-crit, which carries the whole ramp (neutral
+   above 14, amber at 14 or below, red at 7 or below and overdue) and renders
+   "3 days over" rather than "-3". Nothing emits this class any more. */
 
 /* gmail client label chips on the strip name row (data-driven dot, light chrome) */
 .gl-pill-wrap { display: flex; gap: 5px; align-items: center; flex-shrink: 0; flex-wrap: nowrap; }
@@ -601,24 +705,55 @@ body::before {
    style themselves inline from TAG_COLORS. */
 
 /* ── TOOL GRID (3x3 switch panel) + STRIP ACTIONS ────────────────────────── */
+/* Frameless: no outer frame, no per-button borders, no gaps and no padding.
+   The nine cells divide the column edge to edge and are separated by internal
+   hairlines only, at --rule-w — the same weight as the metadata seams — so the
+   keypad and the band read as one continuously ruled sheet. The rules run to
+   the card edge; there is no trailing padding on the right column.
+   The boundary between band and keypad is the same hairline, for the same
+   reason. (A perforated divider was tried here and cut: sub-pixel dots never
+   resolved at 1x, the fade length depended on a strip height that changes when
+   a panel opens, and perforation promises the section detaches — it doesn't.) */
 .tool-grid-wrap {
   flex: 0 0 auto; width: 246px; min-width: 246px; display: flex; align-items: stretch;
-  border-left: 1px solid var(--line); background: var(--panel-2); overflow: hidden;
+  border-left: var(--rule-w) solid var(--line-2); background: var(--panel-2); overflow: hidden;
 }
 .tool-grid {
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px;
-  padding: 7px 8px; width: 100%; align-content: center;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  gap: 0; padding: 0; width: 100%;
 }
+/* Cells draw their own right and bottom rules with inset shadows rather than
+   borders, so the hairline never adds to the cell's box and the three rows
+   always divide the strip height exactly. Last column and last row opt out. */
 .tg-btn {
   display: flex; align-items: center; justify-content: center; min-width: 0;
-  padding: 4px 5px; border-radius: 4px; border: 1px solid var(--line-2);
-  background: var(--panel); cursor: pointer; transition: all .13s; white-space: nowrap;
-  overflow: hidden; height: 24px; font-family: var(--font);
+  padding: 4px 5px; border: 0; border-radius: 0; background: transparent;
+  cursor: pointer; transition: background .13s, color .13s; white-space: nowrap;
+  overflow: hidden; font-family: var(--font);
+  box-shadow: inset calc(-1 * var(--rule-w)) 0 0 var(--line-2),
+              inset 0 calc(-1 * var(--rule-w)) 0 var(--line-2);
 }
+.tg-btn:nth-child(3n)   { box-shadow: inset 0 calc(-1 * var(--rule-w)) 0 var(--line-2); }
+.tg-btn:nth-child(n+7)  { box-shadow: inset calc(-1 * var(--rule-w)) 0 0 var(--line-2); }
+.tg-btn:nth-child(9)    { box-shadow: none; }
 .tg-btn-label { font-family: var(--font-mono); font-size: 10.5px; font-weight: 500; color: var(--ink-2); line-height: 1; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.2px; }
-.tg-btn:hover { background: var(--panel-3); border-color: #B7C0C9; }
+.tg-btn:hover { background: rgba(28, 42, 51, 0.035); }
 .tg-btn:hover .tg-btn-label { color: var(--ink); }
-.tg-btn.active { background: linear-gradient(180deg, var(--signal-soft), var(--signal)); border-color: var(--signal-deep); }
+/* Active stays the saturated fill. A recessed surface step was considered and
+   rejected: --panel-3 is already the hover wash, so with the borders gone a
+   recessed active state and hover become the same value and a pointer anywhere
+   on the keypad reads as nine active panels. Saturation is unambiguous.
+   The active cell recolours its OWN rules so the grid runs continuous through
+   it instead of laying grey hairlines across a blue fill. */
+.tg-btn.active {
+  background: linear-gradient(180deg, var(--signal-soft), var(--signal));
+  box-shadow: inset calc(-1 * var(--rule-w)) 0 0 var(--signal-deep),
+              inset 0 calc(-1 * var(--rule-w)) 0 var(--signal-deep);
+}
+.tg-btn.active:nth-child(3n)  { box-shadow: inset 0 calc(-1 * var(--rule-w)) 0 var(--signal-deep); }
+.tg-btn.active:nth-child(n+7) { box-shadow: inset calc(-1 * var(--rule-w)) 0 0 var(--signal-deep); }
+.tg-btn.active:nth-child(9)   { box-shadow: none; }
 .tg-btn.active .tg-btn-label { color: #fff; font-weight: 600; }
 .tg-unread { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--sig-alert); flex-shrink: 0; margin-left: 4px; vertical-align: 1px; box-shadow: 0 0 0 1px rgba(255,255,255,0.7); }
 
@@ -1049,13 +1184,19 @@ input[type=checkbox] { accent-color: var(--signal); width: 15px; height: 15px; c
    lives in the popover below. */
 .fps-comment-preview {
   display: flex; align-items: center; gap: 6px; width: 100%;
-  font-family: var(--font); font-size: 12px; color: var(--ink-2); line-height: 1.35;
+  /* 12.5px matches every data slot in the row. It was 12px, which read as a
+     mistake rather than a distinction — and --font and --font-mono both resolve
+     to Montserrat here, so the family was never a distinction either. What
+     separates prose from data is the colour: comment sits at --ink-2, values at
+     --ink. That is now the only thing doing it. */
+  font-family: var(--font); font-size: 12.5px; color: var(--ink-2); line-height: 1.35;
   padding: 2px 3px; border-radius: 3px; cursor: pointer; transition: background .13s;
 }
 .fps-comment-preview:hover { background: rgba(28,42,51,0.04); color: var(--ink); }
 .fps-comment-preview:focus-visible { outline: 2px solid var(--signal); outline-offset: 1px; }
 .fps-comment-line { min-width: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.fps-comment-empty { color: var(--ink-4); }
+/* .fps-comment-empty removed: the empty comment now uses .fps-empty, the one
+   empty-state treatment shared by every fillable slot on the strip. */
 .fps-comment-count {
   flex-shrink: 0; font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
   color: var(--ink-3); background: var(--panel-3); border-radius: 8px;

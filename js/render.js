@@ -87,6 +87,58 @@ function signalBarsHTML(row){
 
 function latestComment(row){ return row.comments&&row.comments.length ? row.comments[row.comments.length-1] : null; }
 
+// Strip dates drop the year: "8/24", not "8/24/26". The strip is a working
+// surface for the current cycle, and the year was the least-read glyph on it.
+// (fmtDate — with the year — is still what the detail panel and modals use.)
+function fmtStripDate(iso){
+  if(!iso) return null;
+  const [, m, d] = iso.split('-');
+  return `${+m}/${+d}`;
+}
+
+// Days Left is DERIVED from Due Date, and it is the only live number and the
+// only conditional colour on the strip. Two rules the design depends on:
+//   · no due date renders NOTHING — not an em-dash, not a placeholder. Its
+//     absence is what tells you to set the due date first, and giving it an
+//     add-affordance would imply it is separately editable. It isn't.
+//   · neutral above 14 days, amber at 14 or below, red at 7 or below/overdue.
+function daysLeftHTML(row){
+  if(!row.due) return '';
+  const dl = daysLeft(row.due);
+  const cls = dl <= 7 ? ' is-crit' : dl <= 14 ? ' is-warn' : '';
+  const n = Math.abs(dl);
+  const unit = n === 1 ? 'day' : 'days';
+  const text = dl < 0 ? `${n} ${unit} over` : `${dl} ${unit}`;
+  return `<span class="fps-days-val${cls}">${text}</span>`;
+}
+
+// One link cell, in either state. Filled, the label IS the link text — the
+// truncated hostname it replaces ("crm.zoh…") was unreadable and unused, so
+// this deletes a label and a useless value at once. Empty, the same label sits
+// under a dotted underline and swaps to the input on click.
+function stripLinkField(row, label, field, idPrefix){
+  const val = row[field];
+  const inpId = `${idPrefix}-inp-${row.id}`;
+  const lnkId = `${idPrefix}-lnk-${row.id}`;
+  const input = `<input class="fps-input" value="${esc(val||'')}" placeholder="URL"
+      onblur="uf('${row.id}','${field}',this.value)" style="display:none" id="${inpId}">`;
+  if(!val){
+    return `<div class="fps-field-val">
+      <span class="fps-empty" id="${lnkId}" role="button" tabindex="0"
+            onclick="toggleLinkEdit('${inpId}','${lnkId}')"
+            onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleLinkEdit('${inpId}','${lnkId}')}"
+        >${label}</span>${input}</div>`;
+  }
+  const href = (val.startsWith('http') ? '' : 'https://') + esc(val);
+  return `<div class="fps-field-val" style="gap:4px">
+    <a href="${href}" target="_blank" rel="noopener" class="fps-link" title="${esc(val)}">${label}</a>
+    ${input}
+    <span class="fps-link-btn" role="button" tabindex="0" id="${lnkId}" title="Edit"
+          onclick="toggleLinkEdit('${inpId}','${lnkId}')"
+          onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleLinkEdit('${inpId}','${lnkId}')}"
+      >✎</span></div>`;
+}
+
 function render(){
   // Every strip is about to be replaced, including the one the comment popover
   // is anchored to — it would be left floating over a rebuilt board.
@@ -146,8 +198,6 @@ function render(){
     block.id='block-'+parent.id;
 
     // ── FLIGHT PROGRESS STRIP ────────────────────────────────────────────
-    const dl=parent.due?daysLeft(parent.due):null;
-    const daysStr=dl!==null?(dl<0?`<span class="overdue-val">${dl}</span>`:`<span>${dl}</span>`):`<span class="muted">—</span>`;
     const lastComment=latestComment(parent);
     const hasKids=children.length>0;
 
@@ -175,103 +225,66 @@ function render(){
         </div>
         <div class="fps-fields">
           <div class="fps-field" style="width:144px;flex-shrink:0">
-            <div class="fps-field-label">Tags</div>
-            <div class="fps-field-val">
-              <div class="fps-tags">${(parent.tags||[]).length ? (parent.tags||[]).map(tagChip).join('') : '<span style="color:var(--ink-4)">—</span>'}</div>
-            </div>
+            <div class="fps-tags">${(parent.tags||[]).length
+              ? (parent.tags||[]).map(tagChip).join('')
+              : `<span class="fps-tag-empty" role="button" tabindex="0" onclick="openDetail('${parent.id}')">Tag</span>`}</div>
           </div>
-          <div class="fps-field" style="width:440px;flex-shrink:1;min-width:150px">
-            <div class="fps-field-label">Latest Comment</div>
-            <div class="fps-field-val">
-              <div class="fps-comment-preview" id="fcp-${parent.id}" role="button" tabindex="0"
-                   title="${stripCommentTitle(parent)}"
-                   onclick="A.openStripComment('${parent.id}')"
-                   onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();A.openStripComment('${parent.id}')}"
-                >${stripCommentPreviewHTML(parent)}</div>
-            </div>
+          <div class="fps-field" style="width:440px;flex-shrink:1;min-width:140px">
+            <div class="fps-comment-preview" id="fcp-${parent.id}" role="button" tabindex="0"
+                 title="${stripCommentTitle(parent)}"
+                 onclick="A.openStripComment('${parent.id}')"
+                 onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();A.openStripComment('${parent.id}')}"
+              >${stripCommentPreviewHTML(parent)}</div>
           </div>
-          <div class="fps-field" style="width:110px;flex-shrink:0">
-            <div class="fps-field-label">Next Activity</div>
-            <div class="fps-field-val" style="position:relative">
-              ${(()=>{
-                const label=fmtNextActivity(parent.nextActivity);
-                const pastClass=label&&(label.startsWith('Last')||label==='Yesterday')?'past':label==='Today'?'today':label&&(label==='Tomorrow'||label.startsWith('Next'))?'soon':'';
-                return `<span class="fps-next-label ${pastClass}" onclick="A.openDatePicker('${parent.id}','nextActivity','na-${parent.id}')" title="Click to set date" style="cursor:pointer">${label||'—'}</span>
-                <input type="date" id="na-${parent.id}" value="${parent.nextActivity||''}" onchange="uf('${parent.id}','nextActivity',this.value)" style="position:absolute;opacity:0;width:0;height:0;top:0;left:0">`;
-              })()}
-            </div>
+          <div class="fps-field" style="width:118px;flex-shrink:0;position:relative">
+            ${(()=>{
+              const label=fmtNextActivity(parent.nextActivity);
+              const pastClass=label&&(label.startsWith('Last')||label==='Yesterday'||label.endsWith('ago'))?'past':label==='Today'?'today':label&&(label==='Tomorrow'||label.startsWith('Next'))?'soon':'';
+              const click=`A.openDatePicker('${parent.id}','nextActivity','na-lbl-${parent.id}')`;
+              // The prefix stays OUTSIDE the click target so the slot cannot
+              // change width while the picker is open.
+              return (label
+                ? `<span class="fps-pre">→</span><span class="fps-next-label ${pastClass}" id="na-lbl-${parent.id}" onclick="${click}" title="Click to set date" style="cursor:pointer">${label}</span>`
+                : `<span class="fps-next-label fps-empty" id="na-lbl-${parent.id}" onclick="${click}" title="Click to set date">Next</span>`)
+                + `<input type="date" id="na-${parent.id}" value="${parent.nextActivity||''}" onchange="uf('${parent.id}','nextActivity',this.value)" style="position:absolute;opacity:0;width:0;height:0;top:0;left:0">`;
+            })()}
           </div>
-          <div class="fps-field" style="width:96px;flex-shrink:0">
-            <div class="fps-field-label">Days Left</div>
-            <div class="fps-field-val fps-days-val" style="white-space:nowrap">${daysStr}</div>
+          <div class="fps-field" style="width:120px;flex-shrink:0">${daysLeftHTML(parent)}</div>
+          <div class="fps-field" style="width:96px;position:relative">
+            ${parent.due ? `<span class="fps-pre">Due</span>` : ''}
+            <span class="fps-next-label${parent.due?(daysLeft(parent.due)<0?' past':''):' fps-empty'}" id="due-lbl-${parent.id}" onclick="A.openDatePicker('${parent.id}','due','due-lbl-${parent.id}')" style="cursor:pointer">${fmtStripDate(parent.due)||'Due'}</span>
+            <input type="date" id="due-inp-${parent.id}" value="${parent.due||''}" onchange="uf('${parent.id}','due',this.value)" style="position:absolute;opacity:0;width:0;height:0;top:0;left:0">
           </div>
-          <div class="fps-field" style="width:84px">
-            <div class="fps-field-label">Due Date</div>
-            <div class="fps-field-val" style="position:relative">
-              <span class="fps-next-label${parent.due&&daysLeft(parent.due)<0?' past':''}" id="due-lbl-${parent.id}" onclick="A.openDatePicker('${parent.id}','due','due-lbl-${parent.id}')" style="cursor:pointer">${fmtDate(parent.due)||'—'}</span>
-              <input type="date" id="due-inp-${parent.id}" value="${parent.due||''}" onchange="uf('${parent.id}','due',this.value)" style="position:absolute;opacity:0;width:0;height:0;top:0;left:0">
-            </div>
-          </div>
-          <div class="fps-field" style="width:84px">
-            <div class="fps-field-label">OE Start</div>
-            <div class="fps-field-val" style="position:relative">
-              <span class="fps-next-label" id="oe-lbl-${parent.id}" onclick="A.openDatePicker('${parent.id}','oeStart','oe-lbl-${parent.id}')" style="cursor:pointer">${fmtDate(parent.oeStart)||'—'}</span>
-              <input type="date" id="oe-inp-${parent.id}" value="${parent.oeStart||''}" onchange="uf('${parent.id}','oeStart',this.value)" style="position:absolute;opacity:0;width:0;height:0;top:0;left:0">
-            </div>
+          <div class="fps-field" style="width:90px;position:relative">
+            ${parent.oeStart ? `<span class="fps-pre">OE</span>` : ''}
+            <span class="fps-next-label${parent.oeStart?'':' fps-empty'}" id="oe-lbl-${parent.id}" onclick="A.openDatePicker('${parent.id}','oeStart','oe-lbl-${parent.id}')" style="cursor:pointer">${fmtStripDate(parent.oeStart)||'OE'}</span>
+            <input type="date" id="oe-inp-${parent.id}" value="${parent.oeStart||''}" onchange="uf('${parent.id}','oeStart',this.value)" style="position:absolute;opacity:0;width:0;height:0;top:0;left:0">
           </div>
           <!-- Width comes from --am-name-chars in main.css, not from the longest
                name in AM_LIST: one long name shouldn't cost every strip the width. -->
           <div class="fps-field fps-field-am">
-            <div class="fps-field-label">AM</div>
-            <div class="fps-field-val">
-              <select class="fps-select" title="${esc(parent.am||'')}" onchange="uf('${parent.id}','am',this.value)">
-                <option value="">—</option>
-                ${AM_LIST.map(a=>`<option value="${a}"${parent.am===a?' selected':''}>${a}</option>`).join('')}
-              </select>
-            </div>
+            <select class="fps-select${parent.am?'':' is-empty'}" title="${esc(parent.am||'')}"
+                    onchange="this.classList.toggle('is-empty',!this.value);uf('${parent.id}','am',this.value)">
+              <option value="">AM</option>
+              ${AM_LIST.map(a=>`<option value="${a}"${parent.am===a?' selected':''}>${a}</option>`).join('')}
+            </select>
           </div>
-          <div class="fps-field" style="width:100px;flex-shrink:1;min-width:60px">
-            <div class="fps-field-label">Zoho</div>
-            <div class="fps-field-val">
-              ${parent.zohoLink
-                ? `<span style="display:flex;align-items:center;gap:4px">
-                    <a href="${parent.zohoLink.startsWith('http')?'':'https://'}${esc(parent.zohoLink)}" target="_blank" style="font-size:12px;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70px;text-decoration:none" title="${esc(parent.zohoLink)}">${esc(parent.zohoLink.replace(/^https?:\/\//,'').split('/')[0])}</a>
-                    <input class="fps-input" value="${esc(parent.zohoLink||'')}" placeholder="URL" onblur="uf('${parent.id}','zohoLink',this.value)" style="display:none" id="zh-inp-${parent.id}">
-                    <span style="cursor:pointer;color:var(--text3);font-size:10px" onclick="toggleLinkEdit('zh-inp-${parent.id}','zh-lnk-${parent.id}')" id="zh-lnk-${parent.id}" title="Edit">✎</span>
-                  </span>`
-                : `<input class="fps-input" value="" placeholder="URL" onblur="uf('${parent.id}','zohoLink',this.value)">`
-              }
-            </div>
+          <div class="fps-field" style="width:96px;flex-shrink:0">
+            ${stripLinkField(parent,'Zoho','zohoLink','zh')}
           </div>
-          <div class="fps-field" style="width:100px;flex-shrink:1;min-width:60px">
-            <div class="fps-field-label">Estimate</div>
-            <div class="fps-field-val">
-              ${parent.estimateLink
-                ? `<span style="display:flex;align-items:center;gap:4px">
-                    <a href="${parent.estimateLink.startsWith('http')?'':'https://'}${esc(parent.estimateLink)}" target="_blank" style="font-size:12px;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70px;text-decoration:none" title="${esc(parent.estimateLink)}">${esc(parent.estimateLink.replace(/^https?:\/\//,'').split('/')[0])}</a>
-                    <input class="fps-input" value="${esc(parent.estimateLink||'')}" placeholder="URL" onblur="uf('${parent.id}','estimateLink',this.value)" style="display:none" id="est-inp-${parent.id}">
-                    <span style="cursor:pointer;color:var(--text3);font-size:10px" onclick="toggleLinkEdit('est-inp-${parent.id}','est-lnk-${parent.id}')" id="est-lnk-${parent.id}" title="Edit">✎</span>
-                  </span>`
-                : `<input class="fps-input" value="" placeholder="URL" onblur="uf('${parent.id}','estimateLink',this.value)">`
-              }
-            </div>
+          <div class="fps-field" style="width:96px;flex-shrink:0">
+            ${stripLinkField(parent,'Estimate','estimateLink','est')}
           </div>
-          <div class="fps-field" style="width:100px;flex-shrink:1;min-width:60px">
-            <div class="fps-field-label">Dropbox</div>
-            <div class="fps-field-val">
-              ${parent.dropboxLink
-                ? `<span style="display:flex;align-items:center;gap:4px">
-                    <a href="${parent.dropboxLink.startsWith('http')?'':'https://'}${esc(parent.dropboxLink)}" target="_blank" style="font-size:12px;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70px;text-decoration:none" title="${esc(parent.dropboxLink)}">${esc(parent.dropboxLink.replace(/^https?:\/\//,'').split('/')[0])}</a>
-                    <input class="fps-input" value="${esc(parent.dropboxLink||'')}" placeholder="URL" onblur="uf('${parent.id}','dropboxLink',this.value)" style="display:none" id="db-inp-${parent.id}">
-                    <span style="cursor:pointer;color:var(--text3);font-size:10px" onclick="toggleLinkEdit('db-inp-${parent.id}','db-lnk-${parent.id}')" id="db-lnk-${parent.id}" title="Edit">✎</span>
-                  </span>`
-                : `<input class="fps-input" value="" placeholder="URL" onblur="uf('${parent.id}','dropboxLink',this.value)">`
-              }
-            </div>
+          <div class="fps-field" style="width:96px;flex-shrink:0">
+            ${stripLinkField(parent,'Dropbox','dropboxLink','db')}
           </div>
-          <div class="fps-field" style="width:74px">
-            <div class="fps-field-label">Branding</div>
-            <div class="fps-field-val"><div class="fps-cb${parent.branding?' on':''}" onclick="toggleField('${parent.id}','branding')"></div></div>
+          <div class="fps-field" style="width:102px">
+            <span class="fps-brand${parent.branding?' on':''}" role="checkbox"
+                  aria-checked="${!!parent.branding}" tabindex="0"
+                  title="Client branding received"
+                  onclick="toggleField('${parent.id}','branding')"
+                  onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleField('${parent.id}','branding')}"
+              >BRANDING</span>
           </div>
         </div>
       </div>`;
@@ -702,7 +715,13 @@ function toggleLinkEdit(inputId, btnId){
   // field (see .fps-link-editing in main.css).
   const slot = inp.closest('.fps-field-val');
   if(slot) slot.classList.toggle('fps-link-editing', hidden);
-  if(btn) btn.textContent=hidden?'✕':'✎';
+  // On a FILLED field the toggle is the ✎ glyph and flips to ✕. On an EMPTY one
+  // the toggle is the placeholder itself ("Zoho"), so retexting it would eat the
+  // label — hide it for the duration instead.
+  if(btn){
+    if(btn.classList.contains('fps-empty')) btn.style.visibility = hidden ? 'hidden' : '';
+    else btn.textContent = hidden ? '✕' : '✎';
+  }
   if(hidden){
     inp.focus(); inp.select();
     // Escape closes the editor without waiting for blur.
@@ -835,31 +854,20 @@ function uf(id,field,value){
   r[field]=value;
   A.logActivity(r,field,old,value);
   save();
-  // Only full re-render for fields that change visible strip elements
+  // Only full re-render for fields that change visible strip elements.
+  //
+  // Every self-labelling field re-renders rather than being patched in place.
+  // Each one now switches between two SHAPES, not just two texts — a filled
+  // date is `<span class="fps-pre">Due</span> 8/24` while an empty one is a
+  // single dotted `Due`, and a filled link is an <a> where an empty one is a
+  // placeholder span. Hand-patching textContent cannot express that, and the
+  // three partial-update paths that used to live here were what re-introduced
+  // em-dashes and full-year dates after an edit.
   const isParent=r.parentId===null;
   const needsRender=['status','activePanel','tags','io','branding'].includes(field)
-    || (field==='due' && isParent); // due date on parents affects sort order
+    || (isParent && ['due','oeStart','nextActivity',
+                     'zohoLink','estimateLink','dropboxLink'].includes(field));
   if(needsRender){ render(); return; }
-  // For date fields on parent rows, refresh just the days-left cell and detail meta
-  if(field==='due'){
-    const block=document.getElementById('block-'+id);
-    if(block){
-      const dl=r.due?daysLeft(r.due):null;
-      const daysEl=block.querySelector('.fps-days-val');
-      if(daysEl) daysEl.innerHTML=dl!==null?(dl<0?`<span class="overdue-val">${dl}</span>`:`<span>${dl}</span>`):`<span class="dash">—</span>`;
-    }
-  }
-  if(field==='nextActivity'){
-    const block=document.getElementById('block-'+id);
-    if(block){
-      const label=fmtNextActivity(r.nextActivity);
-      const pastClass=!label?'':label==='Yesterday'||label.endsWith('ago')?'past':label==='Today'?'today':label==='Tomorrow'||(!label.endsWith('ago')&&label!=='Today'&&label!=='Yesterday')?'soon':'';
-      const naEl=block.querySelector('.fps-next-label');
-      if(naEl){ naEl.textContent=label||'—'; naEl.className='fps-next-label '+pastClass; }
-      const naInput=document.getElementById('na-'+id);
-      if(naInput) naInput.value=r.nextActivity||'';
-    }
-  }
   if(ui.detailId===id){
     document.getElementById('dp-meta').innerHTML=`${statusBadge(r.status)} ${phasePill(r.phase)} ${tagsHtml(r.tags)}`;
   }
@@ -980,7 +988,11 @@ function stripCommentTitle(row){
 function stripCommentPreviewHTML(row){
   const cs=row.comments||[];
   const last=cs[cs.length-1];
-  if(!last) return `<span class="fps-comment-empty">Click to add a comment…</span>`;
+  // Noun voice, matching the other placeholders ("Due", "OE", "Tag") rather
+  // than an instruction — the dotted underline already says it is fillable, and
+  // "Click to add a comment…" was both the odd one out and wide enough to
+  // overflow the slot on a narrow board.
+  if(!last) return `<span class="fps-empty">Comment</span>`;
   const chip=cs.length>1
     ? `<span class="fps-comment-count" title="${cs.length} comments">${cs.length}</span>`
     : '';

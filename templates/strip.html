@@ -13,127 +13,127 @@
     {{status}}      status key: kickoff | production | limbo | done | closed
     {{ioClass}}     "" or " io-checked" on the tab; strip gets " io-unchecked" when !io
     {{ioOn}}        " on" when project.io is true (checkbox)
-    {{brandingOn}}  " on" when project.branding is true
+    {{brandingOn}}  " on" when project.branding is true (branding RECEIVED
+                  from the client)
     {{gmailLabelTags}}   pre-rendered label pills (gmailLabelTags(project))
     {{statusOptions}}    <option> list for the status <select>
-    {{tagsHtml}}         rendered tag chips or em-dash
+    {{tagsHtml}}         rendered tag chips, or the dashed "Tag" empty slot
     {{commentPreview}}   one-line latest comment + count chip, or placeholder
                          (stripCommentPreviewHTML(row) in render.js — the full
                          thread, composer and edit/delete live in the
                          #strip-comment-pop popover, not in the strip)
     {{commentTitle}}     esc(latest comment text) for the preview's tooltip
     {{nextActivityLabel}}/{{nextActivityClass}}  formatted next-activity + past/today/soon class
-    {{daysStr}}     days-left value (overdue-wrapped when negative)
-    {{dueLabel}}/{{oeLabel}}  formatted dates or em-dash
+    {{daysLeft}}    daysLeftHTML(row): "7 days" / "3 days over" with its ramp
+                    class, or EMPTY STRING when there is no due date
+    {{duePre}}/{{oePre}}      the static prefix span, omitted when unset
+    {{dueLabel}}/{{oeLabel}}  fmtStripDate() "8/24" (no year), or the field name
+                              as its own dotted placeholder when unset
     {{amOptions}}        <option> list for AM <select>
-    {{zohoField}}/{{estimateField}}/{{dropboxField}}  link cell (link+edit or input)
+    {{zohoField}}/{{estimateField}}/{{dropboxField}}
+                    stripLinkField(): the LABEL as link text when set, the same
+                    label as a dotted placeholder when not
 
   NOTE: render() is the live implementation. If you change this file, mirror the
   change into the strip.innerHTML template in js/render.js (or wire render() to
   fetch/parse this file) — they are not auto-synced yet.
 -->
 <div class="fps {{ioUncheckedClass}}" id="fps-{{id}}">
-  <div class="fps-tab fps-tab-{{status}}{{ioClass}}" onclick="toggleField('{{id}}','io')" title="Toggle I/O" role="button" tabindex="0"><i class="fps-lamp"></i><i class="fps-lamp"></i><i class="fps-lamp"></i></div>
+  <div class="fps-tab fps-tab-{{status}}{{ioClass}}" onclick="toggleField('{{id}}','io')" title="Toggle I/O" role="button" tabindex="0"></div>
   <div class="fps-body">
 
-    <!-- TOP ROW: name + labels + status -->
+    <!-- TOP ROW: name + pencil (hover-reveal) + signal bars + labels + status -->
     <div class="fps-top">
-      <span class="fps-name" onclick="openDetail('{{id}}')">{{name}}</span>
+      <span class="fps-name-wrap">
+        <span class="fps-name" onclick="openDetail('{{id}}')">{{name}}</span>
+        <button class="fps-edit-icon" title="Edit project" onclick="event.stopPropagation();A.openParentModal('{{id}}')">{{pencilSvg}}</button>
+        {{signalBars}}
+      </span>
       {{gmailLabelTags}}
       <div class="fps-status-wrap" style="position:relative;flex-shrink:0">
-        <select class="fps-status fps-status-{{status}}"
-                onchange="setStatus('{{id}}',this.value)"
-                style="cursor:pointer;padding-right:4px">
+        <!-- ALL five options, always. A select sizes to its widest option, and
+             that is the only thing giving every strip's badge the same width. -->
+        <select class="fps-status fps-status-{{status}}" onchange="setStatus('{{id}}',this.value)">
           {{statusOptions}}
         </select>
       </div>
     </div>
 
-    <!-- BOTTOM ROW: field slots -->
+    <!-- BOTTOM ROW: ONE self-labelling row. No label row: each value carries a
+         static prefix or is unambiguous alone. Empty slots render the field
+         name in placeholder grey under a dotted underline rather than
+         collapsing — a blank field is outstanding work. Slot widths are fixed
+         to the FILLED state so nothing moves between strips. -->
     <div class="fps-fields">
       <div class="fps-field" style="width:144px;flex-shrink:0">
-        <div class="fps-field-label">Tags</div>
-        <div class="fps-field-val"><div class="fps-tags">{{tagsHtml}}</div></div>
+        <div class="fps-tags">{{tagsHtml}}</div>
       </div>
 
       <div class="fps-field" style="width:440px;flex-shrink:1;min-width:150px">
-        <div class="fps-field-label">Latest Comment</div>
-        <div class="fps-field-val">
-          <div class="fps-comment-preview" id="fcp-{{id}}" role="button" tabindex="0"
-               title="{{commentTitle}}"
-               onclick="A.openStripComment('{{id}}')">{{commentPreview}}</div>
-        </div>
+        <!-- Truncated to one line by design; the popover shows every comment in
+             full (.scp-row-text is pre-wrap with no clamp). -->
+        <div class="fps-comment-preview" id="fcp-{{id}}" role="button" tabindex="0"
+             title="{{commentTitle}}"
+             onclick="A.openStripComment('{{id}}')">{{commentPreview}}</div>
       </div>
 
-      <div class="fps-field" style="width:110px;flex-shrink:0">
-        <div class="fps-field-label">Next Activity</div>
-        <div class="fps-field-val" style="position:relative">
-          <span class="fps-next-label {{nextActivityClass}}"
-                onclick="openDatePicker('{{id}}','nextActivity','na-{{id}}')"
-                title="Click to set date" style="cursor:pointer">{{nextActivityLabel}}</span>
-          <input type="date" id="na-{{id}}" value="{{nextActivity}}"
-                 onchange="uf('{{id}}','nextActivity',this.value)"
-                 style="position:absolute;opacity:0;width:0;height:0;top:0;left:0">
-        </div>
+      <div class="fps-field" style="width:110px;flex-shrink:0;position:relative">
+        <span class="fps-pre">→</span>
+        <span class="fps-next-label {{nextActivityClass}}" id="na-lbl-{{id}}"
+              onclick="openDatePicker('{{id}}','nextActivity','na-lbl-{{id}}')"
+              title="Click to set date" style="cursor:pointer">{{nextActivityLabel}}</span>
+        <input type="date" id="na-{{id}}" value="{{nextActivity}}"
+               onchange="uf('{{id}}','nextActivity',this.value)"
+               style="position:absolute;opacity:0;width:0;height:0;top:0;left:0">
       </div>
 
-      <div class="fps-field" style="width:96px;flex-shrink:0">
-        <div class="fps-field-label">Days Left</div>
-        <div class="fps-field-val fps-days-val" style="white-space:nowrap">{{daysStr}}</div>
+      <!-- DERIVED from Due Date: no add affordance, and renders NOTHING at all
+           when Due is empty. Its absence says "set the due date first". -->
+      <div class="fps-field" style="width:96px;flex-shrink:0">{{daysLeft}}</div>
+
+      <div class="fps-field" style="width:84px;position:relative">
+        {{duePre}}
+        <span class="fps-next-label" id="due-lbl-{{id}}"
+              onclick="openDatePicker('{{id}}','due','due-lbl-{{id}}')"
+              style="cursor:pointer">{{dueLabel}}</span>
+        <input type="date" id="due-inp-{{id}}" value="{{due}}"
+               onchange="uf('{{id}}','due',this.value)"
+               style="position:absolute;opacity:0;width:0;height:0;top:0;left:0">
       </div>
 
-      <div class="fps-field" style="width:84px">
-        <div class="fps-field-label">Due Date</div>
-        <div class="fps-field-val" style="position:relative">
-          <span class="fps-next-label" id="due-lbl-{{id}}"
-                onclick="openDatePicker('{{id}}','due','due-lbl-{{id}}')"
-                style="cursor:pointer">{{dueLabel}}</span>
-          <input type="date" id="due-inp-{{id}}" value="{{due}}"
-                 onchange="uf('{{id}}','due',this.value)"
-                 style="position:absolute;opacity:0;width:0;height:0;top:0;left:0">
-        </div>
+      <div class="fps-field" style="width:84px;position:relative">
+        {{oePre}}
+        <span class="fps-next-label" id="oe-lbl-{{id}}"
+              onclick="openDatePicker('{{id}}','oeStart','oe-lbl-{{id}}')"
+              style="cursor:pointer">{{oeLabel}}</span>
+        <input type="date" id="oe-inp-{{id}}" value="{{oeStart}}"
+               onchange="uf('{{id}}','oeStart',this.value)"
+               style="position:absolute;opacity:0;width:0;height:0;top:0;left:0">
       </div>
 
-      <div class="fps-field" style="width:84px">
-        <div class="fps-field-label">OE Start</div>
-        <div class="fps-field-val" style="position:relative">
-          <span class="fps-next-label" id="oe-lbl-{{id}}"
-                onclick="openDatePicker('{{id}}','oeStart','oe-lbl-{{id}}')"
-                style="cursor:pointer">{{oeLabel}}</span>
-          <input type="date" id="oe-inp-{{id}}" value="{{oeStart}}"
-                 onchange="uf('{{id}}','oeStart',this.value)"
-                 style="position:absolute;opacity:0;width:0;height:0;top:0;left:0">
-        </div>
+      <!-- Width from --am-name-chars in main.css. Native caret suppressed: every
+           other value here is click-to-edit with no persistent affordance. -->
+      <div class="fps-field fps-field-am">
+        <select class="fps-select{{amEmptyClass}}" onchange="uf('{{id}}','am',this.value)">{{amOptions}}</select>
       </div>
 
-      <div class="fps-field" style="width:84px">
-        <div class="fps-field-label">AM</div>
-        <div class="fps-field-val">
-          <select class="fps-select" onchange="uf('{{id}}','am',this.value)">{{amOptions}}</select>
-        </div>
-      </div>
+      <div class="fps-field" style="width:100px;flex-shrink:1;min-width:60px">{{zohoField}}</div>
+      <div class="fps-field" style="width:100px;flex-shrink:1;min-width:60px">{{estimateField}}</div>
+      <div class="fps-field" style="width:100px;flex-shrink:1;min-width:60px">{{dropboxField}}</div>
 
-      <div class="fps-field" style="width:100px;flex-shrink:1;min-width:60px">
-        <div class="fps-field-label">Zoho</div>
-        <div class="fps-field-val">{{zohoField}}</div>
-      </div>
-
-      <div class="fps-field" style="width:100px;flex-shrink:1;min-width:60px">
-        <div class="fps-field-label">Estimate</div>
-        <div class="fps-field-val">{{estimateField}}</div>
-      </div>
-
-      <div class="fps-field" style="width:100px;flex-shrink:1;min-width:60px">
-        <div class="fps-field-label">Dropbox</div>
-        <div class="fps-field-val">{{dropboxField}}</div>
-      </div>
-
-      <div class="fps-field" style="width:74px">
-        <div class="fps-field-label">Branding</div>
-        <div class="fps-field-val">
-          <div class="fps-cb{{brandingOn}}" onclick="toggleField('{{id}}','branding')"></div>
-        </div>
+      <!-- Self-labelling chip in the tag vocabulary, so no separate word. -->
+      <div class="fps-field" style="width:102px">
+        <span class="fps-brand{{brandingOn}}" role="checkbox" tabindex="0"
+              title="Client branding received"
+              onclick="toggleField('{{id}}','branding')">BRANDING</span>
       </div>
     </div>
+  </div>
+
+  <!-- Frameless keypad: no outer frame, no button borders, no gaps. Nine cells
+       divide the column edge to edge, separated by internal hairlines at
+       --rule-w — the same weight as the metadata seams above. -->
+  <div class="tool-grid-wrap">
+    <div class="tool-grid">{{toolButtons}}</div>
   </div>
 </div>
