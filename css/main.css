@@ -20,12 +20,13 @@
   --panel:     #FFFFFF;   /* raised console plate (strips) */
   --panel-2:   #F4F6F8;   /* inset wells / table bodies */
   --panel-3:   #E9EDF1;   /* hover / lifted */
-  /* The tool grid's well. Deliberately NOT --panel-2 (#F4F6F8): that sits
-     between the white strip and the page ground and is only ~6 units off the
-     page colour, so the keypad dissolved into the background and the strip
-     looked like it ended early. This is a step DARKER than the page, which
-     separates it from the page and from the white plate at once. */
-  --panel-well: #E3E8EE;
+  /* The tool grid's well: a faint tint OFF THE STRIP'S WHITE, not a step
+     toward the page ground. The keypad belongs to the white plate and should
+     read as a lightly shaded zone within it; anything darker starts reading as
+     the page showing through and makes the strip look like it ends early.
+     Keep this close to --panel — the boundary hairline and the internal rules
+     do the separating, the fill only has to whisper. */
+  --panel-well: #F7F9FB;
   --line:      #E2E7EC;   /* hairline seam */
   --line-2:    #CDD5DD;   /* stronger seam */
   --line-soft: #EDF0F3;
