@@ -1397,17 +1397,29 @@ body::before{
 
 /* (4) SIGNAL STRENGTH — reception bars showing staleness.
    Real data: computed from lastTouchedAt. Full bars = touched recently. */
+/* Every dimension here is a WHOLE pixel, and must stay one.
+   These were 2.5px wide with a 1.5px gap and an 8.5px third bar, which made
+   the bars render at different thicknesses from strip to strip: a 2.5px box
+   starting at sub-pixel offset f covers [f, f+2.5], and rounding both edges to
+   the device grid paints 3px when f < 0.5 but 2px when f >= 0.5. The bars sit
+   after the project name in a flex row, and Montserrat is proportional, so
+   every project name pushes them to a different fractional offset — hence some
+   strips thick, some thin, from identical CSS.
+   Only visible at devicePixelRatio 1 (an external monitor, or fractional
+   browser zoom); at dpr 2 a 2.5px box spans exactly 5 device pixels and the
+   bug hides. Do not reintroduce fractional values because "it looks fine" on a
+   Retina display. */
 .sig-strength{
-  display: inline-flex; align-items: flex-end; gap: 1.5px;
+  display: inline-flex; align-items: flex-end; gap: 2px;
   height: 11px; flex-shrink: 0; margin-left: 3px; cursor: help;
 }
 .sig-bar{
-  width: 2.5px; border-radius: 1px; background: var(--line-2);
+  width: 3px; border-radius: 1px; background: var(--line-2);
   transition: background .15s;
 }
 .sig-bar:nth-child(1){ height: 4px; }
 .sig-bar:nth-child(2){ height: 6px; }
-.sig-bar:nth-child(3){ height: 8.5px; }
+.sig-bar:nth-child(3){ height: 9px; }
 .sig-bar:nth-child(4){ height: 11px; }
 /* lit bars take the accent; the weaker the signal, the warmer the warning */
 .sig-strength.sig-4 .sig-bar.on{ background: var(--signal); }
