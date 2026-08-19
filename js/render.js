@@ -106,10 +106,11 @@ function daysLeftHTML(row){
   if(!row.due) return '';
   const dl = daysLeft(row.due);
   const cls = dl <= 7 ? ' is-crit' : dl <= 14 ? ' is-warn' : '';
-  const n = Math.abs(dl);
-  const unit = n === 1 ? 'day' : 'days';
-  const text = dl < 0 ? `${n} ${unit} over` : `${dl} ${unit}`;
-  return `<span class="fps-days-val${cls}">${text}</span>`;
+  // Overdue reads as a signed count ("-12 days"), not prose ("12 days over").
+  // The minus sign carries it, the red carries it, and the phrase was costing
+  // the slot ~30px of width for a case that is already unmissable.
+  const unit = Math.abs(dl) === 1 ? 'day' : 'days';
+  return `<span class="fps-days-val${cls}">${dl} ${unit}</span>`;
 }
 
 // One link cell, in either state. Filled, the label IS the link text — the
@@ -249,7 +250,7 @@ function render(){
                 + `<input type="date" id="na-${parent.id}" value="${parent.nextActivity||''}" onchange="uf('${parent.id}','nextActivity',this.value)" style="position:absolute;opacity:0;width:0;height:0;top:0;left:0">`;
             })()}
           </div>
-          <div class="fps-field" style="width:120px;flex-shrink:0">${daysLeftHTML(parent)}</div>
+          <div class="fps-field" style="width:88px;flex-shrink:0">${daysLeftHTML(parent)}</div>
           <div class="fps-field" style="width:96px;position:relative">
             ${parent.due ? `<span class="fps-pre">Due</span>` : ''}
             <span class="fps-next-label${parent.due?(daysLeft(parent.due)<0?' past':''):' fps-empty'}" id="due-lbl-${parent.id}" onclick="A.openDatePicker('${parent.id}','due','due-lbl-${parent.id}')" style="cursor:pointer">${fmtStripDate(parent.due)||'Due'}</span>
@@ -269,13 +270,13 @@ function render(){
               ${AM_LIST.map(a=>`<option value="${a}"${parent.am===a?' selected':''}>${a}</option>`).join('')}
             </select>
           </div>
-          <div class="fps-field" style="width:96px;flex-shrink:0">
+          <div class="fps-field" style="width:74px;flex-shrink:0">
             ${stripLinkField(parent,'Zoho','zohoLink','zh')}
           </div>
           <div class="fps-field" style="width:96px;flex-shrink:0">
             ${stripLinkField(parent,'Estimate','estimateLink','est')}
           </div>
-          <div class="fps-field" style="width:96px;flex-shrink:0">
+          <div class="fps-field" style="width:94px;flex-shrink:0">
             ${stripLinkField(parent,'Dropbox','dropboxLink','db')}
           </div>
           <div class="fps-field" style="width:102px">

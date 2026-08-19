@@ -20,6 +20,12 @@
   --panel:     #FFFFFF;   /* raised console plate (strips) */
   --panel-2:   #F4F6F8;   /* inset wells / table bodies */
   --panel-3:   #E9EDF1;   /* hover / lifted */
+  /* The tool grid's well. Deliberately NOT --panel-2 (#F4F6F8): that sits
+     between the white strip and the page ground and is only ~6 units off the
+     page colour, so the keypad dissolved into the background and the strip
+     looked like it ended early. This is a step DARKER than the page, which
+     separates it from the page and from the white plate at once. */
+  --panel-well: #E3E8EE;
   --line:      #E2E7EC;   /* hairline seam */
   --line-2:    #CDD5DD;   /* stronger seam */
   --line-soft: #EDF0F3;
@@ -580,14 +586,19 @@ body::before {
    --am-char-px is measured, not 1ch: ch is the font's "0" advance (7.95px) and
    over-reserves ~30px across this budget, which reads as dead space after the
    name. It is tuned to the actual roster's longest name rather than to a
-   worst-case glyph run — "Kristy Willadsen", 16 chars at 95.6px (5.97px/char),
-   so 6.15 leaves a few px of margin. A 16-char name in wide glyphs
-   ("Samantha Mueller", 6.93px/char) ellipsises; widen this if one joins.
+   worst-case glyph run — "Chelsey Hylton Conlon", 21 chars measured at 142px
+   (6.76px/char), so 6.8 leaves a little margin.
+   NOTE the roster is NOT the AM_LIST literal in data/constants.js: that array
+   is replaced at runtime from the reference table (ref.amList), so the seed's
+   three short names say nothing about the real longest. Re-measure against
+   live data, not the seed, before trusting this number.
+   Both values assume the row's 12.5px type; they were tuned at 12px and had to
+   move when the row unified on 12.5px, so re-measure if the size changes again.
    The +28px is .fps-field's 24px of padding, the select's 3px of slack, and
    the field's 1px seam. */
 .fps-field-am {
-  --am-name-chars: 16;
-  --am-char-px: 6.15;
+  --am-name-chars: 21;
+  --am-char-px: 6.8;
   width: calc(var(--am-name-chars) * var(--am-char-px) * 1px + 28px);
 }
 
@@ -716,7 +727,7 @@ body::before {
    a panel opens, and perforation promises the section detaches — it doesn't.) */
 .tool-grid-wrap {
   flex: 0 0 auto; width: 246px; min-width: 246px; display: flex; align-items: stretch;
-  border-left: var(--rule-w) solid var(--line-2); background: var(--panel-2); overflow: hidden;
+  border-left: var(--rule-w) solid var(--line-2); background: var(--panel-well); overflow: hidden;
 }
 .tool-grid {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
