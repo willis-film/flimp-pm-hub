@@ -539,11 +539,16 @@ body::before {
 .fps-days-val.is-crit { color: var(--sig-alert); font-weight: 600; }
 
 /* Branding: "client branding has been received". A chip in the same vocabulary
-   as the tag chips, carrying its own label, so the slot needs no separate word.
-   Unset is the dashed empty-tag treatment — an un-received asset is outstanding
-   work and reads as such beside the other placeholders. */
+   as the tag chips. Unset is the dashed empty-tag treatment — an un-received
+   asset is outstanding work and reads as such beside the other placeholders.
+   The label is a bare "B": the slot is the last fixed position in the row, so
+   position identifies the field and the spelled-out word was redundant at
+   nearly four times the width. That does mean the mark is NOT self-identifying
+   on its own — keep the title and aria-label in render.js, they are the only
+   thing naming this field for a new user or a screen reader. */
 .fps-brand {
-  display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 2px 0; width: 24px; border-radius: 4px;
   font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.4px;
   border: 1px dashed var(--line-2); background: none; color: var(--ink-3);
   cursor: pointer; transition: all .13s;

@@ -121,11 +121,13 @@
       <div class="fps-field" style="width:100px;flex-shrink:1;min-width:60px">{{estimateField}}</div>
       <div class="fps-field" style="width:100px;flex-shrink:1;min-width:60px">{{dropboxField}}</div>
 
-      <!-- Self-labelling chip in the tag vocabulary, so no separate word. -->
-      <div class="fps-field" style="width:102px">
+      <!-- Chip in the tag vocabulary. Bare "B": position identifies the field,
+           so the title/aria-label are what actually name it. -->
+      <div class="fps-field" style="width:48px">
         <span class="fps-brand{{brandingOn}}" role="checkbox" tabindex="0"
               title="Client branding received"
-              onclick="toggleField('{{id}}','branding')">BRANDING</span>
+              aria-label="Branding received"
+              onclick="toggleField('{{id}}','branding')">B</span>
       </div>
     </div>
   </div>

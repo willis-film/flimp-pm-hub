@@ -279,13 +279,13 @@ function render(){
           <div class="fps-field" style="width:94px;flex-shrink:0">
             ${stripLinkField(parent,'Dropbox','dropboxLink','db')}
           </div>
-          <div class="fps-field" style="width:102px">
+          <div class="fps-field" style="width:48px">
             <span class="fps-brand${parent.branding?' on':''}" role="checkbox"
                   aria-checked="${!!parent.branding}" tabindex="0"
-                  title="Client branding received"
+                  aria-label="Branding received" title="Client branding received"
                   onclick="toggleField('${parent.id}','branding')"
                   onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleField('${parent.id}','branding')}"
-              >BRANDING</span>
+              >B</span>
           </div>
         </div>
       </div>`;

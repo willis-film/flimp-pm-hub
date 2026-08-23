@@ -62,25 +62,31 @@ export const ANIMATOR_LIST = ['Colby Dolan','Connor Biddle','Hernan Sofiro','Ken
 
 export const VO_LIST       = ['Angela DeNiro (née Aprea)','Anne Herbst','Bill DeWees','Chris Vallencourt','Connie Goldman','Dave Braxton','Denise Kelly','Diana Birdsall','Elton Jones','Ernie Goyette','Eugina Puntillo','Jennifer Antkowiak','Jessica DeShong','Juan Carlos Jaramillo','Laura Doman','Lilliana Armador','Marc Scott','Marcela Loria','Marianne Desgagné','Mark O\'Brien','Mike Sanderson','Mindy Williamson','Natan Fischer','Paul Pizzo','Pete Nottage','Rosi Amador','Safar Pokharel','Susan Spaulding','Tijana Janković','Tim Fritts','Todd Barsness'];
 
-export const PRODUCT_TYPE_LIST = ['Presentation Video','Video','Library Videos','Microsite','Benefit Guide','Companion Piece','Print & Mail','Flimp Decisions','Flimp Connect','Web Development','AI Chatbot Agent','Flimp Canvas','Other'];
+// Plain 'Microsite' sits alongside the two types it was split into rather than
+// being replaced by them: projects created before the split still carry it, and
+// dropping it here would blank their Type, Tier and Style at once.
+export const PRODUCT_TYPE_LIST = ['Presentation Video','Video','Library Videos','Microsite','Microsite Single-Page','Microsite Multi-Page','Benefit Guide','Companion Piece','Print & Mail','Flimp Decisions','Flimp Connect','Web Development','AI Chatbot Agent','Flimp Canvas','Other'];
 
 // One shared list of twelve for every type that has styles — the ten standard
 // styles plus Retrosketch and Custom — mirroring the product_options rows
-// created by supabase/2026-08-17-product-styles.sql. Kept in that exact order,
-// and in sync with that table: this map is what the dropdowns use until the
-// reference block loads, so a disagreement means the options visibly change
+// written by supabase/2026-08-20-microsite-split-styles.sql. Kept in that exact
+// order, and in sync with that table: this map is what the dropdowns use until
+// the reference block loads, so a disagreement means the options visibly change
 // mid-boot.
 //
-// Microsite's trailing Generic is the one option outside the standard twelve —
-// kept because rows still use it, and sorted last so it doesn't interrupt them.
+// The trailing Generic on the three microsite types is the one option outside
+// the standard twelve — kept because rows still use it, and sorted last so it
+// doesn't interrupt them.
 const STANDARD_STYLES = ['Photo Sketch','Scrapbook','Doodle','Collage','Classic Photos','Bold Icons','Photo Circles','Grids','Business Casual','Perspective','Retrosketch','Custom'];
 
 export const PRODUCT_STYLE_MAP = {
-  'Video':              [...STANDARD_STYLES],
-  'Presentation Video': [...STANDARD_STYLES],
-  'Microsite':          [...STANDARD_STYLES, 'Generic'],
-  'Benefit Guide':      [...STANDARD_STYLES],
-  'Companion Piece':    [...STANDARD_STYLES],
+  'Video':                  [...STANDARD_STYLES],
+  'Presentation Video':     [...STANDARD_STYLES],
+  'Microsite':              [...STANDARD_STYLES, 'Generic'],
+  'Microsite Single-Page':  [...STANDARD_STYLES, 'Generic'],
+  'Microsite Multi-Page':   [...STANDARD_STYLES, 'Generic'],
+  'Benefit Guide':          [...STANDARD_STYLES],
+  'Companion Piece':        [...STANDARD_STYLES],
 };
 
 export const PRODUCT_TIER_MAP = {
