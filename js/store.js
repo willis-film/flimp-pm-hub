@@ -88,6 +88,11 @@ const ITEM_FIELD_DEFAULTS = {
 
 const PROJECT_FIELD_DEFAULTS = {
   projectOwner:'', clientAccount:'', clientContact:'',
+  // The generated project brief, pasted in from the detail panel. One plain
+  // string, project scope only — subtasks inherit the project's brief rather
+  // than carrying their own. No dedicated Postgres column: api/db.js files any
+  // unknown key under the `data` JSONB catch-all, so this needs no migration.
+  brief:'',
   brokerAccount:'', brokerContact:'',
   oeEnd:'', hubspotLink:'', estimateLink:'', invoiceRef:'',
   totalRevenue:'',

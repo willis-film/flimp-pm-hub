@@ -85,6 +85,41 @@ function signalBarsHTML(row){
   return `<span class="sig-strength sig-${s.bars}" title="${esc(s.label)}" aria-label="${esc(s.label)}">${bars}</span>`;
 }
 
+// ── PROJECT BRIEF ──────────────────────────────────────────────────────────
+// The brief itself is authored in the detail panel (see openDetail). The strip
+// carries only a readout: a page glyph sitting to the LEFT of the signal bars,
+// which reveals the full text in a hover popover.
+//
+// Two states, following the same rule as the pencil next to it: an empty brief
+// is hover-reveal only (nothing to read, so it shouldn't spend a glyph on every
+// row), a filled one is always visible — it is a readout, like the bars.
+
+function briefText(row){ return (row.brief||'').trim(); }
+
+function briefIconHTML(row){
+  const has = !!briefText(row);
+  return `<span class="fps-brief-icon${has?' has-brief':''}" id="brf-${row.id}"
+        role="button" tabindex="0"
+        title="${has?'Project brief — click to edit':'No project brief — click to add one'}"
+        aria-label="${has?'Project brief':'Add project brief'}"
+        onmouseenter="A.openBriefPop('${row.id}')"
+        onmouseleave="A.hideBriefPopSoon()"
+        onfocus="A.openBriefPop('${row.id}')"
+        onblur="A.hideBriefPopSoon()"
+        onclick="event.stopPropagation();A.openBriefEditor('${row.id}')"
+        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();A.openBriefEditor('${row.id}')}"
+    ><svg viewBox="0 0 16 16" width="12" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 1.8h6L13 5v9.2H3.5z"/><path d="M9.5 1.8V5H13"/><path d="M5.6 8h5M5.6 10.4h5M5.6 5.6h2"/></svg></span>`;
+}
+
+// Repaints just the icon after an edit, rather than re-rendering the board —
+// the detail panel is open over it and a full render() would rebuild the strip
+// under the textarea the user is still typing in.
+function refreshBriefIcon(id){
+  const row=db.rows.find(r=>r.id===id); if(!row) return;
+  const el=document.getElementById('brf-'+id);
+  if(el) el.outerHTML=briefIconHTML(row);
+}
+
 function latestComment(row){ return row.comments&&row.comments.length ? row.comments[row.comments.length-1] : null; }
 
 // Strip dates drop the year: "8/24", not "8/24/26". The strip is a working
@@ -141,9 +176,11 @@ function stripLinkField(row, label, field, idPrefix){
 }
 
 function render(){
-  // Every strip is about to be replaced, including the one the comment popover
-  // is anchored to — it would be left floating over a rebuilt board.
+  // Every strip is about to be replaced, including the ones the comment and
+  // brief popovers are anchored to — they would be left floating over a
+  // rebuilt board.
   closeStripComment();
+  closeBriefPop();
   const wrap=document.getElementById('list-wrap');
   wrap.innerHTML='';
 
@@ -215,6 +252,7 @@ function render(){
             <button class="fps-edit-icon" title="Edit project" aria-label="Edit project" onclick="event.stopPropagation();A.openParentModal('${parent.id}')">
               <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 2.5l2 2L6 12l-2.6.6.6-2.6 7.5-7.5z"/><path d="M10.5 3.5l2 2"/></svg>
             </button>
+            ${briefIconHTML(parent)}
             ${signalBarsHTML(parent)}
           </span>
           ${A.gmailLabelTags(parent)}
@@ -923,6 +961,17 @@ function openDetail(id){
       <div class="dp-section-label">${isParent?'Project Fields':'Task Fields'}</div>
       ${fields}
     </div>
+    ${isParent?`<div class="dp-section">
+      <div class="dp-section-label">Project Brief</div>
+      <textarea class="dp-brief" id="dp-brief-input"
+        placeholder="Paste the generated project brief here…"
+        oninput="A.saveBrief('${id}',this.value)"
+        onchange="A.saveBrief('${id}',this.value)">${esc(row.brief||'')}</textarea>
+      <div class="dp-brief-foot">
+        <span class="dp-brief-hint">Autosaves as you type</span>
+        <span class="dp-brief-status" id="dp-brief-status"></span>
+      </div>
+    </div>`:''}
     <div class="dp-section">
       <div class="dp-section-label">Comments</div>
       <div class="comments-list">${renderComments(row)}</div>
@@ -963,6 +1012,111 @@ function renderComments(row){
       </div>
       <div class="comment-text">${esc(c.text)}</div>
     </div>`).join('');
+}
+
+// ── BRIEF HOVER POPOVER ────────────────────────────────────────────────────
+// Body-level for the same reason as #strip-comment-pop: .fps sets
+// overflow:hidden for the plate look, so anything drawn inside the strip is
+// clipped at its edge.
+//
+// Hover, not click — this is a read-only peek at text authored elsewhere. The
+// close is deferred by a beat so the pointer can travel from the icon into the
+// popover to scroll a long brief without it vanishing en route.
+
+let _bpId = null;         // row id whose brief popover is open, or null
+let _bpTimer = null;      // pending hide
+
+function briefPopHTML(row){
+  const txt = briefText(row);
+  if(!txt) return `<div class="sbp-empty">No brief yet — click the icon to add one.</div>`;
+  return `<div class="sbp-label">Project Brief</div>
+    <div class="sbp-text">${esc(txt)}</div>`;
+}
+
+function openBriefPop(id){
+  clearTimeout(_bpTimer); _bpTimer=null;
+  const row=db.rows.find(r=>r.id===id); if(!row) return;
+  const pop=document.getElementById('strip-brief-pop');
+  const anchor=document.getElementById('brf-'+id);
+  if(!pop||!anchor) return;
+  _bpId=id;
+  pop.innerHTML=briefPopHTML(row);
+  pop.classList.add('open');
+  pop.onmouseenter=()=>{ clearTimeout(_bpTimer); _bpTimer=null; };
+  pop.onmouseleave=hideBriefPopSoon;
+  positionBriefPop();
+  window.addEventListener('resize',positionBriefPop);
+  const lw=document.getElementById('list-wrap');
+  if(lw) lw.addEventListener('scroll',positionBriefPop);
+}
+
+// Anchored under the icon, flipped above it when the strip sits low in the
+// viewport, and clamped to the window on both axes — same rules as the comment
+// popover, so the two never behave differently on the same strip.
+function positionBriefPop(){
+  if(!_bpId) return;
+  const pop=document.getElementById('strip-brief-pop');
+  const anchor=document.getElementById('brf-'+_bpId);
+  if(!pop||!anchor) return;
+  const r=anchor.getBoundingClientRect();
+  const w=Math.min(460,Math.max(300,window.innerWidth-24));
+  pop.style.width=w+'px';
+  pop.style.left=Math.max(12,Math.min(r.left-8,window.innerWidth-w-12))+'px';
+  const h=pop.offsetHeight;
+  const roomBelow=window.innerHeight-r.bottom-14;
+  pop.style.top=(roomBelow>=h||roomBelow>=r.top-14 ? r.bottom+7 : Math.max(12,r.top-h-7))+'px';
+}
+
+function hideBriefPopSoon(){
+  clearTimeout(_bpTimer);
+  _bpTimer=setTimeout(closeBriefPop,140);
+}
+
+function closeBriefPop(){
+  clearTimeout(_bpTimer); _bpTimer=null;
+  if(!_bpId) return;
+  const pop=document.getElementById('strip-brief-pop');
+  if(pop){ pop.classList.remove('open'); pop.innerHTML=''; pop.style.width=''; pop.onmouseenter=null; pop.onmouseleave=null; }
+  window.removeEventListener('resize',positionBriefPop);
+  const lw=document.getElementById('list-wrap');
+  if(lw) lw.removeEventListener('scroll',positionBriefPop);
+  _bpId=null;
+}
+
+// Clicking the icon opens the detail panel — the brief's one editing surface —
+// and puts the caret in it, so the icon is a shortcut to the field rather than
+// a second place to type the same text.
+function openBriefEditor(id){
+  closeBriefPop();
+  openDetail(id);
+  const ta=document.getElementById('dp-brief-input');
+  if(ta){
+    ta.scrollIntoView({block:'center'});
+    ta.focus();
+    ta.setSelectionRange(ta.value.length,ta.value.length);
+  }
+}
+
+// Autosave. save() is already debounced 400ms, so calling it per keystroke
+// collapses a burst of typing into one POST. Not routed through uf(): uf()
+// re-renders on some fields and touches dp-meta, and neither is wanted while
+// the caret is in the textarea. `brief` is in ACTIVITY_SKIP, so nothing is
+// logged either way.
+function saveBrief(id, val){
+  const row=db.rows.find(r=>r.id===id); if(!row) return;
+  const had=!!briefText(row);
+  row.brief=val;
+  save();
+  // The icon only has two appearances, so it needs repainting only when the
+  // brief crosses between empty and non-empty.
+  if(had!==!!briefText(row)) refreshBriefIcon(id);
+  const note=document.getElementById('dp-brief-status');
+  if(note){
+    note.textContent='Saved';
+    note.classList.add('is-on');
+    clearTimeout(note._t);
+    note._t=setTimeout(()=>note.classList.remove('is-on'),1400);
+  }
 }
 
 // ── STRIP COMMENTS ─────────────────────────────────────────────────────────
@@ -1201,4 +1355,4 @@ function delComment(id,idx){
 }
 
 // Register on the app bus so other modules + inline handlers can reach these.
-register({ getChildren, latestComment, render, toggleSection, toggleLinkEdit, setPanel, toggleParent, setStatus, cycleStatus, toggleField, toggleBranding, toggleTag, uf, deleteRow, openDetail, closeDetail, renderComments, stripPostComment, openStripComment, closeStripComment, editStripComment, saveStripCommentEdit, delStripComment, postComment, delComment });
+register({ getChildren, latestComment, render, briefIconHTML, openBriefPop, hideBriefPopSoon, closeBriefPop, openBriefEditor, saveBrief, toggleSection, toggleLinkEdit, setPanel, toggleParent, setStatus, cycleStatus, toggleField, toggleBranding, toggleTag, uf, deleteRow, openDetail, closeDetail, renderComments, stripPostComment, openStripComment, closeStripComment, editStripComment, saveStripCommentEdit, delStripComment, postComment, delComment });

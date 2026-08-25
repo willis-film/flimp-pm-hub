@@ -222,6 +222,9 @@ export const ACTIVITY_FIELD_LABELS = {
 // churn would swamp the log with noise.
 export const ACTIVITY_SKIP = new Set([
   'io','zohoLink','dropboxLink','activePanel','collapsed','comments','invoices',
+  // The brief autosaves as you type — logging it would write one entry per
+  // keystroke and bury every other field in the log.
+  'brief',
   'gmailLabels','clickupTasks','clickupId',
   'previewLink','reportingLink','reviewStudioLink','boordsLink','hubspotLink',
   'estimateLink','invoiceRef'

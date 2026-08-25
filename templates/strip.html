@@ -15,6 +15,10 @@
     {{ioOn}}        " on" when project.io is true (checkbox)
     {{brandingOn}}  " on" when project.branding is true (branding RECEIVED
                   from the client)
+    {{briefIcon}}   briefIconHTML(project): the page glyph that hover-reveals
+                    the project brief. Hover-only while the brief is empty,
+                    permanently lit once one exists. Authoring happens in the
+                    detail panel, not here.
     {{gmailLabelTags}}   pre-rendered label pills (gmailLabelTags(project))
     {{statusOptions}}    <option> list for the status <select>
     {{tagsHtml}}         rendered tag chips, or the dashed "Tag" empty slot
@@ -47,6 +51,7 @@
       <span class="fps-name-wrap">
         <span class="fps-name" onclick="openDetail('{{id}}')">{{name}}</span>
         <button class="fps-edit-icon" title="Edit project" onclick="event.stopPropagation();A.openParentModal('{{id}}')">{{pencilSvg}}</button>
+        {{briefIcon}}
         {{signalBars}}
       </span>
       {{gmailLabelTags}}

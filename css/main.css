@@ -481,6 +481,23 @@ body::before {
 }
 .fps:hover .fps-edit-icon, .fps-edit-icon:focus-visible { opacity: 1; }
 .fps-edit-icon:hover { color: var(--signal); background: var(--panel-3); }
+
+/* Project brief readout. Sits between the pencil and the signal bars, and takes
+   the pencil's hover-reveal rule ONLY while empty: with nothing to read it is
+   an add-affordance, and those stay out of the way. Once a brief exists it is a
+   readout like the bars next to it, so it stays lit at all times. */
+.fps-brief-icon {
+  flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; padding: 0; margin-left: 1px;
+  background: none; border: none; cursor: pointer; border-radius: 4px;
+  color: var(--ink-4); line-height: 0;
+  transition: color .13s, background .13s, opacity .13s;
+  opacity: 0;
+}
+.fps:hover .fps-brief-icon, .fps-brief-icon:focus-visible { opacity: 1; }
+.fps-brief-icon.has-brief { opacity: 1; color: var(--signal); }
+.fps-brief-icon:hover { color: var(--signal); background: var(--panel-3); }
+.fps-brief-icon:focus-visible { outline: 2px solid var(--signal); outline-offset: -2px; }
 .fps-toggle { background: none; border: none; cursor: pointer; color: var(--ink-3); font-size: 11px; padding: 2px 4px; border-radius: 3px; transition: all .13s; flex-shrink: 0; line-height: 1; }
 .fps-toggle:hover { background: var(--panel-3); color: var(--ink); }
 .fps-actions { display: flex; gap: 4px; flex-shrink: 0; }
@@ -1266,6 +1283,53 @@ input[type=checkbox] { accent-color: var(--signal); width: 15px; height: 15px; c
 .scp-input:focus, .scp-edit:focus { border-color: var(--signal); box-shadow: 0 0 0 3px var(--signal-glow); }
 .scp-input::placeholder { color: var(--ink-4); }
 .scp-edit { padding: 4px 6px; }
+
+/* ── STRIP BRIEF POPOVER ────────────────────────────────────────────────────
+   Read-only peek at the brief, opened by hovering the strip's brief icon.
+   Fixed at body level and positioned by render.js — .fps clips, same as for
+   the comment popover. Capped in height and scrollable: a generated brief runs
+   far longer than a strip, and it should never cover the whole board. */
+.sbp {
+  position: fixed; display: none; flex-direction: column; gap: 6px;
+  background: var(--panel); border: 1px solid var(--line-2); border-radius: var(--radius);
+  box-shadow: var(--shadow-pop); z-index: 9999; padding: 11px 13px;
+  max-height: 340px; overflow-y: auto;
+}
+.sbp.open { display: flex; }
+.sbp-label {
+  font-family: var(--font-mono); font-size: 9.5px; font-weight: 500;
+  color: var(--ink-3); text-transform: uppercase; letter-spacing: 1.4px;
+  flex-shrink: 0;
+}
+.sbp-text {
+  font-size: 12.5px; line-height: 1.6; color: var(--ink);
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.sbp-empty { font-size: 12.5px; color: var(--ink-3); }
+
+/* ── DETAIL PANEL: PROJECT BRIEF ────────────────────────────────────────────
+   The brief's one editing surface. Taller than .comment-box — this holds a
+   generated document, not a line — and resizable, because how much of it you
+   need on screen depends on the brief. */
+.dp-brief {
+  width: 100%; background: var(--panel); color: var(--ink);
+  border: 1px solid var(--line-2); border-radius: var(--radius-sm);
+  padding: 10px 12px; font-family: var(--font); font-size: 13px; line-height: 1.6;
+  resize: vertical; min-height: 190px; transition: border-color .13s;
+}
+.dp-brief:focus { outline: none; border-color: var(--signal); box-shadow: 0 0 0 3px var(--signal-glow); }
+.dp-brief::placeholder { color: var(--ink-4); }
+.dp-brief-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 6px; font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: 0.4px; color: var(--ink-4);
+}
+/* Held at full opacity for a beat after a save, then faded out — it confirms
+   the autosave without becoming another persistent label. */
+.dp-brief-status {
+  color: var(--signal); opacity: 0; transition: opacity .3s;
+}
+.dp-brief-status.is-on { opacity: 1; }
 
 /* ── ACTIVITY LOG ────────────────────────────────────────────────────────── */
 .activity-list { display: flex; flex-direction: column; gap: 0; }
