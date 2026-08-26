@@ -445,7 +445,10 @@ function render(){
               <option value="">—</option>
               ${Object.entries(PHASE_LABELS).map(([k,v])=>`<option value="${k}"${task.phase===k?' selected':''}>${v}</option>`).join('')}
             </select>
-            ${task.clickupId?`<button class="btn btn-ghost btn-sm" style="padding:1px 4px;font-size: 11px;line-height:1;color:var(--ink-3);flex:0 0 auto" title="Sync phase to ClickUp" onclick="A.syncTaskPhase('${task.id}',this)">⟳</button>`:''}
+            <!-- Failure-only slot: 12px reserved on every ClickUp-linked row so
+                 a ✕ appearing later can't reflow the cell. Empty while the
+                 phase sync is working, which is the normal case. -->
+            ${task.clickupId?`<span id="cu-phase-ind-${task.id}" style="flex:0 0 12px;width:12px;text-align:center">${A.phaseIndicatorHtml(task.id)}</span>`:''}
           </div>
         </td>
         <td style="text-align:center">

@@ -61,17 +61,61 @@ function submitAssignCuTask(){
 }
 
 // ── PHASE WRITE-BACK ─────────────────────────────────────────────────────────
-// TESTING POSTURE: phase edits do NOT reach ClickUp on their own. Each synced
-// subtask carries its own ⟳ button in the Phase cell, so a write happens only
-// when someone points at one row and asks for it. That keeps a bad field
-// mapping (or a bad match) to one task instead of quietly rewriting every
-// subtask the moment its phase is touched.
+// Phase edits push to ClickUp on their own. This was off during testing, when
+// every write went through a per-row button — that proved the field mapping,
+// and a button per phase change is too many clicks to keep.
 //
-// The automatic path is written and wired — every phase editor already calls
-// pushPhaseOnEdit() — it's just switched off here. Flipping this to true is
-// the whole change when per-row confirmation stops being wanted; nothing at
-// the call sites needs revisiting.
-const AUTO_PUSH_PHASE = false;
+// Set to false to go back to manual pushes; nothing at the call sites changes
+// either way, and the ✕ retry button works in both modes.
+const AUTO_PUSH_PHASE = true;
+
+// Rows whose last push FAILED, keyed by row id -> the reason ClickUp gave.
+// This is the whole indicator model: a successful push shows nothing at all,
+// because a tick next to every phase in the table is noise once the thing is
+// known to work. Only a failure earns pixels.
+//
+// In memory, not on the row: a row is persisted whole by save(), so parking
+// this there would file a transient network error into Postgres (api/db.js
+// would catch it in the `data` JSONB) and keep showing it long after it
+// stopped being true.
+//
+// The cost of that choice is that a reload clears the marks — a failed write
+// nobody noticed leaves the tower and ClickUp quietly disagreeing on that one
+// phase. The console error survives; the mark doesn't. Re-picking the phase
+// pushes again, which is the natural repair.
+const phasePushErrors = new Map();
+
+// The Phase cell's indicator slot, rendered by render.js on every row that has
+// a ClickUp task. Empty — a reserved 12px of nothing — until a push fails, so
+// the ✕ appearing never shifts the row's layout.
+//
+// The ✕ is a button, not a glyph: clicking it retries that one push. A failure
+// you can act on where you're already looking beats one that sends you to the
+// console.
+function phaseIndicatorHtml(taskId){
+  const err=phasePushErrors.get(taskId);
+  if(!err) return '';
+  return '<button class="btn btn-ghost btn-sm" style="padding:0;font-size: 11px;line-height:1;color:var(--sig-alert);background:none;border:none;cursor:pointer"'
+    + ' title="'+esc('ClickUp phase sync failed — '+err+' (click to retry)')+'"'
+    + ' onclick="A.syncTaskPhase(\''+taskId+'\',this)">✕</button>';
+}
+
+// Repaints one row's slot in place. Used after a push resolves, so the mark
+// appears or clears without a full render() — re-rendering the whole board on
+// a background network result would fight whatever the user is doing in
+// another cell.
+function refreshPhaseIndicator(taskId){
+  const slot=document.getElementById('cu-phase-ind-'+taskId);
+  if(slot) slot.innerHTML=phaseIndicatorHtml(taskId);
+}
+
+// Single place a push result becomes UI state, so the automatic path and the
+// manual retry can never disagree about what's on screen.
+function recordPhasePush(taskId, result){
+  if(result.ok) phasePushErrors.delete(taskId);
+  else phasePushErrors.set(taskId, result.error);
+  refreshPhaseIndicator(taskId);
+}
 
 // Mirrors a subtask's phase into the linked ClickUp task's own "Phase" custom
 // field. The phase is authored here, not in ClickUp — without this, anyone
@@ -120,45 +164,27 @@ async function pushPhaseToClickUp(row){
 // above; a no-op while that's false. Rows with no clickupId (hand-made
 // subtasks, parents) fall out inside pushPhaseToClickUp, so call sites don't
 // need to check either condition.
-function pushPhaseOnEdit(row){
-  if(!AUTO_PUSH_PHASE) return;
-  pushPhaseToClickUp(row);
+async function pushPhaseOnEdit(row){
+  if(!AUTO_PUSH_PHASE || !row || !row.clickupId) return;
+  recordPhasePush(row.id, await pushPhaseToClickUp(row));
 }
 
-// The per-row ⟳ button in the Subtasks table's Phase cell. Pushes THIS
-// subtask's phase and reports back on the button itself, because there is
-// nowhere else for the result to go: the write is invisible from this side of
-// the app, and a button that just sprang back to ⟳ would look identical
-// whether ClickUp took the value or refused it. The failure reason lands in
-// the tooltip, in full, so it can be read without opening the console.
+// Retry for one row, wired to the ✕ that a failed push leaves behind. Also the
+// manual path when AUTO_PUSH_PHASE is off.
+//
+// Success makes the button disappear rather than turn green: the indicator's
+// whole contract is that a working sync is invisible, and a ✓ that lingers
+// would be the noise the ✕ exists to avoid.
 async function syncTaskPhase(taskId, btn){
   const row=db.rows.find(r=>r.id===taskId); if(!row) return;
-  const restore=btn?{ text:btn.textContent, color:btn.style.color, title:btn.title }:null;
-  if(btn){ btn.disabled=true; btn.textContent='…'; btn.title='Writing phase to ClickUp…'; }
+  if(btn){ btn.disabled=true; btn.textContent='…'; btn.title='Retrying phase write to ClickUp…'; }
 
   const result=await pushPhaseToClickUp(row);
 
-  // The row can be re-rendered out from under an in-flight push (any edit
-  // anywhere calls render()), which leaves this button detached. Writing to a
-  // detached node is harmless, so there's no need to guard — but it does mean
-  // the result may go unseen, which is the other reason it's also console'd.
-  if(btn){
-    btn.textContent=result.ok?'✓':'✕';
-    // --sig-closed / --sig-alert, not a fresh pair of hexes: those are the
-    // palette's existing green and red. (--sig-done is deliberately NOT used
-    // for the success state — it's the light blue of the Done status, and would
-    // read as a status colour rather than a result.)
-    btn.style.color=result.ok?'var(--sig-closed)':'var(--sig-alert)';
-    btn.title=result.ok
-      ? (result.cleared?'Phase cleared in ClickUp':'Phase written to ClickUp')
-      : ('ClickUp sync failed — '+result.error);
-    setTimeout(()=>{
-      btn.disabled=false;
-      btn.textContent=restore.text;
-      btn.style.color=restore.color;
-      btn.title=restore.title;
-    },2500);
-  }
+  // recordPhasePush() replaces the slot's contents wholesale, which discards
+  // this button — including the disabled/'…' state set above. Nothing to
+  // restore, and nothing to leak if the row was re-rendered mid-flight.
+  recordPhasePush(taskId, result);
 }
 
 function openClickUpManageModal(){
@@ -194,4 +220,4 @@ function unassignCuTaskAll(cuId){
 }
 
 // Register on the app bus so other modules + inline handlers can reach these.
-register({ openAssignCuTaskModal, closeAssignCuTaskModal, submitAssignCuTask, openClickUpManageModal, closeClickUpManageModal, unassignCuTaskAll, pushPhaseToClickUp, pushPhaseOnEdit, syncTaskPhase });
+register({ openAssignCuTaskModal, closeAssignCuTaskModal, submitAssignCuTask, openClickUpManageModal, closeClickUpManageModal, unassignCuTaskAll, pushPhaseToClickUp, pushPhaseOnEdit, syncTaskPhase, phaseIndicatorHtml });
