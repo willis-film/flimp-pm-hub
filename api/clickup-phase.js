@@ -34,11 +34,15 @@
 // sync-clickup.js matches its Product Type/Tier/Style fields by name: the id
 // would need its own lookup round-trip, and the field is read straight off the
 // task we already fetch. Rename the field in ClickUp -> update this string.
-const FIELD_NAME_PHASE = 'Phase';
+//
+// Written with the '+' the live field actually carries, so this reads as the
+// name someone sees in ClickUp — normalizeFieldName() strips that marker off
+// BOTH sides before comparing, so it matches whether or not the '+' survives.
+const FIELD_NAME_PHASE = 'PM Phase+';
 
 // Same trailing-marker tolerance as sync-clickup.js — this workspace decorates
-// field names with '*' and '+' ('Product Type*+'), and those markers get
-// toggled without warning. A 'Phase*' in ClickUp still matches 'Phase' here.
+// field names with '*' and '+' ('Product Type*+', 'PM Phase+'), and those
+// markers get toggled without warning. A 'PM Phase' in ClickUp still matches.
 function normalizeFieldName(name) {
   return String(name || '').trim().toLowerCase().replace(/[*+\s]+$/, '');
 }

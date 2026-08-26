@@ -7,6 +7,14 @@ export const STATUS_LABELS = { kickoff:'Kickoff', production:'In Production', li
 // variables in css/main.css and are applied via `is-<status>` classes, so the
 // strip lamps, subtask row dots, and status picker can never drift apart.
 
+// Insertion order IS the dropdown order, everywhere a phase is picked.
+//
+// The LABELS are matched against the options on ClickUp's 'PM Phase+' field by
+// api/clickup-phase.js (loosely — case and punctuation are ignored, the words
+// are not), so a label edited here has to stay in step with that field or the
+// write-back starts 422-ing on that one phase. The KEYS are what's stored on
+// every row and in Postgres; renaming a key would orphan existing rows, which
+// is why 'distribution' keeps its key while its label reads 'Distributed'.
 export const PHASE_LABELS  = {
   'client-content': 'Client Content Collection',
   'design-animation': 'Design/Animation',
@@ -14,11 +22,13 @@ export const PHASE_LABELS  = {
   'vo': 'VO',
   'proofing': 'Proofing',
   'translation': 'Translation',
+  'captions': 'Captions/Subtitles',
   'pending-approval': 'Pending Final Approval',
+  'client-approved': 'Approved By Client',
   'waiting-links': 'Waiting on Internal Links/AI',
   'print-mail': 'Print/Mail – Handed off',
   'connect': 'Connect – Handed off',
-  'distribution': 'Distribution',
+  'distribution': 'Distributed',
   'closing-out': 'Closing Out',
   'am-attention': 'AM Attention Needed'
 };
