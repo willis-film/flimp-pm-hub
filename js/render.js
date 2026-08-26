@@ -441,7 +441,10 @@ function render(){
         </td>
         <td>
           <div style="display:flex;align-items:center;gap:2px">
-            <select style="font-family:var(--font);font-size: 12px;color:var(--text);background:none;border:none;outline:none;cursor:pointer;width:100%;max-width:170px" onchange="A.ufTask('${task.id}','phase',this.value)">
+            <!-- max-width tracks .th-phase (152px) minus the 12px indicator
+                 slot and its 2px gap. title shows the full phase on hover,
+                 since the two longest labels ellipsize at this width. -->
+            <select title="${esc(PHASE_LABELS[task.phase]||'')}" style="font-family:var(--font);font-size: 12px;color:var(--text);background:none;border:none;outline:none;cursor:pointer;width:100%;max-width:138px;text-overflow:ellipsis" onchange="A.ufTask('${task.id}','phase',this.value)">
               <option value="">—</option>
               ${Object.entries(PHASE_LABELS).map(([k,v])=>`<option value="${k}"${task.phase===k?' selected':''}>${v}</option>`).join('')}
             </select>

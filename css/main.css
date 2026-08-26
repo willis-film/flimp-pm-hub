@@ -865,7 +865,14 @@ body::before {
    sticky cell must be opaque or scrolling content shows through it, and they
    already match what the non-sticky cells use. */
 .th-name   { width: 280px; position: sticky; left: 0; z-index: 20; background: var(--panel-2); }
-.th-status { width: 110px; } .th-phase { width: 185px; } .th-tags { width: 96px; }
+.th-status { width: 110px; }
+/* 185px before — sized to fit 'Waiting on Internal Links/AI' (167px rendered),
+   the one outlier label, which made Phase the second-widest column in the
+   table for the sake of a phase that's rarely on screen. 152px fits every
+   other label whole and ellipsizes those longest two; the select carries a
+   title so the full phase is one hover away, and opening the dropdown always
+   shows them in full. */
+.th-phase { width: 152px; } .th-tags { width: 96px; }
 .th-due { width: 90px; } .th-days { width: 70px; } .th-assign { width: 78px; }
 .th-am { width: 92px; } .th-update { width: 92px; } .th-type { width: 140px; }
 .th-tier { width: 150px; } .th-style { width: 150px; } .th-brand { width: 70px; }
