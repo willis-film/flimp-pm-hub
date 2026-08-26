@@ -149,7 +149,16 @@ function submitSubtask(){
   const name=document.getElementById('sm-name').value.trim(); if(!name)return;
   const parentId=document.getElementById('sm-parent').value||null;
   const fields={name,parentId,status:document.getElementById('sm-status').value,phase:document.getElementById('sm-phase').value||null,tags:[],due:document.getElementById('sm-due').value,io:false,branding:false,oeStart:'',am:document.getElementById('sm-am').value,newOrUpdate:document.getElementById('sm-update').value,productType:document.getElementById('sm-type').value,productTier:document.getElementById('sm-tier').value,productStyle:'',zohoLink:'',dropboxLink:'',nextActivity:null,comments:[]};
-  if(editingSubtaskId){ Object.assign(db.rows.find(r=>r.id===editingSubtaskId),fields); }
+  if(editingSubtaskId){
+    const row=db.rows.find(r=>r.id===editingSubtaskId);
+    const phaseChanged=(row.phase||'')!==(fields.phase||'');
+    Object.assign(row,fields);
+    // Third phase-edit surface, after the Subtasks table and the detail panel —
+    // same gated mirror to ClickUp. Guarded on an actual change because Save
+    // fires whether or not the phase was touched, and every unchanged save
+    // would otherwise be a pointless round-trip to ClickUp.
+    if(phaseChanged) A.pushPhaseOnEdit(row);
+  }
   else { db.rows.push({id:newId('r'),collapsed:false,activePanel:'none',...fields}); }
   save(); A.render(); closeSubtaskModal();
 }

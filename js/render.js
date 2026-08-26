@@ -440,10 +440,13 @@ function render(){
           <input type="date" id="tdue-inp-${task.id}" value="${task.due||''}" onchange="A.ufTask('${task.id}','due',this.value);A.updateTaskDueLbl('${task.id}')" style="position:absolute;opacity:0;width:0;height:0;top:0;left:0">
         </td>
         <td>
-          <select style="font-family:var(--font);font-size: 12px;color:var(--text);background:none;border:none;outline:none;cursor:pointer;width:100%;max-width:170px" onchange="A.ufTask('${task.id}','phase',this.value)">
-            <option value="">—</option>
-            ${Object.entries(PHASE_LABELS).map(([k,v])=>`<option value="${k}"${task.phase===k?' selected':''}>${v}</option>`).join('')}
-          </select>
+          <div style="display:flex;align-items:center;gap:2px">
+            <select style="font-family:var(--font);font-size: 12px;color:var(--text);background:none;border:none;outline:none;cursor:pointer;width:100%;max-width:170px" onchange="A.ufTask('${task.id}','phase',this.value)">
+              <option value="">—</option>
+              ${Object.entries(PHASE_LABELS).map(([k,v])=>`<option value="${k}"${task.phase===k?' selected':''}>${v}</option>`).join('')}
+            </select>
+            ${task.clickupId?`<button class="btn btn-ghost btn-sm" style="padding:1px 4px;font-size: 11px;line-height:1;color:var(--ink-3);flex:0 0 auto" title="Sync phase to ClickUp" onclick="A.syncTaskPhase('${task.id}',this)">⟳</button>`:''}
+          </div>
         </td>
         <td style="text-align:center">
           ${(()=>{
@@ -893,6 +896,10 @@ function uf(id,field,value){
   r[field]=value;
   A.logActivity(r,field,old,value);
   save();
+  // Same phase mirror as ufTask() — the detail panel edits the same field on
+  // the same rows, so it has to push too or the two editors disagree about
+  // what ClickUp shows. Gated: off during testing (see AUTO_PUSH_PHASE).
+  if(field==='phase') A.pushPhaseOnEdit(r);
   // Only full re-render for fields that change visible strip elements.
   //
   // Every self-labelling field re-renders rather than being patched in place.

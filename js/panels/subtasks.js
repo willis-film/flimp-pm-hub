@@ -10,6 +10,12 @@ function ufTask(id, field, value){
   r[field]=value;
   A.logActivity(r,field,old,value);
   save();
+  // Phase is the one field this app owns that ClickUp also has a home for, so
+  // it's mirrored outward on change — but only once AUTO_PUSH_PHASE is on. It
+  // is off for now, and the ⟳ button in the Phase cell is what actually writes.
+  // Either way this runs AFTER save(), never instead of it: the board's copy
+  // lands regardless of whether ClickUp answers.
+  if(field==='phase') A.pushPhaseOnEdit(r);
 }
 
 function ufTaskAndRender(id, field, value){
