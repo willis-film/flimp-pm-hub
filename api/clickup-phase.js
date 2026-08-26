@@ -104,8 +104,50 @@ async function clickup(token, path, init) {
 
 export default async function handler(req, res) {
   try {
-    const { CLICKUP_API_TOKEN } = process.env;
+    // Trimmed on read. A token pasted into the Vercel dashboard picks up a
+    // trailing newline or a stray space more often than anyone expects, and
+    // ClickUp answers that with the same "Token invalid" (OAUTH_025) it gives a
+    // genuinely revoked token — indistinguishable from the outside. Trimming
+    // removes that possibility rather than leaving it to be diagnosed twice.
+    const CLICKUP_API_TOKEN = (process.env.CLICKUP_API_TOKEN || '').trim();
     if (!CLICKUP_API_TOKEN) throw new Error('Missing env var: CLICKUP_API_TOKEN');
+
+    // ?diag=1 — reports WHICH deployment answered and what SHAPE of token it
+    // holds. Never the token itself: only its length and first three
+    // characters, which is enough to tell a ClickUp personal token ('pk_')
+    // from an OAuth token or a pasted-in wrong value, and nowhere near enough
+    // to use. Nothing here calls ClickUp, so it answers even when auth is
+    // broken — which is the entire point.
+    //
+    // Exists because a 401 from this endpoint alongside a WORKING pull sync
+    // has two very different causes that look identical from a browser: the
+    // two endpoints are on different deployments (an alias pointing at an old
+    // build, which carries that build's snapshot of the env vars), or they're
+    // on the same one and the token is genuinely bad. commit + env below
+    // settle which — compare them against the deployment your app is served
+    // from.
+    if (req.query && (req.query.diag === '1' || req.query.diag === 'true')) {
+      const raw = process.env.CLICKUP_API_TOKEN || '';
+      return res.status(200).json({
+        ok: true,
+        mode: 'diag — no ClickUp call, no token disclosed',
+        deployment: {
+          env: process.env.VERCEL_ENV || null,
+          url: process.env.VERCEL_URL || null,
+          commit: (process.env.VERCEL_GIT_COMMIT_SHA || '').slice(0, 7) || null,
+          branch: process.env.VERCEL_GIT_COMMIT_REF || null
+        },
+        token: {
+          present: !!raw,
+          length: raw.length,
+          prefix: raw.slice(0, 3),
+          hadSurroundingWhitespace: raw !== raw.trim()
+        },
+        // Whether THIS build carries the corrected field name. A deployment
+        // still reporting 'Phase' is running code from before that fix.
+        lookingForField: FIELD_NAME_PHASE
+      });
+    }
 
     // ── Read-only diagnostic ────────────────────────────────────────────────
     if (req.method === 'GET') {
