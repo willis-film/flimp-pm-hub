@@ -439,20 +439,22 @@ function render(){
           <span class="fps-next-label${task.due&&daysLeft(task.due)<0?' past':''}" id="tdue-lbl-${task.id}" onclick="A.openTaskDatePicker('${task.id}','due','tdue-lbl-${task.id}')" style="cursor:pointer;font-size: 12px">${fmtDate(task.due)||'—'}</span>
           <input type="date" id="tdue-inp-${task.id}" value="${task.due||''}" onchange="A.ufTask('${task.id}','due',this.value);A.updateTaskDueLbl('${task.id}')" style="position:absolute;opacity:0;width:0;height:0;top:0;left:0">
         </td>
-        <td>
-          <div style="display:flex;align-items:center;gap:2px">
-            <!-- max-width tracks .th-phase (152px) minus the 12px indicator
-                 slot and its 2px gap. title shows the full phase on hover,
-                 since the two longest labels ellipsize at this width. -->
-            <select title="${esc(PHASE_LABELS[task.phase]||'')}" style="font-family:var(--font);font-size: 12px;color:var(--text);background:none;border:none;outline:none;cursor:pointer;width:100%;max-width:138px;text-overflow:ellipsis" onchange="A.ufTask('${task.id}','phase',this.value)">
-              <option value="">—</option>
-              ${Object.entries(PHASE_LABELS).map(([k,v])=>`<option value="${k}"${task.phase===k?' selected':''}>${v}</option>`).join('')}
-            </select>
-            <!-- Failure-only slot: 12px reserved on every ClickUp-linked row so
-                 a ✕ appearing later can't reflow the cell. Empty while the
-                 phase sync is working, which is the normal case. -->
-            ${task.clickupId?`<span id="cu-phase-ind-${task.id}" style="flex:0 0 12px;width:12px;text-align:center">${A.phaseIndicatorHtml(task.id)}</span>`:''}
-          </div>
+        <td style="position:relative">
+          <!-- max-width is a ceiling only; the real constraint is the cell's
+               content box (~129px at the current .th-phase width), so the
+               longer labels ellipsize and the title is how you read them. -->
+          <select title="${esc(PHASE_LABELS[task.phase]||'')}" style="font-family:var(--font);font-size: 12px;color:var(--text);background:none;border:none;outline:none;cursor:pointer;width:100%;max-width:150px;text-overflow:ellipsis" onchange="A.ufTask('${task.id}','phase',this.value)">
+            <option value="">—</option>
+            ${Object.entries(PHASE_LABELS).map(([k,v])=>`<option value="${k}"${task.phase===k?' selected':''}>${v}</option>`).join('')}
+          </select>
+          <!-- Failure indicator, taken OUT of the flow: absolutely positioned
+               so it costs the cell nothing while empty, which is the normal
+               case. Reserving inline space for it instead left ~14px of dead
+               air on every row and just read as a badly-set column width.
+               When it does appear it overlays the tail of the select — a few
+               pixels of an ellipsis, on a row that's already telling you
+               something is wrong. -->
+          ${task.clickupId?`<span id="cu-phase-ind-${task.id}" style="position:absolute;right:2px;top:50%;transform:translateY(-50%);line-height:1">${A.phaseIndicatorHtml(task.id)}</span>`:''}
         </td>
         <td style="text-align:center">
           ${(()=>{

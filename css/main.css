@@ -729,6 +729,12 @@ body::before {
   display: flex; gap: 4px; align-items: center; flex-wrap: nowrap;
   overflow-x: auto; overflow-y: hidden;
 }
+/* No visible scrollbar on either tag row. The global bar is 9px tall, and both
+   of these rows are only a chip high — the bar ate enough of that box to clip
+   the tops of the chips. Scrolling still works (wheel, trackpad, drag); it just
+   doesn't reserve a gutter. Class beats the `*` scrollbar-width rule below. */
+.fps-tags, .tags-wrap { scrollbar-width: none; -ms-overflow-style: none; }
+.fps-tags::-webkit-scrollbar, .tags-wrap::-webkit-scrollbar { width: 0; height: 0; display: none; }
 /* Load-bearing. Chips are flex items, so by default they SHRINK to fit the
    container rather than overflowing it — the row would just squash every chip
    narrower and never become scrollable at all. */
@@ -868,10 +874,13 @@ body::before {
 .th-status { width: 110px; }
 /* 185px before — sized to fit 'Waiting on Internal Links/AI' (167px rendered),
    the one outlier label, which made Phase the second-widest column in the
-   table for the sake of a phase that's rarely on screen. 152px fits every
-   other label whole and ellipsizes those longest two; the select carries a
-   title so the full phase is one hover away, and opening the dropdown always
-   shows them in full. */
+   table for the sake of a phase that's rarely on screen.
+   Cell padding eats ~23px, so this number minus 23 is what the label actually
+   gets: at 152 that's 129px, which ellipsizes the five longest phases; 165
+   would ellipsize only the two longest; the old 185 only ever clipped one.
+   The select carries a title so the full phase is one hover away, and the
+   dropdown always lists them in full. The whole width is the select's — the
+   ClickUp sync's failure ✕ is positioned absolutely and takes none of it. */
 .th-phase { width: 152px; } .th-tags { width: 96px; }
 .th-due { width: 90px; } .th-days { width: 70px; } .th-assign { width: 78px; }
 .th-am { width: 92px; } .th-update { width: 92px; } .th-type { width: 140px; }
