@@ -157,3 +157,21 @@ export function fmtAbsTime(entry) {
     hour: 'numeric', minute: '2-digit'
   });
 }
+
+// ── ROW ATTACHMENT ───────────────────────────────────────────────────────────
+// A task removed from a project is DETACHED, not deleted: the row is kept
+// whole, `parentId` is cleared, and the project it came from is remembered in
+// `detachedFrom`. See the long note above detachCuRow() in clickup.js for why
+// removal works this way and how a detached row gets back onto a project.
+//
+// These two predicates are the whole contract, and they exist because clearing
+// parentId collides with the app's older shorthand: `parentId === null` used to
+// mean "this row is a project", and a detached task now reads that way too. So
+// every list of PROJECTS goes through isProjectRow() rather than testing
+// parentId directly, or a parked task shows up on the board as an empty project
+// strip and in every project dropdown.
+//
+// They live here, in the dependency-free helpers, so store.js can use them
+// without importing the ClickUp module.
+export function isDetached(r) { return !!(r && r.detachedFrom); }
+export function isProjectRow(r) { return !!r && r.parentId === null && !isDetached(r); }

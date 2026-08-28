@@ -3,7 +3,7 @@
 // Kept together because they share render() and the `ui` view state.
 
 import { STATUS_LABELS, PHASE_LABELS, STATUS_CYCLE, ALL_TAGS, AM_LIST, DESIGNER_LIST, ANIMATOR_LIST, VO_LIST, PRODUCT_TYPE_LIST, PRODUCT_STYLE_MAP, PRODUCT_TIER_MAP, CLOSEOUT_ITEMS } from './data/constants.js';
-import { esc, fmtDate, daysLeft, fmtNextActivity, tagColor, tagTextColor, tagBorderColor, tagChip, statusBadge, phasePill, tagsHtml, df, fmtRelTime, fmtAbsTime } from './utils.js';
+import { esc, fmtDate, daysLeft, fmtNextActivity, tagColor, tagTextColor, tagBorderColor, tagChip, statusBadge, phasePill, tagsHtml, df, fmtRelTime, fmtAbsTime, isProjectRow } from './utils.js';
 import { db, save } from './store.js';
 import { ui } from './state.js';
 import { A, register } from './bus.js';
@@ -186,7 +186,10 @@ function render(){
 
   const STATUS_ORDER = { kickoff:0, production:1, limbo:2, done:3, closed:4 };
   const STATUS_SECTION_LABELS = { kickoff:'Kickoff', production:'In Production', limbo:'In Limbo', done:'Done', closed:'Closed' };
-  const parents=db.rows.filter(r=>r.parentId===null).sort((a,b)=>{
+  // isProjectRow(), not a bare parentId===null: a task removed from a project
+  // is parked with a null parentId too (see clickup.js), and testing parentId
+  // alone would draw every parked task on the board as an empty project strip.
+  const parents=db.rows.filter(isProjectRow).sort((a,b)=>{
     const sd=(STATUS_ORDER[a.status]??9)-(STATUS_ORDER[b.status]??9);
     if(sd!==0) return sd;
     if(!a.due && !b.due) return 0;
@@ -498,7 +501,17 @@ function render(){
           <input type="date" id="dist-inp-${task.id}" value="${task.distributionDate||''}" onchange="A.ufTask('${task.id}','distributionDate',this.value);document.getElementById('dist-lbl-${task.id}').textContent=this.value?fmtDate(this.value):'—'" style="position:absolute;opacity:0;width:0;height:0;top:0;left:0">
         </td>
         <td style="text-align:center">
-          <button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size: 11px;color:var(--ink-3)" onclick="deleteRow('${task.id}')">✕</button>
+          ${task.clickupId
+            // A ClickUp-linked row's ✕ REMOVES it from the project; it doesn't
+            // delete it. The task goes back to the unassigned list in the rail
+            // with everything recorded here intact, and re-assigning restores
+            // it — see the note above detachCuRow() in clickup.js. Deleting
+            // that data for good is a separate, deliberate step in the ClickUp
+            // manage modal.
+            ? `<button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size: 11px;color:var(--ink-3)" title="Remove from this project — keeps the task and everything on it" onclick="A.detachCuRow('${task.id}')">✕</button>`
+            // A hand-made subtask has no ClickUp task behind it and nowhere to
+            // go back to, so ✕ still means delete.
+            : `<button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size: 11px;color:var(--ink-3)" title="Delete this task" onclick="deleteRow('${task.id}')">✕</button>`}
         </td>`;
       tbody.appendChild(tr);
     });
@@ -917,7 +930,7 @@ function uf(id,field,value){
   // placeholder span. Hand-patching textContent cannot express that, and the
   // three partial-update paths that used to live here were what re-introduced
   // em-dashes and full-year dates after an edit.
-  const isParent=r.parentId===null;
+  const isParent=isProjectRow(r);
   const needsRender=['status','activePanel','tags','io','branding'].includes(field)
     || (isParent && ['due','oeStart','nextActivity',
                      'zohoLink','estimateLink','dropboxLink'].includes(field));
@@ -939,7 +952,7 @@ function deleteRow(id){
 function openDetail(id){
   const row=db.rows.find(r=>r.id===id); if(!row)return;
   ui.detailId=id;
-  const isParent=row.parentId===null;
+  const isParent=isProjectRow(row);
   document.getElementById('dp-title').textContent=row.name;
   document.getElementById('dp-meta').innerHTML=`${statusBadge(row.status)} ${phasePill(row.phase)} ${tagsHtml(row.tags)}`;
 
@@ -999,6 +1012,16 @@ function openDetail(id){
       <button class="btn btn-danger dp-delete-btn" onclick="deleteRow('${id}')">
         <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-2px"><path d="M2.5 4h11M6 4V2.5h4V4M4 4l.6 9a1 1 0 001 1h4.8a1 1 0 001-1L12 4M6.5 7v4.5M9.5 7v4.5"/></svg>
         Delete Project
+      </button>
+    </div>`:''}
+    ${!isParent&&row.clickupId&&row.parentId?`<div class="dp-section dp-danger-zone">
+      <!-- Not in the danger colour, and not called Delete: this takes the task
+           off the project and keeps every field in this panel. The board's ✕ on
+           the same row does exactly this — repeated here because the panel is
+           where someone is looking when they realise the item is filed wrong. -->
+      <button class="btn btn-ghost dp-detach-btn" title="The task and its data are kept — assign it again from the ClickUp rail to restore it" onclick="A.detachCuRow('${id}')">
+        <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-2px"><path d="M6.5 9.5L9.5 6.5M7 3.5l1-1a2.8 2.8 0 014 4l-1 1M9 12.5l-1 1a2.8 2.8 0 01-4-4l1-1"/></svg>
+        Remove from Project
       </button>
     </div>`:''}
     <div class="dp-section">

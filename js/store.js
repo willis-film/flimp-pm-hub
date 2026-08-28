@@ -16,6 +16,7 @@
 
 import { SEED_DB } from './data/seed.js';
 import { applyReference } from './data/constants.js';
+import { isDetached } from './utils.js';
 
 const LAST_OPEN_KEY = 'flimp_last_open'; // per-device marker, not project data — stays local, see dailyIOReset() below.
 const API = '/api/db';
@@ -117,7 +118,11 @@ const PROJECT_FIELD_DEFAULTS = {
 
 function backfillInfoFields() {
   (db.rows || []).forEach(r => {
-    const defaults = r.parentId ? ITEM_FIELD_DEFAULTS : PROJECT_FIELD_DEFAULTS;
+    // A task removed from its project keeps a null parentId but is still an
+    // ITEM, not a project — without isDetached() here a parked task would be
+    // backfilled with the project-scope keys (brief, timeline, closeout…) and
+    // carry that junk back onto whatever project it's next assigned to.
+    const defaults = (r.parentId || isDetached(r)) ? ITEM_FIELD_DEFAULTS : PROJECT_FIELD_DEFAULTS;
     for (const k in defaults) {
       if (!(k in r)) r[k] = defaults[k];
     }

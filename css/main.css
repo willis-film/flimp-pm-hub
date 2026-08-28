@@ -805,6 +805,16 @@ body::before {
   padding: 7px 13px;
 }
 
+/* Remove-from-project, in the same slot for a ClickUp-linked task. Shares the
+   delete button's shape so the panel keeps one action row, but stays a ghost
+   button: it takes the task off the project and keeps every field above it, so
+   reading as destructive would be a lie. */
+.dp-detach-btn {
+  display: inline-flex; align-items: center; font-size: 12.5px;
+  padding: 7px 13px;
+}
+.dp-detach-btn:hover { color: var(--signal); border-color: var(--signal); }
+
 /* ── SUBTASK TABLE ───────────────────────────────────────────────────────── */
 /* ── OPEN PANELS ──────────────────────────────────────────────────────────────
    Every panel opened from the bento grid indents to --spine-off, so its left
@@ -1152,6 +1162,11 @@ body::before {
 .cu-task-item:hover, .gmail-label-item:hover { background: rgba(28,42,51,0.03); }
 .cu-task-dot, .gmail-label-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 0 1px rgba(28,42,51,0.15) inset; }
 .cu-task-name, .gmail-label-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Marks an unassigned ClickUp task that still has hub data parked against it
+   from a previous project — assigning it restores that data rather than
+   starting blank. Sits between the name and Assign, and shrinks the name
+   rather than the button. */
+.cu-task-kept { font-family: var(--font-mono); font-size: 9px; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); background: var(--panel-2); border: 1px solid var(--line); border-radius: 3px; padding: 1px 4px; white-space: nowrap; flex-shrink: 0; cursor: help; }
 .cu-task-assign, .gmail-label-assign { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-3); background: var(--panel); border: 1px solid var(--line-2); border-radius: 4px; padding: 2px 7px; cursor: pointer; white-space: nowrap; transition: all .13s; flex-shrink: 0; }
 .cu-task-assign:hover, .gmail-label-assign:hover { color: var(--signal); border-color: var(--signal); }
 .gmail-label-assigned { font-family: var(--font-mono); font-size: 9.5px; color: #267247; background: #E4F3EA; border: 1px solid #BFE3CC; border-radius: 4px; padding: 2px 7px; white-space: nowrap; }
@@ -1173,6 +1188,11 @@ body::before {
 .mrow-btn { flex-shrink: 0; font-size: 11px; padding: 2px 8px; }
 .mrow-btn-unassign { color: var(--sig-production); }
 .mrow-btn-assign { color: var(--signal); }
+/* Discard is the only button in this modal that destroys anything, and it only
+   appears on a task whose data is already parked. Quiet until hovered, so the
+   row's normal action (Assign) stays the obvious one. */
+.mrow-btn-discard { color: var(--ink-4); }
+.mrow-btn-discard:hover { color: var(--sig-alert); }
 .mrow-empty { font-size: 13px; color: var(--ink-3); font-style: italic; padding: 8px 0; }
 
 /* ── UNASSIGNED BANNERS ──────────────────────────────────────────────────── */
@@ -1369,6 +1389,11 @@ input[type=checkbox] { accent-color: var(--signal); width: 15px; height: 15px; c
 .modal-sm { width: 440px; } .modal-md { width: 560px; }
 .modal-title { font-family: var(--font-display); font-size: 18px; font-weight: 600; margin-bottom: 18px; color: var(--ink); letter-spacing: 0.2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mf { margin-bottom: 13px; }
+/* Explanatory line under a modal field — currently only the assign-task modal,
+   telling you that this assignment RESTORES a task removed earlier rather than
+   creating a blank one. Hidden until there is something to say. */
+.mf-note { font-size: 11.5px; line-height: 1.45; color: var(--ink-2); background: var(--panel-2); border: 1px solid var(--line); border-left: 2px solid var(--signal); border-radius: 3px; padding: 7px 9px; margin: -4px 0 13px; }
+.mf-note.hidden { display: none; }
 .mf-label { font-size: 12px; color: var(--ink-2); margin-bottom: 5px; }
 .mi { width: 100%; background: var(--panel); border: 1px solid var(--line-2); border-radius: var(--radius-sm); padding: 8px 11px; color: var(--ink); font-size: 14px; font-family: var(--font); transition: border-color .13s; }
 .mi:focus { outline: none; border-color: var(--signal); box-shadow: 0 0 0 3px var(--signal-glow); }

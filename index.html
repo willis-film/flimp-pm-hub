@@ -231,6 +231,10 @@
       <div class="mf-label">Project</div>
       <select class="mi" id="acm-project"></select>
     </div>
+    <!-- Shown only when this task was removed from a project earlier and its
+         row is still parked: assigning restores that row rather than starting a
+         blank one, and arriving comments and costs need explaining first. -->
+    <div class="mf-note hidden" id="acm-restore-note"></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeAssignCuTaskModal()">Cancel</button>
       <button class="btn btn-primary" onclick="submitAssignCuTask()">Assign</button>

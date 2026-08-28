@@ -2,7 +2,7 @@
 // cascade, the New/Edit Project modal, and the New/Edit Task modal.
 
 import { PRODUCT_TIER_MAP, PHASE_LABELS, AM_LIST } from '../data/constants.js';
-import { esc, fmtDate, fmtNextActivity, newId } from '../utils.js';
+import { esc, fmtDate, fmtNextActivity, newId, isProjectRow } from '../utils.js';
 import { db, save } from '../store.js';
 import { A, register } from '../bus.js';
 
@@ -123,7 +123,9 @@ function submitParent(){
 function openSubtaskModal(defaultParentId,editId){
   editingSubtaskId=editId||null;
   const row=editId?db.rows.find(r=>r.id===editId):null;
-  const parents=db.rows.filter(r=>r.parentId===null);
+  // isProjectRow(): a task parked by a removal also has a null parentId (see
+  // clickup.js), and it is not somewhere another task can be filed.
+  const parents=db.rows.filter(isProjectRow);
   const sel=document.getElementById('sm-parent');
   sel.innerHTML=`<option value="">(No parent)</option>`+parents.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
   sel.value=defaultParentId||'';

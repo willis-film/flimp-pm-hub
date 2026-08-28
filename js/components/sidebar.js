@@ -1,7 +1,7 @@
 // sidebar.js — left sidebar: view/status filters, sidebar collapse, and the
 // Gmail + ClickUp sidebar lists and unassigned banners.
 
-import { esc } from '../utils.js';
+import { esc, isDetached } from '../utils.js';
 import { db, save } from '../store.js';
 import { ui } from '../state.js';
 import { A, register } from '../bus.js';
@@ -50,7 +50,9 @@ function renderGmailBanner(){
 
 function renderCuBanner(){
   const allTasks=db.clickupTasks||[];
-  const assignedIds=new Set(db.rows.filter(r=>r.clickupId).map(r=>r.clickupId));
+  // Parked rows are excluded: a task removed from its project counts as
+  // unassigned again, and the banner is what tells you it's waiting.
+  const assignedIds=new Set(db.rows.filter(r=>r.clickupId&&!isDetached(r)).map(r=>r.clickupId));
   const unassigned=allTasks.filter(t=>!assignedIds.has(t.id)).length;
   const banner=document.getElementById('cu-banner');
   const count=document.getElementById('cu-banner-count');
@@ -65,9 +67,14 @@ function renderCuBanner(){
 function renderClickUpSidebar(){
   const list=document.getElementById('clickup-task-list'); if(!list) return;
   const allTasks=db.clickupTasks||[];
-  // A CU task is "assigned" if a db.rows entry exists with that clickupId
-  const assignedCuIds=new Set(db.rows.filter(r=>r.clickupId).map(r=>r.clickupId));
+  // A CU task is "assigned" if a LIVE db.rows entry exists with that clickupId.
+  // A parked row — one removed from its project, kept for its data — doesn't
+  // count, so the task reappears here ready to be assigned somewhere else.
+  const assignedCuIds=new Set(db.rows.filter(r=>r.clickupId&&!isDetached(r)).map(r=>r.clickupId));
   const unassigned=allTasks.filter(t=>!assignedCuIds.has(t.id));
+  // Which of those still have data waiting to be restored. Marked in the list
+  // because "assign" means two different things depending on the answer.
+  const parkedCuIds=new Set(db.rows.filter(r=>r.clickupId&&isDetached(r)).map(r=>r.clickupId));
   const cuStatusColors={'to do':'#6b7280','in progress':'#d97706','in review':'#2563eb','complete':'#16a34a'};
   if(!unassigned.length){
     list.innerHTML='<div style="padding:4px 14px;font-size:12px;color:var(--text3);font-style:italic">'+(allTasks.length?'All tasks assigned':'No tasks synced yet')+'</div>';
@@ -76,6 +83,9 @@ function renderClickUpSidebar(){
   list.innerHTML=unassigned.map(t=>'<div class="cu-task-item">'+
     '<div class="cu-task-dot" style="background:'+(cuStatusColors[t.status]||'#6b7280')+'"></div>'+
     '<span class="cu-task-name" title="'+esc(t.name)+'">'+esc(t.name)+'</span>'+
+    (parkedCuIds.has(t.id)
+      ? '<span class="cu-task-kept" title="Removed from a project — its phase, comments, dates and costs are still here, and assigning it to a project restores them">kept</span>'
+      : '')+
     '<span class="cu-task-assign" onclick="A.openAssignCuTaskModal(\''+t.id+'\')">Assign</span>'+
   '</div>').join('');
 }

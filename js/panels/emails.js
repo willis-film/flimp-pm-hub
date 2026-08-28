@@ -1,6 +1,6 @@
 // emails.js — Inbox panel: Gmail label pills, label assignment modals.
 
-import { esc } from '../utils.js';
+import { esc, isProjectRow } from '../utils.js';
 import { db, save, load } from '../store.js';
 import { A, register } from '../bus.js';
 
@@ -29,7 +29,7 @@ function openAssignLabelModal(labelId){
   const lbl=(db.gmailLabelDefs||[]).find(l=>l.id===labelId);
   document.getElementById('alm-title').textContent=`Assign "${lbl?lbl.name:''}" to a project`;
   const sel=document.getElementById('alm-project');
-  const parents=db.rows.filter(r=>r.parentId===null);
+  const parents=db.rows.filter(isProjectRow);
   sel.innerHTML=`<option value="">— select a project —</option>`+parents.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
   document.getElementById('assign-label-overlay').classList.add('open');
 }
@@ -48,7 +48,7 @@ function openGmailLabelModal(){
   const prefix=(db.gmailClientPrefix||'').toLowerCase();
   const allLabels=db.gmailLabelDefs||[];
   const labels=prefix ? allLabels.filter(l=>l.name.toLowerCase().startsWith(prefix)) : allLabels;
-  const parents=db.rows.filter(r=>r.parentId===null);
+  const parents=db.rows.filter(isProjectRow);
   document.getElementById('glm-body').innerHTML=labels.map(lbl=>{
     const displayName=lbl.name.includes('/')?lbl.name.split('/').pop():lbl.name;
     const assigned=parents.filter(r=>(r.gmailLabels||[]).includes(lbl.id));
