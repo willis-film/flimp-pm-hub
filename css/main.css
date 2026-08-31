@@ -311,7 +311,26 @@ body::before {
   font-family: var(--font-display); font-size: 25px; font-weight: 600; color: var(--ink);
   letter-spacing: 0.2px; line-height: 1.05;
 }
-.header-actions { display: flex; gap: 8px; }
+.header-actions { display: flex; gap: 8px; align-items: center; }
+
+/* Save state, in the header beside the sync buttons. There is deliberately no
+   "Saved" state: a success message every 400ms is noise that teaches you to
+   stop reading the spot, and this element only earns its place by being
+   trustworthy when it DOES say something. Hidden entirely while writes are
+   landing; visible only when they are not.
+   `.hidden` is scoped per component in this file rather than global, so it is
+   declared here alongside the element it hides. */
+.save-status {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.6px;
+  text-transform: uppercase; color: var(--sig-alert);
+  border: 1px solid var(--sig-alert); border-radius: 3px;
+  padding: 3px 8px; white-space: nowrap; cursor: default;
+}
+/* Load failed: the board is showing demo data and nothing is being written.
+   Filled rather than outlined — this is a harder stop than a failing save,
+   because nothing typed while it is up will be kept. */
+.save-status.is-offline { background: var(--sig-alert); color: #fff; }
+.save-status.hidden { display: none; }
 
 /* ── SCROLL AREA ─────────────────────────────────────────────────────────── */
 .list-wrap {

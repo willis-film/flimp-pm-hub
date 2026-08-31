@@ -434,14 +434,45 @@ export default async function handler(req, res) {
         if (upsertErr) throw upsertErr;
       }
 
-      // 3. Delete anything the client no longer has. Guarded on a non-empty
-      //    incoming list — an accidental empty save should never be able to
-      //    wipe the whole table. `seen` is the deduplicated id set from 2a.
-      const incomingIds = [...seen];
-      if (incomingIds.length > 0) {
-        const list = incomingIds.map(id => `"${id}"`).join(',');
-        const { error: delErr } = await supabase.from('rows').delete().not('id', 'in', `(${list})`);
-        if (delErr) throw delErr;
+      // 3. Delete rows the client had and no longer has — and ONLY those.
+      //
+      //    This used to be `delete where id NOT IN (payload ids)`, which made
+      //    every save an assertion about the whole table rather than about the
+      //    rows the client actually knew. On 2026-08-31 a laptop tab holding a
+      //    week-old snapshot fired one save and that NOT IN deleted every row
+      //    created in the intervening week. Nothing was malformed and nothing
+      //    errored — the payload was a perfectly valid description of the board
+      //    as that tab last saw it. Free-tier Supabase has no backups.
+      //
+      //    So the client now sends `knownIds`: every row id it has seen (its
+      //    last successful read, plus anything it created since — see the write
+      //    gate note in js/store.js). The delete set is knownIds MINUS the ids
+      //    in this payload, which is exactly "rows this client is telling us it
+      //    removed". A row created on another machine after this client loaded
+      //    appears in neither list, so it is now invisible to this delete
+      //    instead of being swept up by it.
+      //
+      //    Deliberate deletion is unaffected: unassignCuTaskAll and deleteRow
+      //    drop rows the client loaded, so those ids are in knownIds and absent
+      //    from rows — still deleted, exactly as before.
+      const known = Array.isArray(body.knownIds) ? body.knownIds : null;
+      if (known === null) {
+        // A client that predates this field — a tab still running an older
+        // deploy, which is the exact population that caused the incident. It
+        // cannot tell us what it knew, so a genuine deletion and a row it has
+        // never seen are indistinguishable. Skip deletes entirely rather than
+        // guess: a deletion that fails to propagate is visible and repeatable
+        // after a refresh, a row destroyed by a stale tab is neither.
+        console.warn('api/db: POST without knownIds — skipping deletes (client running an older deploy?)');
+      } else {
+        const toDelete = known.filter(id => !seen.has(id));
+        if (toDelete.length > 0) {
+          // .in() with an array, not a hand-built `("a","b")` string: these ids
+          // are client-supplied, and the old string interpolation put them
+          // straight into the query untouched.
+          const { error: delErr } = await supabase.from('rows').delete().in('id', toDelete);
+          if (delErr) throw delErr;
+        }
       }
 
       return res.status(200).json({ ok: true });

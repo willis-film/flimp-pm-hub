@@ -70,6 +70,9 @@
         <div class="page-title" id="page-title">All Projects</div>
       </div>
       <div class="header-actions">
+        <!-- Save state. Empty and hidden while saves are landing; the only time
+             it has text is when they are NOT, which used to be invisible. -->
+        <span id="save-status" class="save-status hidden"></span>
         <button id="sync-cu-btn" class="btn btn-ghost btn-sm" onclick="syncClickUp()">Sync ClickUp</button>
         <button id="sync-gmail-btn" class="btn btn-ghost btn-sm" onclick="syncGmail()">Sync Gmail</button>
       </div>
