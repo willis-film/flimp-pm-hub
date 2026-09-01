@@ -872,6 +872,125 @@ body::before {
 
 .sheet, .inv-sheet, .email-sheet { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; }
 
+/* The subtask sheet alone uses FIXED layout. Under auto layout a <th> width is
+   only a suggestion — a column grows to fit its widest cell, and the fill from
+   min-width:100% is then shared across however many columns exist. Both make
+   the same column render at a different width in each view and in each
+   project: Name measured 281 / 413 / 471 / 794 depending on view, content and
+   window. Fixed layout makes the declared widths authoritative, so a column is
+   the same width everywhere.
+   Every view must then name ONE column to leave un-sized (view.flexCol in
+   data/subtask-columns.js). Fixed layout gives leftover space to auto-width
+   columns; with none, it shares the leftover across ALL columns proportionally
+   and the drift comes straight back. */
+.sheet { table-layout: fixed; }
+.sheet th.th-flex { width: auto; }
+
+/* ── SUBTASK COLUMN-SET SWITCH ───────────────────────────────────────────────
+   Sits in the Name header, which is the sheet's only sticky column — so it
+   stays put while the rest of the sheet scrolls under it. Sized to fit inside
+   the 30px header without changing its height. */
+.th-name-inner { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sv-seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: var(--radius-sm); overflow: hidden; flex-shrink: 0; }
+.sv-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 23px; height: 18px; padding: 0; border: 0; background: transparent;
+  color: var(--ink-3); cursor: pointer; transition: background .13s, color .13s;
+}
+.sv-btn + .sv-btn { border-left: 1px solid var(--line); }
+.sv-btn:hover { background: rgba(28, 42, 51, 0.05); color: var(--ink); }
+/* Saturated, not tinted — same call as .tg-btn.active above, for the same
+   reason: the tint values are already spoken for by hover. */
+.sv-btn.active { background: var(--signal); color: #fff; }
+.sv-btn.active:hover { background: var(--signal-deep); color: #fff; }
+.sv-btn svg { display: block; }
+
+/* ── PLAN COLUMNS ────────────────────────────────────────────────────────────
+   Stage / vs Plan / Next Tick, fed by the timeline join. */
+.th-stage { width: 172px; } .th-vsplan { width: 104px; } .th-nexttick { width: 170px; }
+
+/* Both empty states — no plan imported, or this item not matched to a
+   deliverable. Muted but clearly clickable: the fix is in the Timeline panel
+   and the cell is the shortest route to it. */
+.sv-noplan {
+  font-size: 11px; color: var(--ink-4); cursor: pointer;
+  border-bottom: 1px dotted var(--line-2);
+}
+.sv-noplan:hover { color: var(--signal); border-bottom-color: var(--signal); }
+
+/* Shares the .tl-h-* colour classes with the Timeline panel's chip, so the
+   two never disagree about what "behind" looks like. Geometry is local:
+   .tl-health sets a 38px min-height for the panel's grid, which would push
+   every sheet row to that height. */
+.sv-health {
+  display: inline-flex; align-items: center; border-radius: 4px;
+  font-family: var(--font); font-size: 10.5px; font-weight: 600;
+  padding: 2px 7px; line-height: 1.25; white-space: nowrap;
+}
+
+/* No max-width. An earlier version pinned this to 128px, which clipped the
+   content even when the column had rendered 320px wide — the cap fought the
+   column instead of following it. The column sizes to its content like every
+   other one; the flex split below is what matters, and only bites when the
+   sheet is genuinely too narrow.
+   Flex so the two halves shrink differently: the task name gives way, the
+   date never does. A truncated date is worse than no date. */
+.sv-next { display: flex; align-items: baseline; gap: 4px; font-size: 12px; color: var(--ink); }
+.sv-next-t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sv-next-d { flex-shrink: 0; color: var(--ink-3); white-space: nowrap; }
+.sv-done { font-size: 11px; color: var(--sig-closed); font-weight: 500; }
+
+.th-review { width: 140px; } .th-dropbox { width: 90px; } .th-touched { width: 108px; }
+
+/* Review cell — link + optional "also has Boords" chip + edit pencil. */
+.sv-lp { display: inline-flex; align-items: center; gap: 4px; }
+.sv-lp-empty {
+  font-size: 12px; color: var(--ink-4); cursor: pointer;
+  border-bottom: 1px dotted var(--line-2);
+}
+.sv-lp-empty:hover { color: var(--signal); border-bottom-color: var(--signal); }
+/* Says a Boords link exists without spending a column on it — and opens it.
+   An <a>, so it is keyboard-reachable and middle-clickable like any link. */
+.sv-lp-chip {
+  font-family: var(--font-mono); font-size: 9px; line-height: 1;
+  padding: 2px 4px; border-radius: 3px; text-decoration: none;
+  background: var(--signal-tint); color: var(--signal-deep);
+  transition: background .13s, color .13s;
+}
+.sv-lp-chip:hover { background: var(--signal); color: #fff; }
+.sv-lp-edit { font-size: 10px; color: var(--ink-4); cursor: pointer; }
+.sv-lp-edit:hover { color: var(--signal); }
+
+/* Last Touched — stale is the reason the column exists, so it must not read
+   the same as fresh. */
+.sv-touched { font-size: 12px; color: var(--ink-2); }
+.sv-touched.stale { color: var(--sig-production); font-weight: 500; }
+
+/* ── REVIEW / BOORDS LINK POPOVER ────────────────────────────────────────────
+   Fixed-position like .scp, positioned in JS against the cell. Two labelled
+   boxes rather than one, so adding the second link never looks like replacing
+   the first. */
+.lpop {
+  position: fixed; z-index: 300; display: none;
+  background: var(--panel); border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm); box-shadow: 0 8px 24px rgba(21,35,58,0.14);
+  padding: 10px 11px 11px;
+}
+.lpop.open { display: block; }
+.lp-lab {
+  display: block; font-family: var(--font-mono); font-size: 9px;
+  text-transform: uppercase; letter-spacing: 1px; color: var(--ink-3);
+  margin: 0 0 3px;
+}
+.lp-lab + .lp-inp { margin-bottom: 9px; }
+.lp-inp {
+  width: 100%; height: 27px; box-sizing: border-box;
+  font-family: var(--font); font-size: 11px; color: var(--ink);
+  background: var(--panel-2); border: 1px solid var(--line-2);
+  border-radius: 4px; padding: 0 7px;
+}
+.lp-inp:focus { outline: none; border-color: var(--signal); box-shadow: 0 0 0 2px var(--signal-glow); }
+
 .sheet thead th {
   background: var(--panel-2); border-bottom: 1px solid var(--line-2); border-right: 1px solid var(--line);
   padding: 0 11px; height: 30px; font-family: var(--font-mono); font-size: 9.5px; font-weight: 500;
@@ -899,7 +1018,7 @@ body::before {
    so it's gone; the base border applies. The background overrides stay: a
    sticky cell must be opaque or scrolling content shows through it, and they
    already match what the non-sticky cells use. */
-.th-name   { width: 280px; position: sticky; left: 0; z-index: 20; background: var(--panel-2); }
+.th-name   { width: 440px; position: sticky; left: 0; z-index: 20; background: var(--panel-2); }
 .th-status { width: 110px; }
 /* 185px before — sized to fit 'Waiting on Internal Links/AI' (167px rendered),
    the one outlier label, which made Phase the second-widest column in the
@@ -911,11 +1030,14 @@ body::before {
    dropdown always lists them in full. The whole width is the select's — the
    ClickUp sync's failure ✕ is positioned absolutely and takes none of it. */
 .th-phase { width: 152px; } .th-tags { width: 96px; }
-.th-due { width: 90px; } .th-days { width: 70px; } .th-assign { width: 78px; }
-.th-am { width: 92px; } .th-update { width: 92px; } .th-type { width: 140px; }
+/* Days Left and New/Update are wider than they look: the uppercase mono header
+   with 1px letter-spacing needs more than the data does. Measured, not
+   guessed — under fixed layout an under-declared column clips its own header. */
+.th-due { width: 90px; } .th-days { width: 84px; } .th-assign { width: 78px; }
+.th-am { width: 92px; } .th-update { width: 101px; } .th-type { width: 140px; }
 .th-tier { width: 150px; } .th-style { width: 150px; } .th-brand { width: 70px; }
 .th-zoho { width: 90px; } .th-drop { width: 90px; } .th-comment { width: 200px; }
-.th-next { width: 120px; } .th-act { width: 40px; }
+.th-next { width: 120px; } .th-act { width: 42px; }
 .th-designer { width: 150px; } .th-animator { width: 150px; } .th-vo { width: 150px; } .th-distdate { width: 100px; }
 
 .sheet tbody tr, .inv-sheet tbody tr, .email-sheet tbody tr { transition: background .08s; }

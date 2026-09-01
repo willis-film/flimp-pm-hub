@@ -2,8 +2,11 @@
 // mutators (uf/setStatus/toggleField/...) and the detail-panel controller.
 // Kept together because they share render() and the `ui` view state.
 
-import { STATUS_LABELS, PHASE_LABELS, STATUS_CYCLE, ALL_TAGS, AM_LIST, DESIGNER_LIST, ANIMATOR_LIST, VO_LIST, PRODUCT_TYPE_LIST, PRODUCT_STYLE_MAP, PRODUCT_TIER_MAP, CLOSEOUT_ITEMS } from './data/constants.js';
+// DESIGNER_LIST / ANIMATOR_LIST / VO_LIST moved out with the subtask cells
+// they fed — they now live in data/subtask-columns.js.
+import { STATUS_LABELS, PHASE_LABELS, STATUS_CYCLE, ALL_TAGS, AM_LIST, PRODUCT_TYPE_LIST, PRODUCT_STYLE_MAP, PRODUCT_TIER_MAP, CLOSEOUT_ITEMS } from './data/constants.js';
 import { esc, fmtDate, daysLeft, fmtNextActivity, tagColor, tagTextColor, tagBorderColor, tagChip, statusBadge, phasePill, tagsHtml, df, fmtRelTime, fmtAbsTime, isProjectRow } from './utils.js';
+import { SUBTASK_COLUMNS, subtaskView } from './data/subtask-columns.js';
 import { db, save } from './store.js';
 import { ui } from './state.js';
 import { A, register } from './bus.js';
@@ -372,31 +375,11 @@ function render(){
     subWrap.className='subtask-wrap'+(activePanel!=='subtasks'?' hidden':'');
     subWrap.id='sub-'+parent.id;
 
-    const table=document.createElement('table');
-    table.className='sheet';
-    table.innerHTML=`
-      <thead><tr>
-        <th class="th-name">Name</th>
-        <th style="width:42px">I/O</th>
-        <th class="th-tags">Tags</th>
-        <th class="th-days">Days Left</th>
-        <th class="th-due">Due Date</th>
-        <th class="th-phase">Phase</th>
-        <th style="width:90px">CU</th>
-        <th class="th-update">New/Update</th>
-        <th class="th-type">Product Type</th>
-        <th class="th-tier">Product Tier</th>
-        <th class="th-style">Product Style</th>
-        <th class="th-designer">Designer</th>
-        <th class="th-animator">Animator</th>
-        <th class="th-vo">VO Artist</th>
-        <th class="th-distdate">Dist. Date</th>
-        <th class="th-act"></th>
-      </tr></thead>
-      <tbody id="tbody-${parent.id}"></tbody>`;
-    subWrap.appendChild(table);
-    const tbody=table.querySelector('tbody');
-    const visibleChildren=ui.currentFilter==='all' ? children : children.filter(c=>A.matchesFilter(c));
+    // Header and body are generated from ONE list of column keys (see
+    // data/subtask-columns.js). They used to be two hardcoded sequences that
+    // only agreed by position.
+    const view=subtaskView(parent.subtaskView);
+    const cols=view.cols.map(k=>SUBTASK_COLUMNS[k]).filter(Boolean);
 
     // Reordering is only offered on an unfiltered list. visibleChildren can be
     // a subset, and an index into a filtered view does not address the same
@@ -406,113 +389,37 @@ function render(){
     // are simply not rendered while a filter is active.
     const canReorder = ui.currentFilter==='all';
 
+    // ctx is built ONCE PER SHEET, not once per row, and is shared by the
+    // header and every cell. Cells receive it rather than importing from
+    // render.js, which would close a module cycle (render.js imports the
+    // registry).
+    // tl is the timeline join, built ONCE for the whole sheet — buildStrips
+    // walks every dated plan task against every deliverable, so doing it per
+    // row would repeat that work for each subtask. Only built for a view that
+    // actually has plan columns in it; null otherwise, and null is also what
+    // a project with no pasted plan gets.
+    const colCtx={ parent, canReorder, viewId: view.id,
+                   tl: view.needsTimeline ? A.tlPositionsFor(parent) : null };
+
+    const table=document.createElement('table');
+    table.className='sheet';
+    table.innerHTML=`
+      <thead><tr>
+        ${view.cols.map(k=>{const c=SUBTASK_COLUMNS[k];if(!c)return '';const at=(view.flexCols||[]).includes(k)?'class="th-flex"':c.thAttr;return `<th ${at}>${c.header?c.header(colCtx):c.label}</th>`;}).join('')}
+      </tr></thead>
+      <tbody id="tbody-${parent.id}"></tbody>`;
+    subWrap.appendChild(table);
+    const tbody=table.querySelector('tbody');
+    const visibleChildren=ui.currentFilter==='all' ? children : children.filter(c=>A.matchesFilter(c));
+
     visibleChildren.forEach(task=>{
-      const tdl=task.due?daysLeft(task.due):null;
-      const daysCell=tdl!==null?`<span class="${tdl<0?'overdue':''}">${tdl}</span>`:`<span class="dash">—</span>`;
-      const dotCls=`is-${task.status}`;
       const tr=document.createElement('tr');
       tr.id='tr-'+task.id;
       if(canReorder) tr.dataset.idx=String(children.indexOf(task));
-
-      function taskSelect(field, list){
-        const val=task[field]||'';
-        return `<select style="font-family:var(--font);font-size: 12px;color:var(--text);background:none;border:none;outline:none;cursor:pointer;width:100%;max-width:130px" onchange="A.ufTask('${task.id}','${field}',this.value)">
-          <option value="">—</option>
-          ${list.map(n=>`<option value="${n}"${val===n?' selected':''}>${n}</option>`).join('')}
-        </select>`;
-      }
-
-      tr.innerHTML=`
-        <td class="td-name">
-          <div class="name-inner">
-            <!-- Handle occupies the existing 18px toggle-spacer, so adding
-                 drag costs no horizontal layout change. Dragging is bound to
-                 the handle rather than the row because the row's cells hold
-                 inputs and selects, and a draggable ancestor makes selecting
-                 text inside them fight the drag. -->
-            <div class="toggle-spacer">${canReorder?`<span class="drag-handle" title="Drag to reorder">⠿</span>`:''}</div>
-            <div class="row-dot ${dotCls}" onclick="A.openStatusMenu('${task.id}',event)" title="Set status"></div>
-            <span class="task-name-text" onclick="openDetail('${task.id}')" style="${task.io?'font-style:italic;color:var(--text2)':''}">${esc(task.name)}</span>
-          </div>
-        </td>
-        <td style="text-align:center"><div class="cb${task.io?' on':''}" onclick="A.toggleTaskIO('${task.id}')"></div></td>
-        <td>${tagsHtml(task.tags)}</td>
-        <td>${daysCell}</td>
-        <td style="position:relative">
-          <span class="fps-next-label${task.due&&daysLeft(task.due)<0?' past':''}" id="tdue-lbl-${task.id}" onclick="A.openTaskDatePicker('${task.id}','due','tdue-lbl-${task.id}')" style="cursor:pointer;font-size: 12px">${fmtDate(task.due)||'—'}</span>
-          <input type="date" id="tdue-inp-${task.id}" value="${task.due||''}" onchange="A.ufTask('${task.id}','due',this.value);A.updateTaskDueLbl('${task.id}')" style="position:absolute;opacity:0;width:0;height:0;top:0;left:0">
-        </td>
-        <td style="position:relative">
-          <!-- max-width is a ceiling only; the real constraint is the cell's
-               content box (~129px at the current .th-phase width), so the
-               longer labels ellipsize and the title is how you read them. -->
-          <select title="${esc(PHASE_LABELS[task.phase]||'')}" style="font-family:var(--font);font-size: 12px;color:var(--text);background:none;border:none;outline:none;cursor:pointer;width:100%;max-width:150px;text-overflow:ellipsis" onchange="A.ufTask('${task.id}','phase',this.value)">
-            <option value="">—</option>
-            ${Object.entries(PHASE_LABELS).map(([k,v])=>`<option value="${k}"${task.phase===k?' selected':''}>${v}</option>`).join('')}
-          </select>
-          <!-- Failure indicator, taken OUT of the flow: absolutely positioned
-               so it costs the cell nothing while empty, which is the normal
-               case. Reserving inline space for it instead left ~14px of dead
-               air on every row and just read as a badly-set column width.
-               When it does appear it overlays the tail of the select — a few
-               pixels of an ellipsis, on a row that's already telling you
-               something is wrong. -->
-          ${task.clickupId?`<span id="cu-phase-ind-${task.id}" style="position:absolute;right:2px;top:50%;transform:translateY(-50%);line-height:1">${A.phaseIndicatorHtml(task.id)}</span>`:''}
-        </td>
-        <td style="text-align:center">
-          ${(()=>{
-            // clickupUrl first — that's ClickUp's own URL, copied onto the row
-            // by submitAssignCuTask(). Falling back to deriving it from the id
-            // covers every row assigned before that copy existed: those carry
-            // only clickupId, so reading clickupUrl alone left this column
-            // empty for every real synced subtask.
-            const cuUrl=task.clickupUrl||(task.clickupId?`https://app.clickup.com/t/${task.clickupId}`:'');
-            if(!cuUrl) return '<span class="dash">—</span>';
-            // Label reads off the linked URL, not clickupId, so the text can
-            // never name a different task than the href points at.
-            return `<a href="${esc(cuUrl)}" target="_blank" style="font-size:12px;color:var(--accent);text-decoration:none;font-family:var(--font-mono)" title="${esc(cuUrl)}">${esc(cuUrl.split('/').pop())}</a>`;
-          })()}
-        </td>
-        <td style="cursor:pointer" onclick="A.cycleNewUpdate('${task.id}')" title="Click to cycle">
-          ${task.newOrUpdate==='New'?'<span class="pill pill-blue">New</span>':task.newOrUpdate==='Update'?'<span class="pill pill-orange">Update</span>':'<span class="dash">—</span>'}
-        </td>
-        <td>
-          <select style="font-family:var(--font);font-size: 12px;color:var(--text);background:none;border:none;outline:none;cursor:pointer;width:100%;max-width:150px" onchange="A.ufTaskAndRender('${task.id}','productType',this.value)">
-            <option value="">—</option>
-            ${PRODUCT_TYPE_LIST.map(t=>`<option value="${t}"${task.productType===t?' selected':''}>${t}</option>`).join('')}
-          </select>
-        </td>
-        <td>
-          ${(()=>{
-            const tiers=PRODUCT_TIER_MAP[task.productType]||[];
-            if(!tiers.length) return `<span class="dash">—</span>`;
-            return `<select style="font-family:var(--font);font-size: 12px;color:var(--text);background:none;border:none;outline:none;cursor:pointer;width:100%;max-width:150px" onchange="A.ufTask('${task.id}','productTier',this.value)">
-              <option value="">—</option>
-              ${tiers.map(t=>`<option value="${t}"${task.productTier===t?' selected':''}>${t}</option>`).join('')}
-            </select>`;
-          })()}
-        </td>
-        <td>${(()=>{const styles=PRODUCT_STYLE_MAP[task.productType]||[];if(!styles.length)return '<span class="dash">—</span>';return '<select style="font-family:var(--font);font-size:12px;color:var(--text);background:none;border:none;outline:none;cursor:pointer;width:100%;max-width:150px" onchange="A.ufTask(\''+task.id+'\',\'productStyle\',this.value)"><option value="">—</option>'+styles.map(s=>'<option value="'+s+'"'+(task.productStyle===s?' selected':'')+'>'+s+'</option>').join('')+'</select>';})()}</td>
-        <td>${taskSelect('designer',DESIGNER_LIST)}</td>
-        <td>${taskSelect('animator',ANIMATOR_LIST)}</td>
-        <td>${taskSelect('voArtist',VO_LIST)}</td>
-        <td style="position:relative">
-          <span class="fps-next-label" id="dist-lbl-${task.id}" onclick="A.openTaskDatePicker('${task.id}','distributionDate','dist-lbl-${task.id}')" style="cursor:pointer;font-size: 12px">${fmtDate(task.distributionDate)||'—'}</span>
-          <input type="date" id="dist-inp-${task.id}" value="${task.distributionDate||''}" onchange="A.ufTask('${task.id}','distributionDate',this.value);document.getElementById('dist-lbl-${task.id}').textContent=this.value?fmtDate(this.value):'—'" style="position:absolute;opacity:0;width:0;height:0;top:0;left:0">
-        </td>
-        <td style="text-align:center">
-          ${task.clickupId
-            // A ClickUp-linked row's ✕ REMOVES it from the project; it doesn't
-            // delete it. The task goes back to the unassigned list in the rail
-            // with everything recorded here intact, and re-assigning restores
-            // it — see the note above detachCuRow() in clickup.js. Deleting
-            // that data for good is a separate, deliberate step in the ClickUp
-            // manage modal.
-            ? `<button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size: 11px;color:var(--ink-3)" title="Remove from this project — keeps the task and everything on it" onclick="A.detachCuRow('${task.id}')">✕</button>`
-            // A hand-made subtask has no ClickUp task behind it and nowhere to
-            // go back to, so ✕ still means delete.
-            : `<button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size: 11px;color:var(--ink-3)" title="Delete this task" onclick="deleteRow('${task.id}')">✕</button>`}
-        </td>`;
+      tr.innerHTML=cols.map(c=>{
+        const attr=typeof c.tdAttr==='function' ? c.tdAttr(task) : (c.tdAttr||'');
+        return `<td ${attr}>${c.cell(task,colCtx)}</td>`;
+      }).join('');
       tbody.appendChild(tr);
     });
     if(canReorder) A.attachSubtaskDnD(tbody, parent.id);
@@ -797,6 +704,18 @@ function toggleLinkEdit(inputId, btnId){
 function setPanel(id, panel){
   const r=db.rows.find(x=>x.id===id); if(!r)return;
   r.activePanel = r.activePanel===panel ? 'none' : panel;
+  save(); render();
+}
+
+// Which set of columns this project's subtask sheet is showing. Per-project
+// and persisted, so it sits on the parent row beside activePanel rather than
+// in `ui` — the same reasoning that put activePanel there. Note this makes it
+// shared state: it travels through save() to Supabase like every other row
+// field, so the choice is the project's, not the viewer's.
+function setSubtaskView(id, viewId){
+  const r=db.rows.find(x=>x.id===id); if(!r)return;
+  if(r.subtaskView===viewId) return;      // no-op: don't write or repaint
+  r.subtaskView=viewId;
   save(); render();
 }
 
@@ -1393,4 +1312,4 @@ function delComment(id,idx){
 }
 
 // Register on the app bus so other modules + inline handlers can reach these.
-register({ getChildren, latestComment, render, briefIconHTML, openBriefPop, hideBriefPopSoon, closeBriefPop, openBriefEditor, saveBrief, toggleSection, toggleLinkEdit, setPanel, toggleParent, setStatus, cycleStatus, toggleField, toggleBranding, toggleTag, uf, deleteRow, openDetail, closeDetail, renderComments, stripPostComment, openStripComment, closeStripComment, editStripComment, saveStripCommentEdit, delStripComment, postComment, delComment });
+register({ getChildren, latestComment, render, briefIconHTML, openBriefPop, hideBriefPopSoon, closeBriefPop, openBriefEditor, saveBrief, toggleSection, toggleLinkEdit, setPanel, setSubtaskView, toggleParent, setStatus, cycleStatus, toggleField, toggleBranding, toggleTag, uf, deleteRow, openDetail, closeDetail, renderComments, stripPostComment, openStripComment, closeStripComment, editStripComment, saveStripCommentEdit, delStripComment, postComment, delComment });

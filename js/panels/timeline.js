@@ -468,6 +468,30 @@ function stripRow(pid, s, todayPct) {
   </div>`;
 }
 
+// ── EXPOSED FOR THE SUBTASK SHEET ────────────────────────────────────────────
+//
+// The sheet's plan columns (Stage / vs Plan / Next Tick) need exactly what
+// buildStrips already works out, keyed for lookup by subtask.
+//
+// CALL THIS ONCE PER PARENT, NOT ONCE PER ROW. buildStrips runs the whole
+// deliverable join — every dated task against every deliverable — so calling
+// it per row would re-run that N times for N subtasks. render.js builds it
+// once and hands the result to every cell through ctx.
+//
+// Returns null when there is no plan to read. That is not an error: most
+// projects have no pasted timeline, and it is the plan columns' empty state.
+function tlPositionsFor(parent) {
+  const tl = parent && parent.timeline;
+  if (!tl || !tl.tasks || !tl.tasks.length) return null;
+  // A plan whose rows all failed to parse a date has nothing to measure
+  // against — buildStrips would divide by an undefined span. The panel shows
+  // an empty board in that case; the columns show their empty state.
+  if (!tl.tasks.some(t => t.date)) return null;
+  const byKid = new Map();
+  buildStrips(parent, tl).strips.forEach(s => byKid.set(s.kid.id, s));
+  return byKid;
+}
+
 function timelinePanelHtml(parent) {
   const tl = parent.timeline;
   if (!tl || !tl.tasks || !tl.tasks.length) return emptyView(parent.id);
@@ -588,4 +612,5 @@ function tlClear(pid) {
 }
 
 register({ timelinePanelHtml, tlImport, tlSetPos, tlSetLink, tlRelink, tlClear,
+           tlPositionsFor,
            parseTimelineExport: parseExport, timelineWeeks });
