@@ -246,9 +246,12 @@ export const SUBTASK_COLUMNS = {
         // plan, and getting the join right deserves the panel's room.
         return `<span class="sv-noplan" title="This item didn't match a deliverable in the plan — link it in the Timeline panel" onclick="A.setPanel('${ctx.parent.id}','timeline')">Not in plan</span>`;
       }
-      // max-width mirrors the Phase select above: it stops the widest option
-      // (task names run long) from dictating the column's width.
-      return `<select class="sv-stage" style="font-family:var(--font);font-size: 12px;color:var(--text);background:none;border:none;outline:none;cursor:pointer;width:100%;max-width:150px" onchange="A.tlSetPos('${ctx.parent.id}','${task.id}',this.value)">
+      // NO max-width, unlike the Phase select this was copied from. Phase is a
+      // pinned 152px column, so a 150px cap there is the cell's real width.
+      // Stage is flexible and renders 200-300px wide, where that same cap just
+      // clipped task names with the room sitting unused beside them. width:100%
+      // follows whatever the column turns out to be. (Same mistake as .sv-next.)
+      return `<select class="sv-stage" style="font-family:var(--font);font-size: 12px;color:var(--text);background:none;border:none;outline:none;cursor:pointer;width:100%" onchange="A.tlSetPos('${ctx.parent.id}','${task.id}',this.value)">
             <option value="">—</option>
             ${s.tasks.map((t, i) => `<option value="${i}"${i === s.selIdx ? ' selected' : ''}>${esc(t.task)}</option>`).join('')}
           </select>`;
