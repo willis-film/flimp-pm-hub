@@ -2310,6 +2310,12 @@ select.info-in { cursor: pointer; padding-right: 4px; }
 }
 .ds-preview p { margin: 0 0 11px; }
 .ds-preview a { color: var(--signal); }
+.ds-preview .ds-ph {
+  border: 1px dashed var(--sig-limbo);
+  border-radius: 4px;
+  padding: 6px 10px;
+  color: var(--ink-3);
+}
 .ds-preview pre { white-space: pre-wrap; word-break: break-all; font-size: 11px; background: var(--panel-2); padding: 8px; border-radius: 4px; }
 
 .ds-pv-empty { padding: 40px 24px; text-align: center; }

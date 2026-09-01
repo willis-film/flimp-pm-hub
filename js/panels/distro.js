@@ -377,13 +377,12 @@ function buildEmail(parent, st) {
             // the image and shouldn't try. It leaves an unmistakable marker in
             // the right spot so the step is never forgotten or misplaced.
             return `<p>${link(url, `Open the ${clientName} ${assetFields(k,st).productName}`)}</p>
-              <p style="border:1px dashed #C99A2E;background:#FBF4E3;color:#8A6410;padding:8px 12px;border-radius:4px;font-size:13px">
-              ⬇ Paste the ${esc(assetFields(k,st).productName)} thumbnail image here</p>`;
+              <p class="ds-ph"><em>[ Paste the ${esc(assetFields(k,st).productName)} thumbnail image here ]</em></p>`;
           }).join('');
       if (o.id === 'embed')
         return `<p><strong>Option ${n}: Embed into a website, intranet or portal</strong></p>
           <p>Send the iFrame code below to your IT team to embed the content directly within a web page, intranet or portal.</p>` +
-          forAssets.map(k => `<pre style="background:#f4f6f8;padding:8px;border-radius:4px">${esc(st.fields[k.id]?.embedCode || '[Embed code]')}</pre>`).join('') +
+          forAssets.map(k => `<pre>${esc(st.fields[k.id]?.embedCode || '[Embed code]')}</pre>`).join('') +
           `<p><em>Note on Resizing: You can adjust the height and width of the content in the code but be sure to maintain proportions to avoid distortion.</em></p>`;
       if (o.id === 'qr')
         return `<p><strong>Option ${n}: QR Code</strong> (attached to this email)</p>`;
