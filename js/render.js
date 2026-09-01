@@ -6,7 +6,7 @@
 // they fed — they now live in data/subtask-columns.js.
 import { STATUS_LABELS, PHASE_LABELS, STATUS_CYCLE, ALL_TAGS, AM_LIST, PRODUCT_TYPE_LIST, PRODUCT_STYLE_MAP, PRODUCT_TIER_MAP, CLOSEOUT_ITEMS } from './data/constants.js';
 import { esc, fmtDate, daysLeft, fmtNextActivity, tagColor, tagTextColor, tagBorderColor, tagChip, statusBadge, phasePill, tagsHtml, df, fmtRelTime, fmtAbsTime, isProjectRow } from './utils.js';
-import { SUBTASK_COLUMNS, subtaskView } from './data/subtask-columns.js';
+import { SUBTASK_COLUMNS, subtaskView, DEFAULT_SUBTASK_VIEW } from './data/subtask-columns.js';
 import { db, save } from './store.js';
 import { ui } from './state.js';
 import { A, register } from './bus.js';
@@ -703,7 +703,16 @@ function toggleLinkEdit(inputId, btnId){
 
 function setPanel(id, panel){
   const r=db.rows.find(x=>x.id===id); if(!r)return;
-  r.activePanel = r.activePanel===panel ? 'none' : panel;
+  const next = r.activePanel===panel ? 'none' : panel;
+  // Leaving the subtask panel resets its column set. The plan view answers a
+  // specific question you go looking for; the production columns are the
+  // default working surface, so reopening the panel later — possibly days
+  // later, possibly by someone else, since this field is shared — should start
+  // there rather than in whatever state it was abandoned in.
+  // Covers switching to another tool as well as closing, since both hide the
+  // sheet and both end with the panel being reopened from scratch.
+  if(r.activePanel==='subtasks' && next!=='subtasks') r.subtaskView = DEFAULT_SUBTASK_VIEW;
+  r.activePanel = next;
   save(); render();
 }
 
@@ -721,6 +730,11 @@ function setSubtaskView(id, viewId){
 
 function toggleParent(id){
   const r=db.rows.find(x=>x.id===id); if(!r)return;
+  // Collapsing the project hides the subtask sheet without touching
+  // activePanel, so it needs the same reset as setPanel above — otherwise
+  // expanding the project again brings the plan view straight back and the
+  // reset only half works.
+  if(!r.collapsed && r.activePanel==='subtasks') r.subtaskView = DEFAULT_SUBTASK_VIEW;
   r.collapsed=!r.collapsed;
   save(); render();
 }
