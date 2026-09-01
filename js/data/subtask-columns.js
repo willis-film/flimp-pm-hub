@@ -80,7 +80,7 @@ export const SUBTASK_COLUMNS = {
 
   io: {
     label: 'I/O',
-    thAttr: 'style="width:42px"',
+    thAttr: 'class="th-io"',
     tdAttr: 'style="text-align:center"',
     cell: task => `<div class="cb${task.io ? ' on' : ''}" onclick="A.toggleTaskIO('${task.id}')"></div>`
   },
