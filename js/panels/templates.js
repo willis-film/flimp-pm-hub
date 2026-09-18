@@ -1520,9 +1520,18 @@ function buildPayload(parent, st) {
 // leaves a slow generate running. Both were measured timing out rather than
 // firing. fonts.ready is the wait that matters; layout needs none, because
 // print() forces one synchronously before it spools.
-function printDocument(html) {
+//
+// THE FILENAME COMES FROM THIS WINDOW, NOT THE FRAME. Chrome names the saved
+// PDF after the top-level document's <title>, even when the job is a subframe's
+// — so the frame's own title ("Client — Project Kickoff") never reaches the save
+// dialog and every export arrived as "Frequency Tower — Project Control". The
+// fix is to lend this window the document's name for the length of the job and
+// put the app's own title back when it ends. The swap has to happen before
+// print(), because Chrome reads the title as the preview opens.
+function printDocument(html, title) {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+    const appTitle = document.title;
     const frame = document.createElement('iframe');
     frame.setAttribute('aria-hidden', 'true');
     frame.style.cssText =
@@ -1535,6 +1544,7 @@ function printDocument(html) {
     const finish = (fn, arg) => {
       if (done) return;
       done = true;
+      document.title = appTitle;
       URL.revokeObjectURL(url);
       frame.remove();
       fn(arg);
@@ -1556,6 +1566,7 @@ function printDocument(html) {
         // leaving the button stuck on "Preparing…".
         await Promise.race([settled(win), new Promise(r => setTimeout(r, 5000))]);
         win.addEventListener('afterprint', cleanup, { once: true });
+        if (title) document.title = title;
         win.focus();
         win.print();
         setTimeout(cleanup, 60000);
@@ -1580,8 +1591,8 @@ function printDocument(html) {
 // wrong trade. So the dialog is the price, and it buys real vector output with
 // working links.
 //
-// The document's <title> is what Chrome offers as the filename, so the title
-// the generator sets is doing real work here.
+// The name Chrome offers in the save dialog comes from THIS window's <title>,
+// not the printed frame's, so printDocument() borrows it — see the note there.
 async function tpGenerate(pid) {
   const r = db.rows.find(x => x.id === pid); if (!r) return;
   const note = document.getElementById('tp-gen-note-' + pid);
@@ -1614,7 +1625,7 @@ async function tpGenerate(pid) {
     const html = await res.text();
     const pages = res.headers.get('X-Kickoff-Pages');
     say(`Opening the print dialog${pages ? ` — ${pages} pages` : ''}. Choose “Save as PDF”.`, false);
-    await printDocument(html);
+    await printDocument(html, payload.filename);
     say('Print dialog closed.', false);
   } catch (e) {
     say(`Couldn't generate: ${e.message}`, true);

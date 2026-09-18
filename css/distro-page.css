@@ -1,0 +1,115 @@
+/* ============================================================================
+   DISTRIBUTION GENERATOR — standalone page
+   ----------------------------------------------------------------------------
+   Loaded AFTER css/main.css, and it depends on it: the design tokens (--ink,
+   --signal, --panel…), the topbar and .btn styles, and the whole .ds-* wizard
+   and preview block all live there and are reused verbatim, so this page and
+   the hub's Distro panel look like one product.
+
+   What is here is only what the standalone page adds: the page shell (it has
+   no sidebar and no project rows, so it needs its own width and header), the
+   deliverables editor (the panel ticked subtasks off a project; this page has
+   to let you type them), and the copy-confirmation banner (the hub has
+   A.toast(); this page has no bus).
+   ========================================================================== */
+
+/* ── PAGE SHELL ───────────────────────────────────────────────────────────── */
+
+.dsp-body { overflow-y: auto; }
+
+.dsp-wrap {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 18px 22px 60px;
+}
+
+.dsp-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+  padding-bottom: 14px; margin-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.dsp-title-wrap { min-width: 0; }
+.dsp-eyebrow {
+  display: block;
+  font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 1.6px;
+  text-transform: uppercase; color: var(--ink-4); margin-bottom: 3px;
+}
+.dsp-title {
+  font-family: var(--font-display); font-size: 21px; font-weight: 600;
+  color: var(--ink); letter-spacing: 0.2px;
+}
+.dsp-sub {
+  font-size: 12px; color: var(--ink-3); line-height: 1.5;
+  margin-top: 5px; max-width: 620px;
+}
+.dsp-actions { display: flex; align-items: center; gap: 8px; }
+
+/* The wizard block is built for a panel; on a full page it needs no extra
+   side padding, the wrapper above supplies it. */
+.dsp-wrap .ds-split { padding: 18px 0 0; gap: 26px; }
+.dsp-wrap .ds-pv-scroll { max-height: calc(100vh - 260px); }
+
+/* ── DELIVERABLES EDITOR ──────────────────────────────────────────────────── */
+/* No equivalent in the panel — there, deliverables were subtasks you ticked.
+   Here each row is typed, so a row is name + kind + a way to remove it. */
+
+.ds-items { display: flex; flex-direction: column; gap: 8px; }
+
+.ds-item-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px;
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px;
+}
+.ds-item-n {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 19px; height: 19px; flex-shrink: 0; border-radius: 50%;
+  background: var(--panel-3); color: var(--ink-3);
+  font-family: var(--font-mono); font-size: 10px;
+}
+.ds-item-nm { flex: 1 1 auto; min-width: 0; }
+.ds-kind { flex: 0 0 auto; width: 190px; max-width: 42%; }
+
+.ds-item-x {
+  flex-shrink: 0;
+  width: 24px; height: 24px; line-height: 1;
+  font-size: 11px; color: var(--ink-4); cursor: pointer;
+  background: transparent; border: 1px solid transparent; border-radius: 4px;
+}
+.ds-item-x:hover { color: var(--oxblood); background: var(--oxblood-tint); border-color: var(--oxblood-glow); }
+
+.ds-add {
+  align-self: flex-start; margin-top: 2px;
+  font-family: var(--font); font-size: 12px; color: var(--signal);
+  padding: 6px 12px; cursor: pointer;
+  background: var(--panel); border: 1px dashed var(--line-2); border-radius: 5px;
+}
+.ds-add:hover { border-color: var(--signal); background: var(--signal-tint); }
+
+/* The Video/Guide tag on a field-step heading — a reminder of the treatment
+   this deliverable will get, since that choice was made a step earlier. */
+.ds-asset-h { display: flex; align-items: center; gap: 8px; }
+.ds-asset-kind {
+  font-family: var(--font-mono); font-size: 8.5px; letter-spacing: 1px;
+  text-transform: uppercase; font-weight: 400; color: var(--ink-4);
+  border: 1px solid var(--line-2); border-radius: 20px; padding: 2px 7px;
+}
+
+/* ── COPY CONFIRMATION ────────────────────────────────────────────────────── */
+
+.ds-flash {
+  position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(8px);
+  z-index: 60; pointer-events: none;
+  padding: 9px 18px; border-radius: 6px;
+  background: var(--ink); color: #fff; font-size: 12.5px;
+  box-shadow: 0 6px 20px rgba(21,35,58,0.22);
+  opacity: 0; transition: opacity 140ms ease, transform 140ms ease;
+}
+.ds-flash.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── NARROW ───────────────────────────────────────────────────────────────── */
+
+@media (max-width: 860px) {
+  .ds-item-row { flex-wrap: wrap; }
+  .ds-kind { width: 100%; max-width: none; order: 3; }
+}
