@@ -279,10 +279,14 @@ export const SUBTASK_COLUMNS = {
       if (!ctx.tl) return '<span class="dash">—</span>';
       const s = ctx.tl.get(task.id);
       if (!s || !s.tasks.length) return '<span class="dash">—</span>';
-      // No next tick with a position set means the last task is the current
-      // one — finished, not missing. Without a position there is simply
-      // nothing to be after.
-      if (!s.next) return s.sel ? '<span class="sv-done">Complete</span>' : '<span class="dash">—</span>';
+      // With no stage picked, the next tick is the plan's FIRST step — you
+      // haven't started. Not s.next: without a position, buildStrips points
+      // `next` at the first task dated today or later, which suits the
+      // Timeline panel's calendar marker but here named a late step (often
+      // the last) whenever the plan's early dates had already passed.
+      const next = s.sel ? s.next : s.tasks[0];
+      // With a stage picked and nothing after it, the item is finished.
+      if (!next) return s.sel ? '<span class="sv-done">Complete</span>' : '<span class="dash">—</span>';
       // Two spans, not one string: the date must never be the part that gets
       // ellipsized. A cut task name is still readable ("Animation Rd…"); a cut
       // date ("9/9/…") is worse than useless. The task name shrinks, the date
@@ -291,7 +295,7 @@ export const SUBTASK_COLUMNS = {
       // Explicit "·" separator rather than spacing alone: task names routinely
       // end in a number ("Animation Rd 1") and the date starts with one, so a
       // margin on its own reads as "Rd 19/4/26".
-      return `<span class="sv-next" title="${esc(s.next.task)} · ${esc(fmtDate(s.next.date))}"><span class="sv-next-t">${esc(s.next.task)}</span><span class="sv-next-d">· ${esc(fmtDate(s.next.date))}</span></span>`;
+      return `<span class="sv-next" title="${esc(next.task)} · ${esc(fmtDate(next.date))}"><span class="sv-next-t">${esc(next.task)}</span><span class="sv-next-d">· ${esc(fmtDate(next.date))}</span></span>`;
     }
   },
 
