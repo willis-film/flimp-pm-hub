@@ -185,12 +185,6 @@ const ITEM_FIELD_DEFAULTS = {
 
 const PROJECT_FIELD_DEFAULTS = {
   projectOwner:'', clientAccount:'', clientContact:'',
-  // Which column set this project's subtask sheet shows — 'all' or 'plan'.
-  // See data/subtask-columns.js. No dedicated Postgres column needed:
-  // api/db.js files any unknown key under the `data` JSONB catch-all, and
-  // backfillInfoFields() below adds it to every existing row on load, so no
-  // migration is required.
-  subtaskView:'all',
   // The generated project brief, pasted in from the detail panel. One plain
   // string, project scope only — subtasks inherit the project's brief rather
   // than carrying their own. No dedicated Postgres column: api/db.js files any

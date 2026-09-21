@@ -6,7 +6,7 @@
 // they fed — they now live in data/subtask-columns.js.
 import { STATUS_LABELS, PHASE_LABELS, STATUS_CYCLE, ALL_TAGS, AM_LIST, PRODUCT_TYPE_LIST, PRODUCT_STYLE_MAP, PRODUCT_TIER_MAP, CLOSEOUT_ITEMS } from './data/constants.js';
 import { esc, fmtDate, daysLeft, fmtNextActivity, tagColor, tagTextColor, tagBorderColor, tagChip, statusBadge, phasePill, tagsHtml, df, fmtRelTime, fmtAbsTime, isProjectRow } from './utils.js';
-import { SUBTASK_COLUMNS, subtaskView, DEFAULT_SUBTASK_VIEW } from './data/subtask-columns.js';
+import { SUBTASK_COLUMNS, SUBTASK_COLS } from './data/subtask-columns.js';
 import { db, save } from './store.js';
 import { ui } from './state.js';
 import { A, register } from './bus.js';
@@ -378,8 +378,7 @@ function render(){
     // Header and body are generated from ONE list of column keys (see
     // data/subtask-columns.js). They used to be two hardcoded sequences that
     // only agreed by position.
-    const view=subtaskView(parent.subtaskView);
-    const cols=view.cols.map(k=>SUBTASK_COLUMNS[k]).filter(Boolean);
+    const cols=SUBTASK_COLS.map(k=>SUBTASK_COLUMNS[k]).filter(Boolean);
 
     // Reordering is only offered on an unfiltered list. visibleChildren can be
     // a subset, and an index into a filtered view does not address the same
@@ -389,23 +388,19 @@ function render(){
     // are simply not rendered while a filter is active.
     const canReorder = ui.currentFilter==='all';
 
-    // ctx is built ONCE PER SHEET, not once per row, and is shared by the
-    // header and every cell. Cells receive it rather than importing from
-    // render.js, which would close a module cycle (render.js imports the
-    // registry).
-    // tl is the timeline join, built ONCE for the whole sheet — buildStrips
-    // walks every dated plan task against every deliverable, so doing it per
-    // row would repeat that work for each subtask. Only built for a view that
-    // actually has plan columns in it; null otherwise, and null is also what
-    // a project with no pasted plan gets.
-    const colCtx={ parent, canReorder, viewId: view.id,
-                   tl: view.needsTimeline ? A.tlPositionsFor(parent) : null };
+    // ctx is built ONCE PER SHEET, not once per row, and shared by every cell.
+    // Cells receive it rather than importing from render.js, which would close
+    // a module cycle (render.js imports the registry).
+    // tl is the timeline join, also built once per sheet — buildStrips walks
+    // every dated plan task against every deliverable, so doing it per row
+    // would repeat that for each subtask. null when no plan has been pasted.
+    const colCtx={ parent, canReorder, tl: A.tlPositionsFor(parent) };
 
     const table=document.createElement('table');
     table.className='sheet';
     table.innerHTML=`
       <thead><tr>
-        ${view.cols.map(k=>{const c=SUBTASK_COLUMNS[k];if(!c)return '';const at=(view.flexCols||[]).includes(k)?'class="th-flex"':c.thAttr;return `<th ${at}>${c.header?c.header(colCtx):c.label}</th>`;}).join('')}
+        ${cols.map(c=>`<th ${c.thAttr}>${c.label}</th>`).join('')}
       </tr></thead>
       <tbody id="tbody-${parent.id}"></tbody>`;
     subWrap.appendChild(table);
@@ -696,45 +691,26 @@ function toggleLinkEdit(inputId, btnId){
     inp.focus(); inp.select();
     // Escape closes the editor without waiting for blur.
     inp.onkeydown = (e)=>{
-      if(e.key==='Escape'||e.key==='Enter'){ e.preventDefault(); inp.blur(); toggleLinkEdit(inputId, btnId); }
+      if(e.key==='Escape'||e.key==='Enter'){
+        e.preventDefault(); inp.blur();
+        // blur saves, and saving a link field usually re-renders — replacing
+        // this input with a fresh, already-closed one under the same id. A
+        // toggle by id would then find the fresh input and OPEN it, so the
+        // editor popped back up after every Enter. Only close what's still here.
+        if(inp.isConnected) toggleLinkEdit(inputId, btnId);
+      }
     };
   }
 }
 
 function setPanel(id, panel){
   const r=db.rows.find(x=>x.id===id); if(!r)return;
-  const next = r.activePanel===panel ? 'none' : panel;
-  // Leaving the subtask panel resets its column set. The plan view answers a
-  // specific question you go looking for; the production columns are the
-  // default working surface, so reopening the panel later — possibly days
-  // later, possibly by someone else, since this field is shared — should start
-  // there rather than in whatever state it was abandoned in.
-  // Covers switching to another tool as well as closing, since both hide the
-  // sheet and both end with the panel being reopened from scratch.
-  if(r.activePanel==='subtasks' && next!=='subtasks') r.subtaskView = DEFAULT_SUBTASK_VIEW;
-  r.activePanel = next;
-  save(); render();
-}
-
-// Which set of columns this project's subtask sheet is showing. Per-project
-// and persisted, so it sits on the parent row beside activePanel rather than
-// in `ui` — the same reasoning that put activePanel there. Note this makes it
-// shared state: it travels through save() to Supabase like every other row
-// field, so the choice is the project's, not the viewer's.
-function setSubtaskView(id, viewId){
-  const r=db.rows.find(x=>x.id===id); if(!r)return;
-  if(r.subtaskView===viewId) return;      // no-op: don't write or repaint
-  r.subtaskView=viewId;
+  r.activePanel = r.activePanel===panel ? 'none' : panel;
   save(); render();
 }
 
 function toggleParent(id){
   const r=db.rows.find(x=>x.id===id); if(!r)return;
-  // Collapsing the project hides the subtask sheet without touching
-  // activePanel, so it needs the same reset as setPanel above — otherwise
-  // expanding the project again brings the plan view straight back and the
-  // reset only half works.
-  if(!r.collapsed && r.activePanel==='subtasks') r.subtaskView = DEFAULT_SUBTASK_VIEW;
   r.collapsed=!r.collapsed;
   save(); render();
 }
@@ -1326,4 +1302,4 @@ function delComment(id,idx){
 }
 
 // Register on the app bus so other modules + inline handlers can reach these.
-register({ getChildren, latestComment, render, briefIconHTML, openBriefPop, hideBriefPopSoon, closeBriefPop, openBriefEditor, saveBrief, toggleSection, toggleLinkEdit, setPanel, setSubtaskView, toggleParent, setStatus, cycleStatus, toggleField, toggleBranding, toggleTag, uf, deleteRow, openDetail, closeDetail, renderComments, stripPostComment, openStripComment, closeStripComment, editStripComment, saveStripCommentEdit, delStripComment, postComment, delComment });
+register({ getChildren, latestComment, render, briefIconHTML, openBriefPop, hideBriefPopSoon, closeBriefPop, openBriefEditor, saveBrief, toggleSection, toggleLinkEdit, setPanel, toggleParent, setStatus, cycleStatus, toggleField, toggleBranding, toggleTag, uf, deleteRow, openDetail, closeDetail, renderComments, stripPostComment, openStripComment, closeStripComment, editStripComment, saveStripCommentEdit, delStripComment, postComment, delComment });

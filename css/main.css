@@ -872,64 +872,13 @@ body::before {
 
 .sheet, .inv-sheet, .email-sheet { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; }
 
-/* The subtask sheet alone uses FIXED layout. Under auto layout a <th> width is
-   only a suggestion — a column grows to fit its widest cell, and the fill from
-   min-width:100% is then shared across however many columns exist. Both make
-   the same column render at a different width in each view and in each
-   project: Name measured 281 / 413 / 471 / 794 depending on view, content and
-   window. Fixed layout makes the declared widths authoritative, so a column is
-   the same width everywhere.
-   Every view must then name ONE column to leave un-sized (view.flexCol in
-   data/subtask-columns.js). Fixed layout gives leftover space to auto-width
-   columns; with none, it shares the leftover across ALL columns proportionally
-   and the drift comes straight back. */
-.sheet { table-layout: fixed; }
-.sheet th.th-flex { width: auto; }
-
-/* ── THE SHARED BLOCK: PERCENTAGES, NOT PIXELS ───────────────────────────────
-   These seven columns appear in BOTH views and must render at the same width
-   in each, or two stacked panels don't line up.
-   Pixels achieved that but froze them at laptop size: on a 3440 the whole left
-   half of the sheet stayed compact while the flexible columns swallowed every
-   spare pixel. Auto layout used to scale them (Phase 152 -> 190, Tags 96 ->
-   120) and losing that is what made the board feel unbalanced.
-   A percentage resolves against the table's own width, and on any screen wide
-   enough that the sheet isn't scrolling, both views fill the same wrapper —
-   same table width, so the same pixels, and they grow with the window.
-   min-width is the floor for the narrow case, where the sheet overflows its
-   wrapper and the two tables can end up different widths. There the two views
-   can differ by a few percent, which is when both sheets are scrolling
-   independently anyway and cross-panel alignment isn't observable. */
-.sheet th.th-name  { width: 18.2%; min-width: 380px; }
-.sheet th.th-io    { width: 2.05%; min-width: 42px; }
-.sheet th.th-tags  { width: 4.64%; min-width: 96px; }
-.sheet th.th-days  { width: 4.10%; min-width: 84px; }
-.sheet th.th-due   { width: 4.37%; min-width: 90px; }
-.sheet th.th-phase { width: 7.35%; min-width: 152px; }
-.sheet th.th-act   { width: 2.05%; min-width: 42px; }
-
-/* ── SUBTASK COLUMN-SET SWITCH ───────────────────────────────────────────────
-   Sits in the Name header, which is the sheet's only sticky column — so it
-   stays put while the rest of the sheet scrolls under it. Sized to fit inside
-   the 30px header without changing its height. */
-.th-name-inner { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.sv-seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: var(--radius-sm); overflow: hidden; flex-shrink: 0; }
-.sv-btn {
-  display: flex; align-items: center; justify-content: center;
-  width: 23px; height: 18px; padding: 0; border: 0; background: transparent;
-  color: var(--ink-3); cursor: pointer; transition: background .13s, color .13s;
-}
-.sv-btn + .sv-btn { border-left: 1px solid var(--line); }
-.sv-btn:hover { background: rgba(28, 42, 51, 0.05); color: var(--ink); }
-/* Saturated, not tinted — same call as .tg-btn.active above, for the same
-   reason: the tint values are already spoken for by hover. */
-.sv-btn.active { background: var(--signal); color: #fff; }
-.sv-btn.active:hover { background: var(--signal-deep); color: #fff; }
-.sv-btn svg { display: block; }
-
-/* ── PLAN COLUMNS ────────────────────────────────────────────────────────────
-   Stage / vs Plan / Next Tick, fed by the timeline join. */
-.th-stage { width: 172px; } .th-vsplan { width: 104px; } .th-nexttick { width: 170px; }
+/* ── SUBTASK SHEET: TIMELINE + LINK COLUMNS ──────────────────────────────────
+   One view, auto layout — the same layout policy the sheet always had. The
+   fixed-layout/percentage machinery that lived here only existed to line up
+   two views; with one view there is nothing to line up. */
+.th-io { width: 42px; }
+.th-stage { width: 240px; } .th-nexttick { width: 170px; }
+.th-review { width: 140px; } .th-dropbox { width: 90px; } .th-touched { width: 108px; }
 
 /* Both empty states — no plan imported, or this item not matched to a
    deliverable. Muted but clearly clickable: the fix is in the Timeline panel
@@ -940,37 +889,39 @@ body::before {
 }
 .sv-noplan:hover { color: var(--signal); border-bottom-color: var(--signal); }
 
+/* Stage select and its drift tag side by side. The select takes the room;
+   the tag never shrinks, so "8d behind" is always readable in full. */
+.sv-stage-cell { display: flex; align-items: center; gap: 6px; }
+.sv-stage { flex: 1 1 auto; min-width: 0; }
+
 /* Shares the .tl-h-* colour classes with the Timeline panel's chip, so the
    two never disagree about what "behind" looks like. Geometry is local:
    .tl-health sets a 38px min-height for the panel's grid, which would push
    every sheet row to that height. */
 .sv-health {
-  display: inline-flex; align-items: center; border-radius: 4px;
+  display: inline-flex; align-items: center; border-radius: 4px; flex-shrink: 0;
   font-family: var(--font); font-size: 10.5px; font-weight: 600;
   padding: 2px 7px; line-height: 1.25; white-space: nowrap;
 }
 
-/* No max-width. An earlier version pinned this to 128px, which clipped the
-   content even when the column had rendered 320px wide — the cap fought the
-   column instead of following it. The column sizes to its content like every
-   other one; the flex split below is what matters, and only bites when the
-   sheet is genuinely too narrow.
-   Flex so the two halves shrink differently: the task name gives way, the
-   date never does. A truncated date is worse than no date. */
+/* Flex so the two halves shrink differently: the task name gives way, the
+   date never does. A truncated date is worse than no date. No max-width — a
+   cap here once clipped content in a column that had plenty of room. */
 .sv-next { display: flex; align-items: baseline; gap: 4px; font-size: 12px; color: var(--ink); }
 .sv-next-t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sv-next-d { flex-shrink: 0; color: var(--ink-3); white-space: nowrap; }
 .sv-done { font-size: 11px; color: var(--sig-closed); font-weight: 500; }
 
-.th-review { width: 140px; } .th-dropbox { width: 90px; } .th-touched { width: 108px; }
-
-/* Review cell — link + optional "also has Boords" chip + edit pencil. */
-.sv-lp { display: inline-flex; align-items: center; gap: 4px; }
+/* Review / Dropbox cells — link, optional Boords chip, ✎. A missing link shows
+   its name muted and dotted; clicking it opens the editor. */
+.sv-links { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .sv-lp-empty {
   font-size: 12px; color: var(--ink-4); cursor: pointer;
   border-bottom: 1px dotted var(--line-2);
 }
 .sv-lp-empty:hover { color: var(--signal); border-bottom-color: var(--signal); }
+.sv-lp-edit { font-size: 10px; color: var(--ink-4); cursor: pointer; }
+.sv-lp-edit:hover { color: var(--signal); }
 /* Says a Boords link exists without spending a column on it — and opens it.
    An <a>, so it is keyboard-reachable and middle-clickable like any link. */
 .sv-lp-chip {
@@ -980,18 +931,15 @@ body::before {
   transition: background .13s, color .13s;
 }
 .sv-lp-chip:hover { background: var(--signal); color: #fff; }
-.sv-lp-edit { font-size: 10px; color: var(--ink-4); cursor: pointer; }
-.sv-lp-edit:hover { color: var(--signal); }
 
 /* Last Touched — stale is the reason the column exists, so it must not read
    the same as fresh. */
 .sv-touched { font-size: 12px; color: var(--ink-2); }
 .sv-touched.stale { color: var(--sig-production); font-weight: 500; }
 
-/* ── REVIEW / BOORDS LINK POPOVER ────────────────────────────────────────────
-   Fixed-position like .scp, positioned in JS against the cell. Two labelled
-   boxes rather than one, so adding the second link never looks like replacing
-   the first. */
+/* ── REVIEW LINK POPOVER ─────────────────────────────────────────────────────
+   Fixed-position like .scp, positioned in JS against the cell. One labelled
+   box per link, so adding one never looks like replacing another. */
 .lpop {
   position: fixed; z-index: 300; display: none;
   background: var(--panel); border: 1px solid var(--line-2);
@@ -1004,7 +952,7 @@ body::before {
   text-transform: uppercase; letter-spacing: 1px; color: var(--ink-3);
   margin: 0 0 3px;
 }
-.lp-lab + .lp-inp { margin-bottom: 9px; }
+.lp-inp + .lp-lab { margin-top: 9px; }
 .lp-inp {
   width: 100%; height: 27px; box-sizing: border-box;
   font-family: var(--font); font-size: 11px; color: var(--ink);
@@ -1040,7 +988,7 @@ body::before {
    so it's gone; the base border applies. The background overrides stay: a
    sticky cell must be opaque or scrolling content shows through it, and they
    already match what the non-sticky cells use. */
-.th-name   { width: 440px; position: sticky; left: 0; z-index: 20; background: var(--panel-2); }
+.th-name   { width: 280px; position: sticky; left: 0; z-index: 20; background: var(--panel-2); }
 .th-status { width: 110px; }
 /* 185px before — sized to fit 'Waiting on Internal Links/AI' (167px rendered),
    the one outlier label, which made Phase the second-widest column in the
@@ -1054,7 +1002,7 @@ body::before {
 .th-phase { width: 152px; } .th-tags { width: 96px; }
 /* Days Left and New/Update are wider than they look: the uppercase mono header
    with 1px letter-spacing needs more than the data does. Measured, not
-   guessed — under fixed layout an under-declared column clips its own header. */
+   guessed — declaring less just means the browser quietly overrides it. */
 .th-due { width: 90px; } .th-days { width: 84px; } .th-assign { width: 78px; }
 .th-am { width: 92px; } .th-update { width: 101px; } .th-type { width: 140px; }
 .th-tier { width: 150px; } .th-style { width: 150px; } .th-brand { width: 70px; }

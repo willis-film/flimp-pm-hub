@@ -53,8 +53,8 @@ function updateTaskDueLbl(taskId){
 
 // Same job for the Dist. Date cell. This used to be an inline
 // document.getElementById(...).textContent inside the cell's own onchange —
-// safe only because that column was always rendered. Columns are now per-view,
-// so a cell's element id can legitimately be absent from the DOM; an
+// safe only because that column was always rendered. Columns can now be
+// hidden (SUBTASK_COLS), so a cell's element id can be absent from the DOM; an
 // unguarded lookup would throw on the null. Guarded here, like its Due Date
 // twin above, rather than left as a latent crash in a template string.
 function setDistLbl(taskId, val){
@@ -62,22 +62,16 @@ function setDistLbl(taskId, val){
   if(lbl) lbl.textContent=val?fmtDate(val):'—';
 }
 
-// ── REVIEW / BOORDS LINK PAIR ────────────────────────────────────────────────
+// ── REVIEW LINK POPOVER ──────────────────────────────────────────────────────
 //
-// The Review column shows ONE cell over TWO fields (reviewStudioLink and
-// boordsLink), labelling itself from whichever is set. Editing therefore can't
-// use the inline single-input pattern the strip link fields use: with one box
-// there is no way to tell whether you are replacing the link you can see or
-// adding the other one, and no way to see that the other one exists.
+// The Review cell is ONE cell over TWO fields (reviewStudioLink, boordsLink),
+// labelled from whichever is set. The strip's inline single input can't edit
+// that: one box can't show that the other link exists, and adding the second
+// would mean typing over the first with nothing promising it survives. Two
+// labelled boxes remove the question.
 //
-// An earlier design routed a pasted URL to a field by sniffing its hostname.
-// It preserved both links correctly, but the input opened pre-filled with the
-// existing URL, so adding a second link meant selecting all and typing over
-// it — with nothing on screen promising the original survived. It also had to
-// invent answers for two questions this doesn't: where a URL from neither
-// service lands, and which field a blanked input clears.
-//
-// Two labelled boxes make both questions disappear.
+// Review links only. Dropbox is its own column with one link, so it uses the
+// strip's inline edit instead (see the dropbox cell in subtask-columns.js).
 
 let _lpId = null;
 
@@ -86,7 +80,7 @@ function openLinkPair(taskId){
   const pop=document.getElementById('link-pair-pop');
   const anchor=document.getElementById('lp-anchor-'+taskId);
   if(!pop||!anchor)return;
-  if(_lpId&&_lpId!==taskId) closeLinkPair();
+  if(_lpId) closeLinkPair();
   _lpId=taskId;
   pop.innerHTML=`
     <label class="lp-lab" for="lp-rs">ReviewStudio</label>
@@ -145,8 +139,8 @@ function closeLinkPair(){
     if((r.reviewStudioLink||'')!==nrs){ r.reviewStudioLink=nrs; changed=true; }
     if((r.boordsLink||'')!==nbo){ r.boordsLink=nbo; changed=true; }
   }
-  const wrap=document.getElementById('lp-anchor-'+id);
-  const sw=wrap?wrap.closest('.subtask-wrap'):null;
+  const anchor=document.getElementById('lp-anchor-'+id);
+  const sw=anchor?anchor.closest('.subtask-wrap'):null;
   if(pop){ pop.classList.remove('open'); pop.innerHTML=''; pop.style.width=''; }
   document.removeEventListener('mousedown',linkPairAway,true);
   window.removeEventListener('resize',positionLinkPair);
@@ -157,6 +151,16 @@ function closeLinkPair(){
   if(changed){ save(); A.render(); }
 }
 
+// Dropbox's inline input commits on blur. Only writes when the value moved, so
+// opening the field and leaving it untouched costs no save or repaint.
+function setDropboxLink(taskId, raw){
+  const r=db.rows.find(x=>x.id===taskId); if(!r)return;
+  const v=(raw||'').trim();
+  if((r.dropboxLink||'')===v) return;
+  ufTask(taskId,'dropboxLink',v);
+  A.render();
+}
+
 // Register on the app bus so other modules + inline handlers can reach these.
 register({ ufTask, ufTaskAndRender, toggleTaskIO, cycleNewUpdate, updateTaskDueLbl, setDistLbl,
-           openLinkPair, closeLinkPair });
+           openLinkPair, closeLinkPair, setDropboxLink });

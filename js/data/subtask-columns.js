@@ -7,10 +7,10 @@
 // different column than the cell under it — silent, and only visible if you
 // happened to read across the row.
 //
-// Here each column carries its header and its cell together, and a VIEW is an
-// ordered list of column keys. render.js builds <thead> and <tbody> from that
-// one list, so the two can no longer drift apart. It also means a column can
-// appear in more than one view without being defined twice.
+// Here each column carries its header and its cell together, and SUBTASK_COLS
+// at the bottom is the ordered list of which ones show. render.js builds
+// <thead> and <tbody> from that one list, so the two can no longer drift apart,
+// and hiding, showing or moving a column is a one-line edit to the list.
 //
 // IMPORTS ARE DELIBERATELY NARROW. render.js imports this file, so importing
 // render.js back would close a module cycle. Anything a cell needs from the
@@ -43,6 +43,15 @@ function taskSelect(task, field, list) {
         </select>`;
 }
 
+// Link cells: stored URLs may lack a protocol, so prefix one for the href.
+function linkTo(v, text, cls = 'fps-link') {
+  const href = (v.startsWith('http') ? '' : 'https://') + esc(v);
+  return `<a class="${cls}" href="${href}" target="_blank" rel="noopener" title="${esc(v)}">${text}</a>`;
+}
+// Review edits through its popover (openLinkPair, subtasks.js).
+const keyOpen = id =>
+  `onclick="A.openLinkPair('${id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();A.openLinkPair('${id}')}"`;
+
 // ── THE REGISTRY ─────────────────────────────────────────────────────────────
 //
 // Each entry:
@@ -50,13 +59,11 @@ function taskSelect(task, field, list) {
 //   thAttr  — attributes on the <th>; this is where the column's width lives
 //   tdAttr  — attributes on the <td>. A string, or a function of the task when
 //             the cell needs a per-row handler on the <td> itself.
-//   header(ctx) — optional; replaces `label` when the header needs to be more
-//             than text. Only the Name column uses it, to carry the switch.
 //   cell(task, ctx) — the cell's inner HTML
 //
 // A cell must not assume it is rendered. Any code elsewhere that reaches into a
 // cell by element id has to tolerate that id being absent, because a column is
-// only in the DOM while a view that lists it is active.
+// only in the DOM while SUBTASK_COLS lists it.
 
 export const SUBTASK_COLUMNS = {
 
@@ -64,7 +71,6 @@ export const SUBTASK_COLUMNS = {
     label: 'Name',
     thAttr: 'class="th-name"',
     tdAttr: 'class="td-name"',
-    header: ctx => `<div class="th-name-inner"><span>Name</span>${viewSwitch(ctx)}</div>`,
     cell: (task, ctx) => `
           <div class="name-inner">
             <!-- Handle occupies the existing 18px toggle-spacer, so adding
@@ -230,8 +236,11 @@ export const SUBTASK_COLUMNS = {
   // (tl.position[subtaskId]) — it is a claim about THIS plan and dies with it
   // on re-paste. See the storage note at the top of timeline.js.
 
+  // Stage and vs Plan share a cell: "where is this item" and "is that where it
+  // should be" are one question. Picking a stage calls tlSetPos, which saves
+  // and re-renders, so the drift tag beside it recomputes on the spot.
   stage: {
-    label: 'Stage',
+    label: 'Stage \u00b7 vs Plan',
     thAttr: 'class="th-stage"',
     tdAttr: '',
     cell: (task, ctx) => {
@@ -242,39 +251,23 @@ export const SUBTASK_COLUMNS = {
       const s = ctx.tl.get(task.id);
       if (!s || !s.tasks.length) {
         // The Timeline panel offers a deliverable picker here. Deliberately not
-        // duplicated into a 172px cell — it names every deliverable in the
+        // duplicated into a table cell — it names every deliverable in the
         // plan, and getting the join right deserves the panel's room.
         return `<span class="sv-noplan" title="This item didn't match a deliverable in the plan — link it in the Timeline panel" onclick="A.setPanel('${ctx.parent.id}','timeline')">Not in plan</span>`;
       }
-      // NO max-width, unlike the Phase select this was copied from. Phase is a
-      // pinned 152px column, so a 150px cap there is the cell's real width.
-      // Stage is flexible and renders 200-300px wide, where that same cap just
-      // clipped task names with the room sitting unused beside them. width:100%
-      // follows whatever the column turns out to be. (Same mistake as .sv-next.)
-      return `<select class="sv-stage" style="font-family:var(--font);font-size: 12px;color:var(--text);background:none;border:none;outline:none;cursor:pointer;width:100%" onchange="A.tlSetPos('${ctx.parent.id}','${task.id}',this.value)">
+      // No position set means no drift to report — the dash in the select
+      // already says "not set", so no tag rather than a "No position set" one.
+      // Tag colours are the Timeline panel's own .tl-h-* classes, so the two
+      // never disagree about what "behind" looks like.
+      const tag = s.health.key === 'none' ? ''
+        : `<span class="sv-health ${s.health.cls}">${esc(s.health.label)}</span>`;
+      // No max-width on the select: under auto layout the column sizes to its
+      // longest task name, and a cap only clips names while the room sits
+      // unused beside them (the mistake made twice in the two-view version).
+      return `<div class="sv-stage-cell"><select class="sv-stage" style="font-family:var(--font);font-size: 12px;color:var(--text);background:none;border:none;outline:none;cursor:pointer" onchange="A.tlSetPos('${ctx.parent.id}','${task.id}',this.value)">
             <option value="">—</option>
             ${s.tasks.map((t, i) => `<option value="${i}"${i === s.selIdx ? ' selected' : ''}>${esc(t.task)}</option>`).join('')}
-          </select>`;
-    }
-  },
-
-  vsplan: {
-    label: 'vs Plan',
-    thAttr: 'class="th-vsplan"',
-    tdAttr: '',
-    cell: (task, ctx) => {
-      if (!ctx.tl) return '<span class="dash">—</span>';
-      const s = ctx.tl.get(task.id);
-      if (!s || !s.tasks.length) return '<span class="dash">—</span>';
-      // With no position there is no drift to report, and healthOf's label for
-      // it ("No position set") is the widest string this column can hold — it
-      // alone pushed the column from 104px to 118px. The Stage cell next door
-      // is already showing "Where are we?", so a dash here loses nothing.
-      if (s.health.key === 'none') return '<span class="dash">—</span>';
-      // Colour vocabulary is shared with the Timeline panel's own chip
-      // (.tl-h-* in main.css); only the geometry is local, because .tl-health
-      // carries a 38px min-height sized for the panel's grid.
-      return `<span class="sv-health ${s.health.cls}">${esc(s.health.label)}</span>`;
+          </select>${tag}</div>`;
     }
   },
 
@@ -302,29 +295,28 @@ export const SUBTASK_COLUMNS = {
     }
   },
 
-  // One cell over TWO fields. The label follows whichever is set, so the cell
-  // names the tool you'd actually be opening rather than a fixed word that is
-  // right half the time. When both are set, ReviewStudio wins the link (it is
-  // the later, client-facing artifact) and the chip both says the other
-  // exists and opens it.
-  // Editing opens the two-slot popover — see openLinkPair() in subtasks.js for
-  // why it isn't the inline single input the strip link fields use.
+  // The review label names the tool you'd actually open. When both review
+  // links exist, ReviewStudio takes the label (it's the later, client-facing
+  // artifact) and the B chip opens Boords. ✎ — or the grey label on an empty
+  // cell — opens the two-box popover; the id'd span is what it anchors to.
   review: {
     label: 'Review',
     thAttr: 'class="th-review"',
     tdAttr: '',
     cell: task => {
       const rs = task.reviewStudioLink || '', bo = task.boordsLink || '';
-      const primary = rs || bo;
-      const pencil = `<span class="sv-lp-edit" role="button" tabindex="0" title="Edit review links" onclick="A.openLinkPair('${task.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();A.openLinkPair('${task.id}')}">\u270E</span>`;
-      if (!primary) {
-        return `<span class="sv-lp" id="lp-anchor-${task.id}"><span class="sv-lp-empty" role="button" tabindex="0" onclick="A.openLinkPair('${task.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();A.openLinkPair('${task.id}')}">Review</span></span>`;
-      }
-      const href = (primary.startsWith('http') ? '' : 'https://') + esc(primary);
-      return `<span class="sv-lp" id="lp-anchor-${task.id}"><a href="${href}" target="_blank" rel="noopener" class="fps-link" title="${esc(primary)}">${rs ? 'ReviewStudio' : 'Boords'}</a>${rs && bo ? `<a class="sv-lp-chip" href="${(bo.startsWith('http') ? '' : 'https://') + esc(bo)}" target="_blank" rel="noopener" title="Open Boords: ${esc(bo)}">B</a>` : ''}${pencil}</span>`;
+      const pencil = `<span class="sv-lp-edit" role="button" tabindex="0" title="Edit review links" ${keyOpen(task.id)}>\u270E</span>`;
+      const inner = rs ? linkTo(rs, 'ReviewStudio') + (bo ? linkTo(bo, 'B', 'sv-lp-chip') : '') + pencil
+                  : bo ? linkTo(bo, 'Boords') + pencil
+                  : `<span class="sv-lp-empty" role="button" tabindex="0" title="Add a review link" ${keyOpen(task.id)}>Review</span>`;
+      return `<span class="sv-links" id="lp-anchor-${task.id}">${inner}</span>`;
     }
   },
 
+  // One link, so no popover: the same inline edit as the Zoho / Estimate /
+  // Dropbox fields on the project strip. The label is the link; ✎ (or the grey
+  // label when empty) swaps in the input, which pops out wide while editing
+  // (.fps-link-editing) and saves on blur, Enter or Escape.
   dropbox: {
     label: 'Dropbox',
     thAttr: 'class="th-dropbox"',
@@ -332,14 +324,12 @@ export const SUBTASK_COLUMNS = {
     cell: task => {
       const v = task.dropboxLink || '';
       const inpId = `dbx-inp-${task.id}`, lnkId = `dbx-lnk-${task.id}`;
-      // Same shape as the strip's link fields: the label IS the link, and a
-      // pencil (or the empty label itself) swaps in the input.
-      const input = `<input class="fps-input" value="${esc(v)}" placeholder="URL" style="display:none" id="${inpId}" onblur="A.ufTask('${task.id}','dropboxLink',this.value);A.render()">`;
+      const toggle = `onclick="toggleLinkEdit('${inpId}','${lnkId}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleLinkEdit('${inpId}','${lnkId}')}"`;
+      const input = `<input class="fps-input" value="${esc(v)}" placeholder="URL" style="display:none" id="${inpId}" onblur="A.setDropboxLink('${task.id}',this.value)">`;
       if (!v) {
-        return `<span class="fps-field-val"><span class="fps-empty" id="${lnkId}" role="button" tabindex="0" onclick="toggleLinkEdit('${inpId}','${lnkId}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleLinkEdit('${inpId}','${lnkId}')}">Dropbox</span>${input}</span>`;
+        return `<div class="fps-field-val"><span class="fps-empty" id="${lnkId}" role="button" tabindex="0" ${toggle}>Dropbox</span>${input}</div>`;
       }
-      const href = (v.startsWith('http') ? '' : 'https://') + esc(v);
-      return `<span class="fps-field-val" style="gap:4px"><a href="${href}" target="_blank" rel="noopener" class="fps-link" title="${esc(v)}">Dropbox</a>${input}<span class="fps-link-btn" role="button" tabindex="0" id="${lnkId}" title="Edit" onclick="toggleLinkEdit('${inpId}','${lnkId}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleLinkEdit('${inpId}','${lnkId}')}">\u270E</span></span>`;
+      return `<div class="fps-field-val" style="gap:4px">${linkTo(v, 'Dropbox')}${input}<span class="fps-link-btn" role="button" tabindex="0" id="${lnkId}" title="Edit" ${toggle}>\u270E</span></div>`;
     }
   },
 
@@ -380,76 +370,16 @@ export const SUBTASK_COLUMNS = {
   }
 };
 
-// ── VIEWS ────────────────────────────────────────────────────────────────────
+// ── WHAT SHOWS, AND IN WHAT ORDER ────────────────────────────────────────────
 //
-// A view owns its OWN column order. "Shared" columns are simply keys that
-// appear in more than one list — NOT a fixed prefix. That distinction is the
-// point: it means adding the plan view cannot reorder the all-columns view,
-// which is the one in daily use.
+// One list. To hide a column take its key out; to bring one back, put it back.
+// Order here is order on screen.
+//
+// Hidden for now, still defined above:
+//   'io' — the daily in/out checkbox. Went unused; restore it after 'name'.
 
-// Icons follow the app's existing inline-SVG idiom (16x16 box, no fill,
-// currentColor stroke) — there is no icon font loaded.
-const ICON_COLUMNS = '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><rect x="2.2" y="3.2" width="11.6" height="9.6" rx="1.1"/><path d="M6.1 3.2v9.6M9.9 3.2v9.6"/></svg>';
-const ICON_PLAN    = '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2.2" y="3.4" width="11.6" height="10" rx="1.1"/><path d="M2.2 6.6h11.6M5.6 1.9v3M10.4 1.9v3"/></svg>';
-
-export const SUBTASK_VIEWS = [
-  {
-    id: 'all',
-    title: 'All columns',
-    icon: ICON_COLUMNS,
-    // The un-sized columns that absorb leftover width on a wide screen, so
-    // every OTHER column keeps its declared width and matches the plan view.
-    //
-    // SEVERAL of them, not one. Pooling all the slack into a single column
-    // made that column enormous and looked broken; spreading it across the six
-    // wide text columns reproduces what auto layout used to do, where every
-    // column grew a little. The shared block (name..cu) and Dist. Date stay
-    // pinned — the shared block because matching it to the plan view is the
-    // whole point, Dist. Date because it is a short date that has no use for
-    // the room.
-    flexCols: ['type', 'tier', 'style', 'designer', 'animator', 'vo'],
-    cols: ['name', 'io', 'tags', 'days', 'due', 'phase', 'cu', 'update',
-           'type', 'tier', 'style', 'designer', 'animator', 'vo', 'distdate', 'act']
-  },
-  {
-    id: 'plan',
-    title: 'Plan columns',
-    icon: ICON_PLAN,
-    // Same policy as the all-columns view: spread the leftover across the
-    // view-specific columns so no single one balloons. Pooling it all into
-    // Last Touched (the first version of this) made that column ~840px on a
-    // wide monitor while everything else sat at its declared width.
-    // The shared block stays pinned — matching it to the other view is the
-    // whole reason the sheet uses fixed layout.
-    flexCols: ['stage', 'vsplan', 'nexttick', 'review', 'dropbox', 'touched'],
-    // Tells render.js to build the timeline join for this sheet. Gated so the
-    // all-columns view doesn't pay for a join none of its cells read.
-    needsTimeline: true,
-    cols: ['name', 'io', 'tags', 'days', 'due', 'phase', 'stage', 'vsplan', 'nexttick',
-           'review', 'dropbox', 'touched', 'act']
-  }
+export const SUBTASK_COLS = [
+  'name', 'tags', 'cu', 'days', 'due', 'phase', 'stage', 'nexttick',
+  'update', 'type', 'tier', 'style', 'review', 'dropbox',
+  'designer', 'animator', 'vo', 'distdate', 'touched', 'act'
 ];
-
-// The switch lives in the Name header because .th-name is the sheet's only
-// sticky column (position:sticky; left:0, main.css) — so it stays reachable
-// however far right the sheet is scrolled, and costs no vertical height on a
-// board where several projects can be expanded at once.
-//
-// Active state is a saturated fill rather than a tint, matching .tg-btn.active
-// in the tool grid above it. The comment there records why: --panel-3 is
-// already the hover wash, so a tinted active state and hover resolve to the
-// same value and every hovered control reads as selected.
-function viewSwitch(ctx) {
-  return `<span class="sv-seg" role="group" aria-label="Column set">${
-    SUBTASK_VIEWS.map(v => {
-      const on = ctx.viewId === v.id;
-      return `<button type="button" class="sv-btn${on ? ' active' : ''}" title="${v.title}" aria-label="${v.title}" aria-pressed="${on}" onclick="A.setSubtaskView('${ctx.parent.id}','${v.id}')">${v.icon}</button>`;
-    }).join('')
-  }</span>`;
-}
-
-export const DEFAULT_SUBTASK_VIEW = 'all';
-
-export function subtaskView(id) {
-  return SUBTASK_VIEWS.find(v => v.id === id) || SUBTASK_VIEWS[0];
-}
