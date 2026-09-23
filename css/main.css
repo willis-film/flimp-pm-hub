@@ -486,6 +486,19 @@ body::before {
   letter-spacing: 0.15px; transition: color .13s;
 }
 .fps-name:hover { color: var(--signal); }
+/* Subtasks shortcut — mirrors the tool grid's Subtasks button. Always visible
+   (unlike the pencil) since it's the most-used panel. */
+.fps-caret {
+  flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 22px; padding: 0; margin-left: -4px;
+  background: none; border: none; cursor: pointer; border-radius: 4px;
+  color: var(--ink-4); line-height: 0; transition: color .13s, background .13s;
+}
+.fps-caret svg { transition: transform .15s ease; }
+.fps-caret.open svg { transform: rotate(90deg); }
+.fps-caret.open { color: var(--ink-2); }
+.fps-caret:hover { color: var(--signal); background: var(--panel-3); }
+@media (prefers-reduced-motion: reduce) { .fps-caret svg { transition: none; } }
 /* Hover-reveal. The pencil is only relevant when you are pointing at the strip,
    so it stays out of the way until then — one less persistent glyph per row.
    Deliberately NOT applied to the signal bars (a readout, worth reading without

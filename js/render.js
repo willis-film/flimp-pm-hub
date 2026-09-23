@@ -239,6 +239,14 @@ function render(){
       <div class="fps-body">
         <div class="fps-top">
           <span class="fps-name-wrap">
+            <!-- Shortcut for the Subtasks tool-grid button: same setPanel toggle,
+                 so the two stay in sync. Rotates open while the panel is showing. -->
+            <button class="fps-caret${(parent.activePanel||'none')==='subtasks'?' open':''}"
+                    title="${(parent.activePanel||'none')==='subtasks'?'Hide':'Show'} subtasks"
+                    aria-label="Toggle subtasks" aria-expanded="${(parent.activePanel||'none')==='subtasks'}"
+                    onclick="event.stopPropagation();setPanel('${parent.id}','subtasks')">
+              <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5L10.5 8 6 12.5"/></svg>
+            </button>
             <span class="fps-name" onclick="openDetail('${parent.id}')">${esc(parent.name)}</span>
             <button class="fps-edit-icon" title="Edit project" aria-label="Edit project" onclick="event.stopPropagation();A.openParentModal('${parent.id}')">
               <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 2.5l2 2L6 12l-2.6.6.6-2.6 7.5-7.5z"/><path d="M10.5 3.5l2 2"/></svg>
