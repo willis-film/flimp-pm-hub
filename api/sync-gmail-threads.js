@@ -33,6 +33,7 @@
 // the same call whether the gap is 15 minutes or a day.
 
 import { createClient } from '@supabase/supabase-js';
+import { MONEY_LABEL_NAME } from '../js/data/constants.js';
 
 const TOKEN_URL   = 'https://oauth2.googleapis.com/token';
 const GMAIL_BASE  = 'https://gmail.googleapis.com/gmail/v1/users/me';
@@ -359,9 +360,18 @@ export default async function handler(req, res) {
     // gmailLabels included — lands in the catch-all `data` JSONB blob,
     // camelCase preserved. So it's read from data->gmailLabels here rather
     // than a snake_case column that doesn't exist.
-    const assignedLabelIds = [...new Set(
-      (rows || []).flatMap(r => (r.data && r.data.gmailLabels) || [])
-    )];
+    // The 💰 label is synced whether or not any project has claimed it — it
+    // marks "this thread has an invoice in it," which js/panels/invoices.js
+    // then matches against each thread's OTHER labels to auto-file it (or, if
+    // none match a project, leaves it for the unassigned-invoice-email
+    // banner). refreshLabelDefs() above already landed the current label list
+    // in ws.gmail_label_defs by this point.
+    const moneyLabel = (ws.gmail_label_defs || []).find(l => l.name === MONEY_LABEL_NAME);
+
+    const assignedLabelIds = [...new Set([
+      ...(rows || []).flatMap(r => (r.data && r.data.gmailLabels) || []),
+      ...(moneyLabel ? [moneyLabel.id] : [])
+    ])];
     if (!assignedLabelIds.length) {
       return res.status(200).json({ ok: true, skipped: 'no labels assigned to any project' });
     }

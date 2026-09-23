@@ -175,3 +175,20 @@ export function fmtAbsTime(entry) {
 // without importing the ClickUp module.
 export function isDetached(r) { return !!(r && r.detachedFrom); }
 export function isProjectRow(r) { return !!r && r.parentId === null && !isDetached(r); }
+
+// ── GMAIL ────────────────────────────────────────────────────────────────────
+// Deep-link for a thread. The account is pinned by address rather than the
+// usual /u/0/ index: that index is "first Google account signed into this
+// browser," which depends on sign-in order and can differ between machines —
+// so /u/0/ can land in a personal inbox that doesn't contain the thread.
+// authuser= resolves to the right mailbox regardless. Set to '' to fall back
+// to /u/0/ if only ever one account is signed in.
+//
+// Lives here rather than in render.js because js/panels/invoices.js also
+// needs it, for the unassigned-invoice-email manage modal's "Open" links.
+const GMAIL_ACCOUNT = 'andrew@flimp.net';
+export function gmailThreadUrl(threadId) {
+  return GMAIL_ACCOUNT
+    ? `https://mail.google.com/mail/?authuser=${encodeURIComponent(GMAIL_ACCOUNT)}#all/${threadId}`
+    : `https://mail.google.com/mail/u/0/#all/${threadId}`;
+}

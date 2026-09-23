@@ -62,6 +62,14 @@ function syncClickUp() {
 // "delta" is the cheap steady state.
 function syncGmail() {
   return runSync('sync-gmail-btn', '/api/sync-gmail-threads', 'Gmail', j => {
+    // File any newly-synced 💰-labeled thread into its project's invoices
+    // (see js/panels/invoices.js), then refresh the unassigned-invoice-email
+    // banner either way — a thread that couldn't be auto-filed still needs to
+    // show up there. Run after load() has already landed via runSync above,
+    // so this sees the freshly-synced db.gmailEmails. A re-render is only
+    // needed when a row actually changed — runSync already rendered once.
+    if (A.attachMoneyLabelInvoices()) A.render();
+    A.renderMoneyBanner();
     if (j.skipped) return 'No labels';
     if (j.mode === 'backfill' && j.complete === false) return 'Partial — run again';
     if (j.mode === 'history-expired') return 'Rebuilding';

@@ -35,6 +35,14 @@ export const PHASE_LABELS  = {
 
 export const STATUS_CYCLE  = ['kickoff','production','limbo','done','closed'];
 
+// The Gmail label Andrew already hand-applies to any thread that contains an
+// invoice, regardless of which project it belongs to. api/sync-gmail-threads.js
+// syncs threads carrying this label even when no project has claimed it, and
+// js/panels/invoices.js uses it to auto-file a blank invoice row and to build
+// the unassigned-invoice-email banner. Matched by name, not by a hardcoded
+// Gmail label id, since the id is only known once labels.list has run.
+export const MONEY_LABEL_NAME = '\u{1F4B0}'; // 💰
+
 export const ALL_TAGS      = ['EV','DP','HRLV','PPTV','TRAN','FCV','TV','SUB','RC','VBS'];
 
 // Tag chip colours, keyed by tag value. Overridden in place by applyReference()

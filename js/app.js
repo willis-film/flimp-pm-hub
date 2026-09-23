@@ -35,13 +35,15 @@ window.A = A;
 
 // ── GLOBAL LISTENERS ─────────────────────────────────────────────────────────
 // Wired once, immediately — these target static elements present in index.html.
-document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ A.closeStripComment(); A.closeBriefPop(); A.closeDetail(); A.closeParentModal(); A.closeSubtaskModal(); A.closeAssignLabelModal(); A.closeGmailLabelModal(); A.closeAssignCuTaskModal(); A.closeClickUpManageModal(); } });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ A.closeStripComment(); A.closeBriefPop(); A.closeDetail(); A.closeParentModal(); A.closeSubtaskModal(); A.closeAssignLabelModal(); A.closeGmailLabelModal(); A.closeAssignCuTaskModal(); A.closeClickUpManageModal(); A.closeAssignMoneyModal(); A.closeMoneyManageModal(); } });
 document.getElementById('parent-overlay').addEventListener('click',function(e){ if(e.target===this) A.closeParentModal(); });
 document.getElementById('subtask-overlay').addEventListener('click',function(e){ if(e.target===this) A.closeSubtaskModal(); });
 document.getElementById('assign-label-overlay').addEventListener('click',function(e){ if(e.target===this) A.closeAssignLabelModal(); });
 document.getElementById('gmail-label-overlay').addEventListener('click',function(e){ if(e.target===this) A.closeGmailLabelModal(); });
 document.getElementById('assign-cu-overlay').addEventListener('click',function(e){ if(e.target===this) A.closeAssignCuTaskModal(); });
 document.getElementById('clickup-manage-overlay').addEventListener('click',function(e){ if(e.target===this) A.closeClickUpManageModal(); });
+document.getElementById('assign-money-overlay').addEventListener('click',function(e){ if(e.target===this) A.closeAssignMoneyModal(); });
+document.getElementById('money-manage-overlay').addEventListener('click',function(e){ if(e.target===this) A.closeMoneyManageModal(); });
 
 // ── BOOT ─────────────────────────────────────────────────────────────────────
 // init() loads persisted state, applies the daily I/O reset, then does the first
@@ -55,6 +57,7 @@ export async function init() {
   A.renderGmailBanner();
   A.renderClickUpSidebar();
   A.renderCuBanner();
+  A.renderMoneyBanner();
 }
 
 // Expose for Alpine's x-init and as a manual fallback.

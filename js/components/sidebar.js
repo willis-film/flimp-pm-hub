@@ -5,6 +5,7 @@ import { esc, isDetached } from '../utils.js';
 import { db, save } from '../store.js';
 import { ui } from '../state.js';
 import { A, register } from '../bus.js';
+import { MONEY_LABEL_NAME } from '../data/constants.js';
 
 function matchesFilter(row){
   const today=new Date(); today.setHours(0,0,0,0);
@@ -64,6 +65,33 @@ function renderCuBanner(){
   plural.textContent=unassigned===1?'':'s';
 }
 
+// A 💰-labeled thread is "unassigned" here when NONE of its other labels are
+// claimed by a project — i.e. js/panels/invoices.js's attachMoneyLabelInvoices
+// had nowhere to file it. Distinct from the generic gmail-banner above: that
+// one is about a LABEL with no project, this is about a specific THREAD, which
+// can be missing a project label in Gmail even while other labels on it are
+// perfectly well assigned. Counted here (not imported from invoices.js) to
+// keep this file's banners self-contained, same as renderCuBanner above.
+function renderMoneyBanner(){
+  const banner=document.getElementById('money-banner');
+  if(!banner) return;
+  const moneyLabel=(db.gmailLabelDefs||[]).find(l=>l.name===MONEY_LABEL_NAME);
+  if(!moneyLabel){ banner.classList.add('hidden'); return; }
+  const assignedIds=new Set(db.rows.flatMap(r=>r.gmailLabels||[]));
+  const filedThreadIds=new Set(db.rows.flatMap(r=>(r.invoices||[]).map(i=>i.threadId).filter(Boolean)));
+  const unassigned=(db.gmailEmails||[]).filter(e=>
+    (e.labelIds||[]).includes(moneyLabel.id) &&
+    !filedThreadIds.has(e.threadId) &&
+    !(e.labelIds||[]).some(lid=>assignedIds.has(lid))
+  ).length;
+  const count=document.getElementById('money-banner-count');
+  const plural=document.getElementById('money-banner-plural');
+  if(unassigned===0){ banner.classList.add('hidden'); return; }
+  banner.classList.remove('hidden');
+  count.textContent=unassigned;
+  plural.textContent=unassigned===1?'':'s';
+}
+
 function renderClickUpSidebar(){
   const list=document.getElementById('clickup-task-list'); if(!list) return;
   const allTasks=db.clickupTasks||[];
@@ -117,4 +145,4 @@ function saveGmailPrefix(val){
 }
 
 // Register on the app bus so other modules + inline handlers can reach these.
-register({ matchesFilter, setFilter, toggleSidebar, renderGmailBanner, renderCuBanner, renderClickUpSidebar, renderGmailSidebar, saveGmailPrefix });
+register({ matchesFilter, setFilter, toggleSidebar, renderGmailBanner, renderCuBanner, renderMoneyBanner, renderClickUpSidebar, renderGmailSidebar, saveGmailPrefix });

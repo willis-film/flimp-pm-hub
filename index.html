@@ -88,6 +88,11 @@
       <span class="gmail-banner-text"><span class="gmail-banner-count" id="gmail-banner-count"></span> unassigned Gmail label<span id="gmail-banner-plural"></span> waiting to be assigned to a project.</span>
       <span class="gmail-banner-action" onclick="openGmailLabelModal()">Assign now &rarr;</span>
     </div>
+    <div class="money-banner hidden" id="money-banner">
+      <span class="money-banner-icon" aria-hidden="true">💰</span>
+      <span class="money-banner-text"><span class="money-banner-count" id="money-banner-count"></span> unassigned invoice email<span id="money-banner-plural"></span> waiting to be assigned to a project.</span>
+      <span class="money-banner-action" onclick="openMoneyManageModal()">Assign now &rarr;</span>
+    </div>
     <div class="list-wrap" id="list-wrap"></div>
   </div>
 </div>
@@ -279,6 +284,32 @@
     <div id="glm-body" style="max-height:360px;overflow-y:auto"></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeGmailLabelModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ASSIGN INVOICE EMAIL MODAL -->
+<div class="overlay" id="assign-money-overlay">
+  <div class="modal modal-sm">
+    <div class="modal-title" id="amm-title">Assign invoice email to a project</div>
+    <div class="mf">
+      <div class="mf-label">Project</div>
+      <select class="mi" id="amm-project"></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeAssignMoneyModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitAssignMoney()">Assign</button>
+    </div>
+  </div>
+</div>
+
+<!-- UNASSIGNED INVOICE EMAILS MODAL -->
+<div class="overlay" id="money-manage-overlay">
+  <div class="modal modal-md">
+    <div class="modal-title">Unassigned Invoice Emails</div>
+    <div id="mmm-body" style="max-height:360px;overflow-y:auto"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeMoneyManageModal()">Close</button>
     </div>
   </div>
 </div>

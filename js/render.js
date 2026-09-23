@@ -5,19 +5,11 @@
 // DESIGNER_LIST / ANIMATOR_LIST / VO_LIST moved out with the subtask cells
 // they fed — they now live in data/subtask-columns.js.
 import { STATUS_LABELS, PHASE_LABELS, STATUS_CYCLE, ALL_TAGS, AM_LIST, PRODUCT_TYPE_LIST, PRODUCT_STYLE_MAP, PRODUCT_TIER_MAP, CLOSEOUT_ITEMS } from './data/constants.js';
-import { esc, fmtDate, daysLeft, fmtNextActivity, tagColor, tagTextColor, tagBorderColor, tagChip, statusBadge, phasePill, tagsHtml, df, fmtRelTime, fmtAbsTime, isProjectRow } from './utils.js';
+import { esc, fmtDate, daysLeft, fmtNextActivity, tagColor, tagTextColor, tagBorderColor, tagChip, statusBadge, phasePill, tagsHtml, df, fmtRelTime, fmtAbsTime, isProjectRow, gmailThreadUrl } from './utils.js';
 import { SUBTASK_COLUMNS, SUBTASK_COLS } from './data/subtask-columns.js';
 import { db, save } from './store.js';
 import { ui } from './state.js';
 import { A, register } from './bus.js';
-
-// Gmail deep-link for a thread. The account is pinned by address rather than
-// the usual /u/0/ index: that index is "first Google account signed into this
-// browser," which depends on sign-in order and can differ between machines —
-// so /u/0/ can land in a personal inbox that doesn't contain the thread.
-// authuser= resolves to the right mailbox regardless. Set to '' to fall back
-// to /u/0/ if only ever one account is signed in.
-const GMAIL_ACCOUNT = 'andrew@flimp.net';
 
 // Timestamp for the Inbox panel's Latest column. Not fmtRelTime(): that one
 // is tuned for the activity log, where "3h ago" is the useful framing and
@@ -37,13 +29,6 @@ function fmtEmailTime(iso) {
   const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   return `${date}  ${time}`;
 }
-
-function gmailThreadUrl(threadId) {
-  return GMAIL_ACCOUNT
-    ? `https://mail.google.com/mail/?authuser=${encodeURIComponent(GMAIL_ACCOUNT)}#all/${threadId}`
-    : `https://mail.google.com/mail/u/0/#all/${threadId}`;
-}
-
 
 // Tracks the parent strip currently animating into a new status section, so
 // render() can stamp the pre-offset `.fps-enter` class on it synchronously.
@@ -341,6 +326,11 @@ function render(){
     const _ap = parent.activePanel||'none';
     const _assignedIds = (parent.gmailLabels||[]);
     const _unread = (db.gmailEmails||[]).filter(e=>_assignedIds.some(lid=>(e.labelIds||[]).includes(lid))&&(e.labelIds||[]).includes('UNREAD')).length;
+    // Same treatment as the Inbox dot: an invoice row auto-filed from a 💰
+    // email (or added by hand) with no vendor typed in yet is a row that isn't
+    // done being entered — flagged here so it isn't forgotten once the panel
+    // is closed.
+    const _needsVendor = (parent.invoices||[]).some(inv=>!inv.vendor);
     const _tools = [
       {id:'subtasks', label:'Subtasks'},
       {id:'emails',   label:'Inbox', badge:_unread},
@@ -348,7 +338,7 @@ function render(){
       {id:'info',     label:'Info'},
       {id:'templates',label:'Templates'},
       {id:'metrics',  label:'Metrics'},
-      {id:'invoices', label:'Invoices'},
+      {id:'invoices', label:'Invoices', badge:_needsVendor},
       {id:'distro',   label:'Distro'},
       {id:'closeout', label:'Closeout'},
     ];
@@ -512,6 +502,7 @@ function render(){
     invTable.innerHTML=`
       <thead><tr>
         <th style="width:22px"></th>
+        <th style="width:34px">Mail</th>
         <th style="width:90px">Sent</th>
         <th style="width:160px">Vendor</th>
         <th style="width:120px">Invoice #</th>
@@ -533,6 +524,13 @@ function render(){
       tr.dataset.idx=String(idx);
       tr.innerHTML=`
         <td class="inv-handle-cell"><span class="drag-handle" title="Drag to reorder">⠿</span></td>
+        <td style="text-align:center">
+          ${inv.threadId
+            ? `<a class="email-link" href="${esc(gmailThreadUrl(inv.threadId))}" target="_blank" title="Open the source email in Gmail">
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3H3a1 1 0 00-1 1v9a1 1 0 001 1h9a1 1 0 001-1v-3M10 2h4m0 0v4m0-4L7 9"/></svg>
+              </a>`
+            : '<span class="dash">—</span>'}
+        </td>
         <td><input class="inv-input" type="date" value="${inv.sent||''}" onchange="A.updateInvoice('${parent.id}',${idx},'sent',this.value)" style="width:86px"></td>
         <td><input class="inv-input" value="${esc(inv.vendor||'')}" placeholder="Vendor" onblur="A.updateInvoice('${parent.id}',${idx},'vendor',this.value)"></td>
         <td><input class="inv-input" value="${esc(inv.number||'')}" placeholder="INV-000" onblur="A.updateInvoice('${parent.id}',${idx},'number',this.value)"></td>
