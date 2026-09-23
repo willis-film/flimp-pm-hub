@@ -349,7 +349,9 @@ function render(){
       btn.className = 'tg-btn'+(_ap===t.id?' active':'');
       btn.title = t.label;
       btn.onclick = (()=>{ const _id=parent.id,_t=t.id; return ()=>setPanel(_id,_t); })();
-      btn.innerHTML = '<span class="tg-btn-label">'+t.label+(t.badge?'<span class="tg-unread"></span>':'')+'</span>';
+      // Dot is a sibling of the label, not inside it: the label clips with
+      // overflow:hidden for its ellipsis, which shaved the dot's ring off.
+      btn.innerHTML = '<span class="tg-btn-label">'+t.label+'</span>'+(t.badge?'<span class="tg-unread"></span>':'');
       _toolGrid.appendChild(btn);
     });
     gridWrap.appendChild(_toolGrid);
@@ -493,7 +495,19 @@ function render(){
     invWrap.className='inv-wrap'+(activePanel!=='invoices'?' hidden':'');
     invWrap.id='inv-'+parent.id;
 
-    const INV_TASKS=['design','animation','voiceover'];
+    const INV_TASK_LABELS={
+      design:'Design', animation:'Animation', 'design-animation':'Design & Animation',
+      voiceover:'Voiceover', captions:'Captions', translation:'Translation'
+    };
+    // Invoices saved before Tasks became a single dropdown carry a `tasks`
+    // array from the old toggle buttons instead of `task`. Read through it until
+    // the row is next edited (setInvoiceTask drops the array).
+    const invTask=inv=>{
+      if(inv.task!==undefined) return inv.task;
+      const t=inv.tasks||[];
+      if(t.includes('design')&&t.includes('animation')) return 'design-animation';
+      return t[0]||'';
+    };
     const INV_STATUSES=['received','documented','zohod','paid'];
     const INV_STATUS_LABELS={received:'Received',documented:'Documented',zohod:"Zoho'd",paid:'Paid'};
 
@@ -502,12 +516,12 @@ function render(){
     invTable.innerHTML=`
       <thead><tr>
         <th style="width:22px"></th>
-        <th style="width:34px">Mail</th>
+        <th style="width:200px">Mail</th>
         <th style="width:90px">Sent</th>
         <th style="width:160px">Vendor</th>
         <th style="width:120px">Invoice #</th>
         <th style="width:90px">Amount</th>
-        <th style="width:200px">Tasks</th>
+        <th style="width:160px">Tasks</th>
         <th style="width:120px">Status</th>
         <th style="width:34px"></th>
       </tr></thead>
@@ -524,24 +538,28 @@ function render(){
       tr.dataset.idx=String(idx);
       tr.innerHTML=`
         <td class="inv-handle-cell"><span class="drag-handle" title="Drag to reorder">⠿</span></td>
-        <td style="text-align:center">
-          ${inv.threadId
-            ? `<a class="email-link" href="${esc(gmailThreadUrl(inv.threadId))}" target="_blank" title="Open the source email in Gmail">
+        <td style="max-width:200px">
+          ${inv.threadId ? (()=>{
+            // Live thread first (its sender tracks the newest message); the
+            // snapshot taken when the row was filed covers a thread that has
+            // since dropped out of the synced set.
+            const m=(db.gmailEmails||[]).find(e=>e.threadId===inv.threadId)||{from:inv.mailFrom,subject:inv.mailSubject};
+            const from=m.from||'';
+            return `<a class="inv-mail-link" href="${esc(gmailThreadUrl(inv.threadId))}" target="_blank" title="${esc(m.subject||'Open in Gmail')}">
                 <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3H3a1 1 0 00-1 1v9a1 1 0 001 1h9a1 1 0 001-1v-3M10 2h4m0 0v4m0-4L7 9"/></svg>
-              </a>`
-            : '<span class="dash">—</span>'}
+                <span class="inv-mail-from">${esc(from||'Open in Gmail')}</span>
+              </a>`;
+          })() : '<span class="dash">—</span>'}
         </td>
         <td><input class="inv-input" type="date" value="${inv.sent||''}" onchange="A.updateInvoice('${parent.id}',${idx},'sent',this.value)" style="width:86px"></td>
         <td><input class="inv-input" value="${esc(inv.vendor||'')}" placeholder="Vendor" onblur="A.updateInvoice('${parent.id}',${idx},'vendor',this.value)"></td>
         <td><input class="inv-input" value="${esc(inv.number||'')}" placeholder="INV-000" onblur="A.updateInvoice('${parent.id}',${idx},'number',this.value)"></td>
         <td><input class="inv-input" value="${esc(inv.amount||'')}" placeholder="0.00" onblur="A.updateInvoice('${parent.id}',${idx},'amount',this.value)" style="width:80px"></td>
         <td>
-          <div style="display:flex;gap:4px;align-items:center">
-            ${INV_TASKS.map(t=>{
-              const on=(inv.tasks||[]).includes(t);
-              return `<button onclick="A.toggleInvTask('${parent.id}',${idx},'${t}')" style="font-family:var(--font);font-size: 11px;font-weight:600;padding:2px 7px;border-radius:3px;border:1.5px solid ${on?'transparent':'var(--line-2)'};cursor:pointer;background:${on?(t==='design'?'rgba(146,180,244,0.2)':t==='animation'?'rgba(189,147,189,0.22)':'rgba(69,187,200,0.18)'):'var(--panel)'};color:${on?(t==='design'?'#AcC6F4':t==='animation'?'#D2ADD2':'#7FD6E0'):'var(--ink-3)'};transition:all .13s">${t.charAt(0).toUpperCase()+t.slice(1)}</button>`;
-            }).join('')}
-          </div>
+          <select class="inv-select" onchange="A.setInvoiceTask('${parent.id}',${idx},this.value)">
+            <option value="">—</option>
+            ${Object.entries(INV_TASK_LABELS).map(([k,l])=>`<option value="${k}"${invTask(inv)===k?' selected':''}>${l}</option>`).join('')}
+          </select>
         </td>
         <td>
           <select class="inv-select" onchange="A.updateInvoice('${parent.id}',${idx},'status',this.value)">

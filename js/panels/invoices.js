@@ -9,7 +9,7 @@ import { MONEY_LABEL_NAME } from '../data/constants.js';
 function addInvoice(parentId){
   const r=db.rows.find(x=>x.id===parentId); if(!r)return;
   if(!r.invoices) r.invoices=[];
-  r.invoices.push({id:newId('inv'),sent:'',vendor:'',number:'',amount:'',tasks:[],status:'received'});
+  r.invoices.push({id:newId('inv'),sent:'',vendor:'',number:'',amount:'',task:'',status:'received'});
   save(); A.render();
 }
 
@@ -24,13 +24,14 @@ function updateInvoice(parentId, idx, field, value){
   if(field==='vendor') A.render();
 }
 
-function toggleInvTask(parentId, idx, task){
+// Drops the legacy `tasks` array (from the old multi-toggle buttons) once a
+// task is picked, so render.js's fallback read stops applying to this row.
+function setInvoiceTask(parentId, idx, task){
   const r=db.rows.find(x=>x.id===parentId); if(!r||!r.invoices)return;
   const inv=r.invoices[idx]; if(!inv)return;
-  if(!inv.tasks) inv.tasks=[];
-  const i=inv.tasks.indexOf(task);
-  if(i>=0) inv.tasks.splice(i,1); else inv.tasks.push(task);
-  save(); A.render();
+  inv.task=task;
+  delete inv.tasks;
+  save();
 }
 
 function deleteInvoice(parentId, idx){
@@ -71,8 +72,11 @@ function unfiledMoneyThreads(){
     .sort((a,b)=>new Date(b.date)-new Date(a.date));
 }
 
-function blankInvoice(threadId){
-  return {id:newId('inv'),sent:'',vendor:'',number:'',amount:'',tasks:[],status:'received',threadId};
+// mailFrom/mailSubject are a snapshot for the Mail column, used only if the
+// thread later drops out of db.gmailEmails (label removed, sync rebuilt).
+function blankInvoice(email){
+  return {id:newId('inv'),sent:'',vendor:'',number:'',amount:'',task:'',status:'received',
+    threadId:email.threadId, mailFrom:email.from||'', mailSubject:email.subject||''};
 }
 
 // Run after every Gmail sync (see js/sync.js). A 💰 thread that ALSO carries a
@@ -92,7 +96,7 @@ function attachMoneyLabelInvoices(){
     const project=projects.find(p=>(p.gmailLabels||[]).some(lid=>(email.labelIds||[]).includes(lid)));
     if(!project) return;
     if(!project.invoices) project.invoices=[];
-    project.invoices.push(blankInvoice(email.threadId));
+    project.invoices.push(blankInvoice(email));
     filed.add(email.threadId);
     changed=true;
   });
@@ -133,13 +137,14 @@ function submitAssignMoney(){
   const projectId=document.getElementById('amm-project').value; if(!projectId||!_assigningMoneyThreadId) return;
   const row=db.rows.find(r=>r.id===projectId); if(!row) return;
   if(!row.invoices) row.invoices=[];
-  row.invoices.push(blankInvoice(_assigningMoneyThreadId));
+  const email=(db.gmailEmails||[]).find(e=>e.threadId===_assigningMoneyThreadId)||{threadId:_assigningMoneyThreadId};
+  row.invoices.push(blankInvoice(email));
   save(); A.render(); A.renderMoneyBanner(); closeAssignMoneyModal();
 }
 
 // Register on the app bus so other modules + inline handlers can reach these.
 register({
-  addInvoice, updateInvoice, toggleInvTask, deleteInvoice,
+  addInvoice, updateInvoice, setInvoiceTask, deleteInvoice,
   attachMoneyLabelInvoices, unfiledMoneyThreads,
   openMoneyManageModal, closeMoneyManageModal,
   openAssignMoneyModal, closeAssignMoneyModal, submitAssignMoney
