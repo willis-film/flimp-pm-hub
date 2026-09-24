@@ -373,13 +373,34 @@ function refreshDistIndicator(taskId){
   lbl.title=err?'ClickUp Dist. Date sync failed — '+err+' (pick the date again to retry)':'';
 }
 
-async function pushDistDateOnEdit(row){
+// Typing a year into a date input fires `change` on EVERY keystroke — '2026'
+// arrives as 0002, 0020, 0202, 2026 — and pushing each one filled ClickUp's
+// activity feed with junk dates. So edits are debounced per row: the push goes
+// out once the date has sat still for DIST_PUSH_DELAY_MS, carrying whatever
+// the row holds at that moment. Picking from the calendar costs the same short
+// wait, which nobody will notice.
+const DIST_PUSH_DELAY_MS = 1500;
+const distPushTimers = new Map();
+
+function pushDistDateOnEdit(row){
   if(!row || !row.clickupId) return;
+  clearTimeout(distPushTimers.get(row.id));
+  distPushTimers.set(row.id, setTimeout(()=>{
+    distPushTimers.delete(row.id);
+    sendDistDate(row);
+  }, DIST_PUSH_DELAY_MS));
+}
+
+async function sendDistDate(row){
+  const date=row.distributionDate||'';
+  // Belt and braces for a pause mid-year: a year before 2000 is a half-typed
+  // date, never a real distribution date, so it waits for the next edit.
+  if(date && Number(date.slice(0,4))<2000) return;
   try{
     const res=await fetch('/api/clickup-dist-date',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({ clickupId:row.clickupId, date:row.distributionDate||'' })
+      body:JSON.stringify({ clickupId:row.clickupId, date })
     });
     const json=await res.json().catch(()=>({}));
     // 422 = the ClickUp task has no field this recognises as a distribution
