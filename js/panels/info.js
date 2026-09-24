@@ -374,6 +374,9 @@ function ufInfo(id, field, value) {
   r[field] = value;
   A.logActivity(r, field, old, value);
   save();
+  // Mirrored to ClickUp like the Subtasks table's Dist. Date column — same
+  // field, so both editors have to push. No-op for rows without a clickupId.
+  if (field === 'distributionDate') A.pushDistDateOnEdit(r);
   A.render();
 }
 

@@ -356,6 +356,43 @@ async function syncTaskPhase(taskId, btn){
   recordPhasePush(taskId, result);
 }
 
+// ── DIST. DATE WRITE-BACK ────────────────────────────────────────────────────
+// Same contract as the phase push above: fires after save(), never throws,
+// and only rows linked to a ClickUp task go anywhere. api/clickup-dist-date.js
+// finds the task's distribution date field by name and writes it.
+//
+// Lighter failure UI than phase: no retry button, just the Dist. Date label in
+// the Subtasks table turning red with the reason on hover. Re-picking the date
+// pushes again. Like the phase marks, it lives in memory and a reload clears it.
+const distPushErrors = new Map();
+
+function refreshDistIndicator(taskId){
+  const lbl=document.getElementById('dist-lbl-'+taskId); if(!lbl) return;
+  const err=distPushErrors.get(taskId);
+  lbl.style.color=err?'var(--sig-alert)':'';
+  lbl.title=err?'ClickUp Dist. Date sync failed — '+err+' (pick the date again to retry)':'';
+}
+
+async function pushDistDateOnEdit(row){
+  if(!row || !row.clickupId) return;
+  try{
+    const res=await fetch('/api/clickup-dist-date',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ clickupId:row.clickupId, date:row.distributionDate||'' })
+    });
+    const json=await res.json().catch(()=>({}));
+    // 422 = the ClickUp task has no field this recognises as a distribution
+    // date. GET /api/clickup-dist-date?taskId=<id> lists the names it does have.
+    if(!res.ok) throw new Error(json.error||('/api/clickup-dist-date -> '+res.status));
+    distPushErrors.delete(row.id);
+  }catch(e){
+    console.error('ClickUp Dist. Date write-back failed for task '+row.clickupId+':',e);
+    distPushErrors.set(row.id, e.message||String(e));
+  }
+  refreshDistIndicator(row.id);
+}
+
 function openClickUpManageModal(){
   const allTasks=db.clickupTasks||[];
   const cuStatusColors={'to do':'#6b7280','in progress':'#d97706','in review':'#2563eb','complete':'#16a34a'};
@@ -429,4 +466,4 @@ function openClickUpManageModal(){
 function closeClickUpManageModal(){ document.getElementById('clickup-manage-overlay').classList.remove('open'); }
 
 // Register on the app bus so other modules + inline handlers can reach these.
-register({ openAssignCuTaskModal, closeAssignCuTaskModal, submitAssignCuTask, openClickUpManageModal, closeClickUpManageModal, detachCuRow, detachCuTaskAll, discardCuTaskData, detachedRowsFor, pushPhaseToClickUp, pushPhaseOnEdit, syncTaskPhase, phaseIndicatorHtml });
+register({ openAssignCuTaskModal, closeAssignCuTaskModal, submitAssignCuTask, openClickUpManageModal, closeClickUpManageModal, detachCuRow, detachCuTaskAll, discardCuTaskData, detachedRowsFor, pushPhaseToClickUp, pushPhaseOnEdit, syncTaskPhase, phaseIndicatorHtml, pushDistDateOnEdit });
