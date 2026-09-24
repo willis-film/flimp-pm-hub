@@ -362,8 +362,8 @@ async function syncTaskPhase(taskId, btn){
 // finds the task's distribution date field by name and writes it.
 //
 // Lighter failure UI than phase: no retry button, just the Dist. Date label in
-// the Subtasks table turning red with the reason on hover. Re-picking the date
-// pushes again. Like the phase marks, it lives in memory and a reload clears it.
+// the Subtasks table turning red with the reason on hover. Editing the date
+// again pushes again. Like the phase marks, it lives in memory and a reload clears it.
 const distPushErrors = new Map();
 
 function refreshDistIndicator(taskId){
@@ -373,28 +373,33 @@ function refreshDistIndicator(taskId){
   lbl.title=err?'ClickUp Dist. Date sync failed — '+err+' (pick the date again to retry)':'';
 }
 
-// Typing a year into a date input fires `change` on EVERY keystroke — '2026'
-// arrives as 0002, 0020, 0202, 2026 — and pushing each one filled ClickUp's
-// activity feed with junk dates. So edits are debounced per row: the push goes
-// out once the date has sat still for DIST_PUSH_DELAY_MS, carrying whatever
-// the row holds at that moment. Picking from the calendar costs the same short
-// wait, which nobody will notice.
-const DIST_PUSH_DELAY_MS = 1500;
-const distPushTimers = new Map();
+// WHEN it pushes: once the edit is FINISHED, not on every change. Typing a
+// year into a date input fires `change` on every keystroke — '2026' arrives as
+// 0002, 0020, 0202, 2026 — and pushing each one filled ClickUp's activity feed
+// with junk dates. So the editors bracket an edit instead:
+//   distEditStart(id)  when the date popup opens
+//   distEditEnd(id)    when it closes (Done, Clear, or a click away)
+// and only an edit that actually changed the date pushes anything. The Info
+// panel calls both back to back, passing the pre-edit value — see ufInfo.
+const distEditBefore = new Map();
 
-function pushDistDateOnEdit(row){
-  if(!row || !row.clickupId) return;
-  clearTimeout(distPushTimers.get(row.id));
-  distPushTimers.set(row.id, setTimeout(()=>{
-    distPushTimers.delete(row.id);
-    sendDistDate(row);
-  }, DIST_PUSH_DELAY_MS));
+function distEditStart(rowId, before){
+  const row=db.rows.find(r=>r.id===rowId); if(!row || !row.clickupId) return;
+  distEditBefore.set(rowId, before!==undefined ? (before||'') : (row.distributionDate||''));
+}
+
+function distEditEnd(rowId){
+  if(!distEditBefore.has(rowId)) return;
+  const before=distEditBefore.get(rowId);
+  distEditBefore.delete(rowId);
+  const row=db.rows.find(r=>r.id===rowId);
+  if(row && (row.distributionDate||'')!==before) sendDistDate(row);
 }
 
 async function sendDistDate(row){
   const date=row.distributionDate||'';
-  // Belt and braces for a pause mid-year: a year before 2000 is a half-typed
-  // date, never a real distribution date, so it waits for the next edit.
+  // A year before 2000 is a half-typed date someone clicked away from, never a
+  // real distribution date — ClickUp keeps what it had.
   if(date && Number(date.slice(0,4))<2000) return;
   try{
     const res=await fetch('/api/clickup-dist-date',{
@@ -487,4 +492,4 @@ function openClickUpManageModal(){
 function closeClickUpManageModal(){ document.getElementById('clickup-manage-overlay').classList.remove('open'); }
 
 // Register on the app bus so other modules + inline handlers can reach these.
-register({ openAssignCuTaskModal, closeAssignCuTaskModal, submitAssignCuTask, openClickUpManageModal, closeClickUpManageModal, detachCuRow, detachCuTaskAll, discardCuTaskData, detachedRowsFor, pushPhaseToClickUp, pushPhaseOnEdit, syncTaskPhase, phaseIndicatorHtml, pushDistDateOnEdit });
+register({ openAssignCuTaskModal, closeAssignCuTaskModal, submitAssignCuTask, openClickUpManageModal, closeClickUpManageModal, detachCuRow, detachCuTaskAll, discardCuTaskData, detachedRowsFor, pushPhaseToClickUp, pushPhaseOnEdit, syncTaskPhase, phaseIndicatorHtml, distEditStart, distEditEnd });

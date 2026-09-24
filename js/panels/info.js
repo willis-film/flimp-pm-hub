@@ -374,9 +374,12 @@ function ufInfo(id, field, value) {
   r[field] = value;
   A.logActivity(r, field, old, value);
   save();
-  // Mirrored to ClickUp like the Subtasks table's Dist. Date column — same
-  // field, so both editors have to push. No-op for rows without a clickupId.
-  if (field === 'distributionDate') A.pushDistDateOnEdit(r);
+  // Dist. Date is mirrored to ClickUp. Every change here IS a finished edit:
+  // render() below rebuilds this panel and the input with it, so focus is gone
+  // after one change and there's no later moment to wait for (unlike the
+  // Subtasks table's popup, which pushes on close). A half-typed year before
+  // 2000 is ignored by the push itself.
+  if (field === 'distributionDate') { A.distEditStart(id, old); A.distEditEnd(id); }
   A.render();
 }
 

@@ -24,9 +24,13 @@ function openDatePicker(rowId, field, anchorId){
 }
 
 function openTaskDatePicker(taskId, field, anchorId){
+  // Clicking another date label moves the popup without closing it, so an
+  // edit still open on the previous row is finished here first.
+  finishDistEdit();
   // Reuse popup but wire to ufTask
   _dpRowId=null; _dpField=null;
   _dpTaskId=taskId; _dpTaskField=field;
+  if(field==='distributionDate') A.distEditStart(taskId);
   const task=db.rows.find(r=>r.id===taskId);
   const popup=document.getElementById('date-popup');
   const input=document.getElementById('date-popup-input');
@@ -66,7 +70,14 @@ function datePopupClear(){
   closeDatePopup();
 }
 
+// Dist. Date goes to ClickUp when the popup closes (Done, Clear, or a click
+// away), not on each change — typing a year changes it once per keystroke.
+function finishDistEdit(){
+  if(_dpTaskId && _dpTaskField==='distributionDate') A.distEditEnd(_dpTaskId);
+}
+
 function closeDatePopup(){
+  finishDistEdit();
   document.getElementById('date-popup').classList.remove('open');
   _dpRowId=null; _dpField=null; _dpTaskId=null; _dpTaskField=null;
 }

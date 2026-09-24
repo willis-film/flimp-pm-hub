@@ -16,7 +16,6 @@ function ufTask(id, field, value){
   // Either way this runs AFTER save(), never instead of it: the board's copy
   // lands regardless of whether ClickUp answers.
   if(field==='phase') A.pushPhaseOnEdit(r);
-  if(field==='distributionDate') A.pushDistDateOnEdit(r);
 }
 
 function ufTaskAndRender(id, field, value){

@@ -855,7 +855,6 @@ function uf(id,field,value){
   // the same rows, so it has to push too or the two editors disagree about
   // what ClickUp shows. Gated: off during testing (see AUTO_PUSH_PHASE).
   if(field==='phase') A.pushPhaseOnEdit(r);
-  if(field==='distributionDate') A.pushDistDateOnEdit(r);
   // Only full re-render for fields that change visible strip elements.
   //
   // Every self-labelling field re-renders rather than being patched in place.
