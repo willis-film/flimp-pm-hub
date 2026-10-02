@@ -22,7 +22,8 @@ import { A, register } from './bus.js';
 // Each sync can fail without the other: a half-success still re-reads (so
 // whichever did land shows up) and the button names the one that failed. A
 // failure that silently restored the label would look like a sync that never
-// ran, so the outcome is held on screen long enough to read.
+// ran, so the outcome is held on screen long enough to read — longer than
+// the old per-button 2.5s, since it now reports on both syncs at once.
 async function post(url) {
   const res = await fetch(url, { method: 'POST' });
   const json = await res.json().catch(() => ({}));
@@ -66,24 +67,33 @@ async function syncAll() {
     console.error('Sync failed:', e);
     if (btn) btn.textContent = 'Sync failed';
   } finally {
-    if (btn) setTimeout(() => { btn.disabled = false; btn.textContent = original; }, 2500);
+    if (btn) setTimeout(() => { btn.disabled = false; btn.textContent = original; }, 5000);
   }
 }
 
-// What the button says afterwards. Gmail's states outrank a plain "Synced"
-// because they ask for something: "backfill" means it was rebuilding from
-// scratch and may not have finished in one pass (the endpoint is resumable and
-// continues on the next run), whereas "delta" is the cheap steady state.
+// What the button says afterwards — counts from both sides, so a glance
+// confirms each one ran: e.g. "12 tasks · 34 emails". A side that failed is
+// named in place of its count, so a half-success can't pass for a full one.
+//
+// Gmail's special states replace its count because they ask for something:
+// "backfill" means it was rebuilding from scratch and may not have finished in
+// one pass (the endpoint is resumable and continues on the next run), whereas
+// "delta" is the cheap steady state.
 function outcome(cu, gm) {
-  const cuOk = cu.status === 'fulfilled', gmOk = gm.status === 'fulfilled';
-  if (!cuOk && !gmOk) return 'Sync failed';
-  if (!cuOk) return 'ClickUp failed';
-  if (!gmOk) return 'Gmail failed';
-  const j = gm.value;
-  if (j.skipped) return 'No Gmail labels';
-  if (j.mode === 'backfill' && j.complete === false) return 'Partial — run again';
-  if (j.mode === 'history-expired') return 'Rebuilding';
-  return 'Synced';
+  if (cu.status === 'rejected' && gm.status === 'rejected') return 'Sync failed';
+  const cuPart = cu.status === 'rejected' ? 'ClickUp failed'
+    : typeof cu.value.synced === 'number' ? `${cu.value.synced} tasks` : 'ClickUp synced';
+  let gmPart;
+  if (gm.status === 'rejected') gmPart = 'Gmail failed';
+  else {
+    const j = gm.value;
+    if (j.skipped) gmPart = 'no Gmail labels';
+    else if (j.mode === 'backfill' && j.complete === false) gmPart = 'Gmail partial — run again';
+    else if (j.mode === 'history-expired') gmPart = 'Gmail rebuilding';
+    else if (typeof j.threads === 'number') gmPart = `${j.threads} emails`;
+    else gmPart = 'Gmail synced';
+  }
+  return `${cuPart} · ${gmPart}`;
 }
 
 register({ syncAll });
