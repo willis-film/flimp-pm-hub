@@ -448,7 +448,7 @@ function buildEmail() {
 
     body = `<p>Hi ${esc(contact)},</p>
       <p>Good news! Your <strong>${esc(clientName)} ${productList}</strong> ${selected.length > 1 ? 'are' : 'is'} ready to be distributed.</p>
-      <p><strong style="color:#67E74E">&gt;&gt;</strong> <strong>Final Files</strong></p>
+      <p style="margin-top:20px"><strong style="color:#67E74E">&gt;&gt;</strong> <strong>Final Files</strong></p>
       ${items}
       <p>${key}</p>
       <p>Please let us know if you have any questions or need anything else.</p>
@@ -463,7 +463,9 @@ function buildEmail() {
     // everything going out, videos and guides alike.
     const productList = selected.map(it => esc(it.name)).join(', ');
 
-    const H = t => `<p><strong style="color:#67E74E">&gt;&gt;</strong> <strong>${t}</strong></p>`;
+    // A little more room above each >> header than between paragraphs —
+    // a full blank line was too much.
+    const H = t => `<p style="margin-top:20px"><strong style="color:#67E74E">&gt;&gt;</strong> <strong>${t}</strong></p>`;
 
     // Kept options only, renumbered 1..n. These are VIDEO concerns, so they
     // iterate videoItems, not the full selection — a guide has no embed code.
