@@ -465,7 +465,7 @@ function buildEmail() {
       n++;
       if (o.id === 'url')
         return `<p><strong>Option ${n}: Custom URL</strong></p>` + videoItems.map(it =>
-          `<p>${esc(it.name)}: ${it.distUrl ? link(it.distUrl, it.distUrl) : '[URL]'}</p>`
+          `<p style="margin-left:40px">${esc(it.name)}: ${it.distUrl ? link(it.distUrl, it.distUrl) : '[URL]'}</p>`
         ).join('');
       if (o.id === 'email')
         return `<p><strong>Option ${n}: Distribute by email</strong></p>
@@ -474,13 +474,19 @@ function buildEmail() {
             // The thumbnail is pasted into Gmail by hand — the page can't hold
             // the image and shouldn't try. It leaves an unmistakable marker in
             // the right spot so the step is never forgotten or misplaced.
-            `<p>${link(it.distUrl, `Open the ${clientName} ${it.name}`)}</p>
+            `<p style="margin:0"><strong>${link(it.distUrl, `Open the ${clientName} ${it.name}`)}</strong></p>
              <p class="ds-ph"><em>[ Paste the ${esc(it.name)} thumbnail image here ]</em></p>`
           ).join('');
       if (o.id === 'embed')
         return `<p><strong>Option ${n}: Embed into a website, intranet or portal</strong></p>
           <p>Send the iFrame code below to your IT team to embed the content directly within a web page, intranet or portal.</p>` +
-          videoItems.map(it => `<pre>${esc(it.embedCode || '[Embed code]')}</pre>`).join('') +
+          // With several deliverables the code blocks look identical, so each
+          // gets its title above it; a lone one needs no label. Listings sit
+          // one tab (40px, Gmail's own indent step) in from the option text.
+          videoItems.map(it =>
+            (videoItems.length > 1 ? `<p style="margin:0 0 0 40px"><strong>${esc(it.name)}</strong></p>` : '') +
+            `<pre style="margin-left:40px">${esc(it.embedCode || '[Embed code]')}</pre>`
+          ).join('') +
           `<p><em>Note on Resizing: You can adjust the height and width of the content in the code but be sure to maintain proportions to avoid distortion.</em></p>`;
       if (o.id === 'qr')
         return `<p><strong>Option ${n}: QR Code</strong> (attached to this email)</p>`;
@@ -511,13 +517,16 @@ function buildEmail() {
     body = `<p>Hi ${esc(contact)},</p>
       <p>Good news! Your <strong>${productList}</strong> ${selected.length > 1 ? 'are' : 'is'} ready to be distributed.</p>
       ${videoItems.length ? H('Reporting') : ''}
-      ${videoItems.map(it =>
-        // The visible text is the item title + " Reporting Link"; the URL hides
-        // behind it. One line per video deliverable.
-        `<p>${link(it.reportLink, `${it.name} Reporting Link`)}</p>`
-      ).join('')}
+      ${videoItems.length === 1
+        // One deliverable: a single sentence, the link hidden behind its tail.
+        ? `<p>Here is your <strong>${link(videoItems[0].reportLink, 'shareable, real-time tracking report to monitor engagement')}</strong>.</p>`
+        // Several: an unlinked intro, then one "<title> Engagement Report" line each.
+        : videoItems.length > 1
+          ? `<p>Here are your shareable, real-time tracking reports to monitor engagement.</p>` +
+            videoItems.map(it => `<p style="margin-left:40px">${link(it.reportLink, `${it.name} Engagement Report`)}</p>`).join('')
+          : ''}
       ${H('Distribution Resource Center &amp; Reporting Metrics Explained')}
-      <p>Visit our ${link(BOILER.resourceCenter, 'Distribution Resource Center')} and ${link(BOILER.metricsExplained, 'Reporting Metrics Explained')} for best practices, distribution methods, FAQs, and reporting dashboard explanations.</p>
+      <p>Visit our <strong>${link(BOILER.resourceCenter, 'Distribution Resource Center')}</strong> and <strong>${link(BOILER.metricsExplained, 'Reporting Metrics Explained')}</strong> for best practices, distribution methods, FAQs, and reporting dashboard explanations.</p>
       ${videoItems.length ? H('Distribution Options') + (optionBlocks || '<p><em>No distribution methods selected.</em></p>') : ''}
       ${guideSection}
       ${H('Real-Time Updates')}
