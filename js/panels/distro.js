@@ -332,8 +332,8 @@ function buildEmail(parent, st) {
 
     const productList = selected.map(k => esc(assetFields(k, st).productName)).join(', ');
     const key = BOILER.resolutionKey.map(([abbr, name, use]) =>
-      `<div><strong style="color:#67E74E">${abbr}</strong> - ${esc(name)} - <em>${esc(use)}</em></div>`
-    ).join('');
+      `<strong style="color:#67E74E">${abbr}</strong> - ${esc(name)} - <em>${esc(use)}</em>`
+    ).join('<br>');
 
     body = `<p>Hi ${esc(pf.contact || '[Client Contact]')},</p>
       <p>Good news! Your <strong>${esc(clientName)} ${productList}</strong> ${selected.length > 1 ? 'are' : 'is'} ready to be distributed.</p>
@@ -366,7 +366,7 @@ function buildEmail(parent, st) {
       if (o.id === 'url')
         return `<p><strong>Option ${n}: Custom URL</strong></p>` + forAssets.map(k => {
           const url = st.fields[k.id]?.distUrl || assetFields(k, st).preview;
-          return `<p>${esc(assetFields(k, st).productName)}: ${url ? link(url, url) : '[URL]'}</p>`;
+          return `<p style="margin-left:40px">${esc(assetFields(k, st).productName)}: ${url ? link(url, url) : '[URL]'}</p>`;
         }).join('');
       if (o.id === 'email')
         return `<p><strong>Option ${n}: Distribute by email</strong></p>
@@ -376,13 +376,19 @@ function buildEmail(parent, st) {
             // The thumbnail is pasted into Gmail by hand — the panel can't hold
             // the image and shouldn't try. It leaves an unmistakable marker in
             // the right spot so the step is never forgotten or misplaced.
-            return `<p>${link(url, `Open the ${clientName} ${assetFields(k,st).productName}`)}</p>
+            return `<p style="margin:0"><strong>${link(url, `Open the ${clientName} ${assetFields(k,st).productName}`)}</strong></p>
               <p class="ds-ph"><em>[ Paste the ${esc(assetFields(k,st).productName)} thumbnail image here ]</em></p>`;
           }).join('');
       if (o.id === 'embed')
         return `<p><strong>Option ${n}: Embed into a website, intranet or portal</strong></p>
           <p>Send the iFrame code below to your IT team to embed the content directly within a web page, intranet or portal.</p>` +
-          forAssets.map(k => `<pre>${esc(st.fields[k.id]?.embedCode || '[Embed code]')}</pre>`).join('') +
+          // With several deliverables the code blocks look identical, so each
+          // gets its title above it; a lone one needs no label. Listings sit
+          // one tab (40px, Gmail's own indent step) in from the option text.
+          forAssets.map(k =>
+            (forAssets.length > 1 ? `<p style="margin:0 0 0 40px"><strong>${esc(assetFields(k, st).productName)}</strong></p>` : '') +
+            `<pre style="margin-left:40px">${esc(st.fields[k.id]?.embedCode || '[Embed code]')}</pre>`
+          ).join('') +
           `<p><em>Note on Resizing: You can adjust the height and width of the content in the code but be sure to maintain proportions to avoid distortion.</em></p>`;
       if (o.id === 'qr')
         return `<p><strong>Option ${n}: QR Code</strong> (attached to this email)</p>`;
@@ -405,8 +411,8 @@ function buildEmail(parent, st) {
       ${guideItems.map(k => {
         const af = assetFields(k, st);
         const keyBlock = BOILER.resolutionKey.map(([abbr, name, use]) =>
-          `<div><strong style="color:#67E74E">${abbr}</strong> - ${esc(name)} - <em>${esc(use)}</em></div>`
-        ).join('');
+          `<strong style="color:#67E74E">${abbr}</strong> - ${esc(name)} - <em>${esc(use)}</em>`
+        ).join('<br>');
         return `${H(`${esc(af.productName)} Final Files`)}
           <p>${link(af.download, 'Click here')} to download the ${esc(af.productName)}.</p>
           <p>${keyBlock}</p>`;
@@ -415,15 +421,19 @@ function buildEmail(parent, st) {
     body = `<p>Hi ${esc(pf.contact || '[Client Contact]')},</p>
       <p>Good news! Your <strong>${productList}</strong> ${selected.length > 1 ? 'are' : 'is'} ready to be distributed.</p>
       ${videoItems.length ? H('Reporting') : ''}
-      ${videoItems.map(k => {
-        const af = assetFields(k, st);
-        const url = st.fields[k.id]?.reportLink || af.report;
-        // The visible text is the item title + " Reporting Link"; the URL hides
-        // behind it. One line per video deliverable.
-        return `<p>${link(url, `${af.productName} Reporting Link`)}</p>`;
-      }).join('')}
+      ${(() => {
+        const reportUrl = k => st.fields[k.id]?.reportLink || assetFields(k, st).report;
+        // One deliverable: a single sentence, the link hidden behind its tail.
+        if (videoItems.length === 1)
+          return `<p>Here is your <strong>${link(reportUrl(videoItems[0]), 'shareable, real-time tracking report to monitor engagement')}</strong>.</p>`;
+        // Several: an unlinked intro, then one "<title> Engagement Report" line each.
+        if (videoItems.length > 1)
+          return `<p>Here are your shareable, real-time tracking reports to monitor engagement.</p>` +
+            videoItems.map(k => `<p style="margin-left:40px">${link(reportUrl(k), `${assetFields(k, st).productName} Engagement Report`)}</p>`).join('');
+        return '';
+      })()}
       ${H('Distribution Resource Center &amp; Reporting Metrics Explained')}
-      <p>Visit our ${link(BOILER.resourceCenter, 'Distribution Resource Center')} and ${link(BOILER.metricsExplained, 'Reporting Metrics Explained')} for best practices, distribution methods, FAQs, and reporting dashboard explanations.</p>
+      <p>Visit our <strong>${link(BOILER.resourceCenter, 'Distribution Resource Center')}</strong> and <strong>${link(BOILER.metricsExplained, 'Reporting Metrics Explained')}</strong> for best practices, distribution methods, FAQs, and reporting dashboard explanations.</p>
       ${videoItems.length ? H('Distribution Options') + (optionBlocks || '<p><em>No distribution methods selected.</em></p>') : ''}
       ${guideSection}
       ${H('Real-Time Updates')}
