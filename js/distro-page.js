@@ -413,6 +413,14 @@ function link(href, text) {
   return h ? `<a href="${esc(h)}">${esc(text)}</a>` : esc(text);
 }
 
+// Inline style for one line of a list (report links, URLs, download links).
+// Gmail gives every pasted <p> a blank line's worth of margin, so list lines
+// drop theirs to stack tight; the last keeps its bottom margin so the list
+// still stands apart from what follows. `indent` is one tab (40px).
+function listStyle(i, arr, indent) {
+  return 'margin-top:0' + (i < arr.length - 1 ? ';margin-bottom:0' : '') + (indent ? ';margin-left:40px' : '');
+}
+
 // On the guide template every deliverable is a guide, whatever its stored kind
 // — the kind picker is not even shown there, so a row left as 'video' from an
 // earlier template choice must not slip through as a video item.
@@ -429,8 +437,8 @@ function buildEmail() {
     // ONE email. The greeting, resolution key, and sign-off appear once; only
     // the per-deliverable line (product name + download link) repeats, listed
     // under a single Final Files heading.
-    const items = selected.map(it =>
-      `<p><strong>${esc(it.name)}:</strong> ${link(it.download, 'Click here')} to download.</p>`
+    const items = selected.map((it, i, a) =>
+      `<p style="${listStyle(i, a)}"><strong>${esc(it.name)}:</strong> ${link(it.download, 'Click here')} to download.</p>`
     ).join('');
 
     const productList = selected.map(it => esc(it.name)).join(', ');
@@ -464,8 +472,8 @@ function buildEmail() {
     const optionBlocks = kept.map(o => {
       n++;
       if (o.id === 'url')
-        return `<p><strong>Option ${n}: Custom URL</strong></p>` + videoItems.map(it =>
-          `<p style="margin-left:40px">${esc(it.name)}: ${it.distUrl ? link(it.distUrl, it.distUrl) : '[URL]'}</p>`
+        return `<p><strong>Option ${n}: Custom URL</strong></p>` + videoItems.map((it, i, a) =>
+          `<p style="${listStyle(i, a, true)}">${esc(it.name)}: ${it.distUrl ? link(it.distUrl, it.distUrl) : '[URL]'}</p>`
         ).join('');
       if (o.id === 'email')
         return `<p><strong>Option ${n}: Distribute by email</strong></p>
@@ -492,7 +500,7 @@ function buildEmail() {
         return `<p><strong>Option ${n}: QR Code</strong> (attached to this email)</p>`;
       if (o.id === 'mp4')
         return `<p><strong>Option ${n}: Download the MP4 file</strong></p>` +
-          videoItems.map(it => `<p>${link(it.mp4Link, 'Click here')} to download.</p>`).join('') +
+          videoItems.map((it, i, a) => `<p style="${listStyle(i, a)}">${link(it.mp4Link, 'Click here')} to download.</p>`).join('') +
           `<p><em>Please note that by using the MP4 file, you forgo the engagement metrics tracked by the Flimp URL and embed code.</em></p>`;
       if (o.id === 'ai')
         return `<p><strong>Option ${n}: Employee Benefits AI Agent</strong></p>
@@ -523,7 +531,7 @@ function buildEmail() {
         // Several: an unlinked intro, then one "<title> Engagement Report" line each.
         : videoItems.length > 1
           ? `<p>Here are your shareable, real-time tracking reports to monitor engagement.</p>` +
-            videoItems.map(it => `<p style="margin-left:40px">${link(it.reportLink, `${it.name} Engagement Report`)}</p>`).join('')
+            videoItems.map((it, i, a) => `<p style="${listStyle(i, a, true)}">${link(it.reportLink, `${it.name} Engagement Report`)}</p>`).join('')
           : ''}
       ${H('Distribution Resource Center &amp; Reporting Metrics Explained')}
       <p>Visit our <strong>${link(BOILER.resourceCenter, 'Distribution Resource Center')}</strong> and <strong>${link(BOILER.metricsExplained, 'Reporting Metrics Explained')}</strong> for best practices, distribution methods, FAQs, and reporting dashboard explanations.</p>
