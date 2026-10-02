@@ -2417,7 +2417,7 @@ select.info-in { cursor: pointer; padding-right: 4px; }
 }
 .ds-preview {
   padding: 16px 18px; background: var(--panel);
-  font-size: 13px; line-height: 1.6; color: var(--ink);
+  font-size: 13px; line-height: normal; color: var(--ink);
 }
 .ds-preview p { margin: 0 0 11px; }
 .ds-preview a { color: var(--signal); }

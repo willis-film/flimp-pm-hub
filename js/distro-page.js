@@ -435,8 +435,8 @@ function buildEmail() {
 
     const productList = selected.map(it => esc(it.name)).join(', ');
     const key = BOILER.resolutionKey.map(([abbr, name, use]) =>
-      `<div><strong style="color:#67E74E">${abbr}</strong> - ${esc(name)} - <em>${esc(use)}</em></div>`
-    ).join('');
+      `<strong style="color:#67E74E">${abbr}</strong> - ${esc(name)} - <em>${esc(use)}</em>`
+    ).join('<br>');
 
     body = `<p>Hi ${esc(contact)},</p>
       <p>Good news! Your <strong>${esc(clientName)} ${productList}</strong> ${selected.length > 1 ? 'are' : 'is'} ready to be distributed.</p>
@@ -501,8 +501,8 @@ function buildEmail() {
     // guide deliverable, placed after the video Options.
     const guideSection = guideItems.map(it => {
       const keyBlock = BOILER.resolutionKey.map(([abbr, name, use]) =>
-        `<div><strong style="color:#67E74E">${abbr}</strong> - ${esc(name)} - <em>${esc(use)}</em></div>`
-      ).join('');
+        `<strong style="color:#67E74E">${abbr}</strong> - ${esc(name)} - <em>${esc(use)}</em>`
+      ).join('<br>');
       return `${H(`${esc(it.name)} Final Files`)}
         <p>${link(it.download, 'Click here')} to download the ${esc(it.name)}.</p>
         <p>${keyBlock}</p>`;
