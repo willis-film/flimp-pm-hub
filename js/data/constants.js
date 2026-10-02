@@ -83,7 +83,7 @@ export const VO_LIST       = ['Angela DeNiro (née Aprea)','Anne Herbst','Bill D
 // Plain 'Microsite' sits alongside the two types it was split into rather than
 // being replaced by them: projects created before the split still carry it, and
 // dropping it here would blank their Type, Tier and Style at once.
-export const PRODUCT_TYPE_LIST = ['Presentation Video','Video','Library Videos','Microsite','Microsite Single-Page','Microsite Multi-Page','Benefit Guide','Companion Piece','Print & Mail','Flimp Decisions','Flimp Connect','Web Development','AI Chatbot Agent','Flimp Canvas','Other'];
+export const PRODUCT_TYPE_LIST = ['Presentation Video','Video','Library Videos','Microsite','Microsite - Single Page','Microsite - Multi Page','Benefit Guide','Companion Piece','Print & Mail','Flimp Decisions','Flimp Connect','Web Development','AI Chatbot Agent','Flimp Canvas','Other'];
 
 // One shared list of twelve for every type that has styles — the ten standard
 // styles plus Retrosketch and Custom — mirroring the product_options rows
@@ -101,8 +101,8 @@ export const PRODUCT_STYLE_MAP = {
   'Video':                  [...STANDARD_STYLES],
   'Presentation Video':     [...STANDARD_STYLES],
   'Microsite':              [...STANDARD_STYLES, 'Generic'],
-  'Microsite Single-Page':  [...STANDARD_STYLES, 'Generic'],
-  'Microsite Multi-Page':   [...STANDARD_STYLES, 'Generic'],
+  'Microsite - Single Page':[...STANDARD_STYLES, 'Generic'],
+  'Microsite - Multi Page': [...STANDARD_STYLES, 'Generic'],
   'Benefit Guide':          [...STANDARD_STYLES],
   'Companion Piece':        [...STANDARD_STYLES],
 };
