@@ -21,6 +21,15 @@ update product_options
    and product_type = 'Microsite - Multi Page'
    and value = 'Mobile Contact Wallet';
 
+update product_options
+   set product_type = 'Microsite - Single Page',
+       sort_order = (select coalesce(max(sort_order), 0) + 1
+                       from product_options
+                      where kind = 'tier' and product_type = 'Microsite - Single Page')
+ where kind = 'tier'
+   and product_type = 'Microsite - Multi Page'
+   and value = 'Mobile Contact Wallet Plus';
+
 update kickoff_content
    set product_types = array_replace(
          array_replace(product_types, 'Microsite Single-Page', 'Microsite - Single Page'),
