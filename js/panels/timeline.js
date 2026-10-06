@@ -353,7 +353,7 @@ function stripRow(pid, s, todayPct) {
       `<option value="${esc(d)}">${esc(d)}</option>`).join('');
     return `<div class="tl-row tl-row-empty">
       <div class="tl-lbl"><div class="tl-nm">
-        <span class="tl-dot is-${esc(kid.status)}"></span>
+        <span class="tl-dot is-${esc(kid.status)}"${A.itemDotStyle(kid)}></span>
         <span class="tl-nmt">${esc(kid.name)}</span></div>
         <div class="tl-meta">${esc(kid.productType || '—')}${kid.productTier ? ' · ' + esc(kid.productTier) : ''}</div>
       </div>
@@ -442,7 +442,7 @@ function stripRow(pid, s, todayPct) {
   return `<div class="tl-row">
     <div class="tl-lbl">
       <div class="tl-nm">
-        <span class="tl-dot is-${esc(kid.status)}"></span>
+        <span class="tl-dot is-${esc(kid.status)}"${A.itemDotStyle(kid)}></span>
         <span class="tl-nmt">${esc(kid.name)}</span>
       </div>
       <div class="tl-meta tl-meta-link" title="Reading the plan's &quot;${esc(linked)}&quot; tasks"

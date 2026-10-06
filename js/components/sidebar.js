@@ -103,13 +103,12 @@ function renderClickUpSidebar(){
   // Which of those still have data waiting to be restored. Marked in the list
   // because "assign" means two different things depending on the answer.
   const parkedCuIds=new Set(db.rows.filter(r=>r.clickupId&&isDetached(r)).map(r=>r.clickupId));
-  const cuStatusColors={'to do':'#6b7280','in progress':'#d97706','in review':'#2563eb','complete':'#16a34a'};
   if(!unassigned.length){
     list.innerHTML='<div style="padding:4px 14px;font-size:12px;color:var(--text3);font-style:italic">'+(allTasks.length?'All tasks assigned':'No tasks synced yet')+'</div>';
     return;
   }
   list.innerHTML=unassigned.map(t=>'<div class="cu-task-item">'+
-    '<div class="cu-task-dot" style="background:'+(cuStatusColors[t.status]||'#6b7280')+'"></div>'+
+    '<div class="cu-task-dot" style="background:'+A.cuDotColor(t)+'" title="'+esc(A.cuStatusName(t.status))+'"></div>'+
     '<span class="cu-task-name" title="'+esc(t.name)+'">'+esc(t.name)+'</span>'+
     (parkedCuIds.has(t.id)
       ? '<span class="cu-task-kept" title="Removed from a project — its phase, comments, dates and costs are still here, and assigning it to a project restores them">kept</span>'

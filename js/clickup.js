@@ -2,9 +2,9 @@
 // again without destroying what the hub knows about them.
 
 import { esc, newId, fmtDate, isDetached, isProjectRow } from './utils.js';
-import { db, save } from './store.js';
+import { db, save, isLoaded } from './store.js';
 import { ui } from './state.js';
-import { PHASE_LABELS } from './data/constants.js';
+import { PHASE_LABELS, STATUS_LABELS, cuStatusInfo } from './data/constants.js';
 import { A, register } from './bus.js';
 
 let _assigningCuTaskId=null;
@@ -85,8 +85,8 @@ function submitAssignCuTask(){
   // to copy its name, dates and product fields from.
   const cuTask=(db.clickupTasks||[]).find(t=>t.id===_assigningCuTaskId); if(!cuTask) return;
 
-  // Map ClickUp status to internal status
-  const statusMap={'to do':'kickoff','in progress':'production','in review':'done','complete':'closed'};
+  // Hub status from ClickUp's — same table applyClickUpStatuses() uses after.
+  const cuInfo=cuStatusInfo(cuTask.status);
   const newRow={
     id:newId('r'),
     parentId:projectId,
@@ -98,7 +98,8 @@ function submitAssignCuTask(){
     clickupUrl:cuTask.clickupUrl||'',
     collapsed:false,
     name:cuTask.name,
-    status:statusMap[cuTask.status]||'kickoff',
+    status:cuInfo?cuInfo.hub:'kickoff',
+    itemStatus:cuInfo?cuInfo.name:'Kickoff',
     phase:'',
     tags:[],
     due:cuTask.due||'',
@@ -121,6 +122,178 @@ function submitAssignCuTask(){
   };
   db.rows.push(newRow);
   save(); A.render(); A.renderClickUpSidebar(); A.renderCuBanner(); closeAssignCuTaskModal();
+}
+
+// ── STATUS FROM CLICKUP ──────────────────────────────────────────────────────
+// For a ClickUp-linked item, ClickUp owns the status. The hub never writes one
+// back: a status decides which team's view the task shows up in, and a wrong
+// one from here would put work in front of the wrong people. So the hub reads
+// it on every sync and on page load, and its own status controls are read-only
+// for these items, pointing to ClickUp instead.
+//
+// Every item (a task row on a project) uses the same thirteen statuses,
+// CU_STATUSES in constants.js — linked or not — so there's one status list for
+// items everywhere in the hub. Project strips keep the hub's five.
+//
+// Two fields on an item:
+//   itemStatus — the exact name from CU_STATUSES ('Scheduled'). For a linked
+//                item it mirrors ClickUp; for an unlinked one it's set from the
+//                dot menu. Lives in the `data` JSONB (api/db.js), no migration.
+//   status     — the hub group that name is filed under ('production'), which
+//                the sidebar filters and the overdue check still read.
+// Items from before this have no itemStatus; they show the five-way label of
+// their group, which is itself one of the thirteen (Kickoff, In Production…).
+
+// A task row on a project (not a project, not parked by a removal).
+function isItem(row){
+  return !!(row && row.parentId && !isDetached(row));
+}
+
+// An item linked to ClickUp — the rows whose status is ClickUp's to set.
+function isCuLinked(row){
+  return isItem(row) && !!row.clickupId;
+}
+
+// ClickUp's lowercased status names, shown capitalised when the hub doesn't
+// recognise one ('in progress' -> 'In Progress').
+function titleCase(s){
+  return String(s||'').replace(/\b[a-z]/g, c=>c.toUpperCase());
+}
+
+// Display name for a raw ClickUp status — CU_STATUSES's spelling if known.
+function cuStatusName(status){
+  const info=cuStatusInfo(status);
+  return info ? info.name : titleCase(status);
+}
+
+// What ClickUp last said about this item's status, or null if the task isn't
+// in the synced list (deleted in ClickUp, or the sync couldn't reach it).
+// `known` is false for a status missing from CU_STATUSES.
+function cuStatusFor(row){
+  if(!isCuLinked(row)) return null;
+  const task=(db.clickupTasks||[]).find(t=>t.id===row.clickupId);
+  if(!task||!task.status) return null;
+  const info=cuStatusInfo(task.status);
+  return info ? { name:info.name, hub:info.hub, known:true, color:dotColor(info) } : { name:titleCase(task.status), hub:null, known:false, color:UNKNOWN_COLOR };
+}
+
+// An item's status from the thirteen: ClickUp's for a linked item that synced,
+// otherwise what the hub has stored. null for anything that isn't an item.
+function itemStatus(row){
+  if(!isItem(row)) return null;
+  const cu=cuStatusFor(row);
+  if(cu) return cu;
+  const name=row.itemStatus || STATUS_LABELS[row.status] || titleCase(row.status);
+  const info=cuStatusInfo(name);
+  return { name: info ? info.name : name, hub: info ? info.hub : row.status, known: !!info, color: info ? dotColor(info) : UNKNOWN_COLOR };
+}
+
+// Dot colour for a status missing from CU_STATUSES (added or renamed in
+// ClickUp). Black rather than the item's previous colour, so the dot never
+// contradicts the name beside it, and stands out as needing a CU_STATUSES entry.
+const UNKNOWN_COLOR='#000000';
+
+// A status's own dot colour from CU_STATUSES, or '' when it takes the strip
+// colour ('group', or no entry) — the is-<status> class already paints that.
+// Checked as plain hex because it goes straight into a style attribute.
+function dotColor(info){
+  const c=info && info.color;
+  return /^#[0-9a-f]{3,8}$/i.test(String(c||'')) ? c : '';
+}
+
+// Inline style giving an item's dot its status's own colour. The dot is how an
+// item's status is read at a glance, so it distinguishes all thirteen rather
+// than the five groups. Empty (the is-<status> class paints the strip colour)
+// for projects and for the 'group' statuses.
+function itemDotStyle(row){
+  const st=itemStatus(row);
+  return dotStyle(st && st.color);
+}
+
+// The same dot style for a status by name — the status menu's choices.
+function statusDotStyle(name){
+  return dotStyle(dotColor(cuStatusInfo(name)));
+}
+
+function dotStyle(color){
+  if(!color) return '';
+  // Ring reset to the dot's neutral dark outline. Without this the is-<status>
+  // class's tinted ring shows through (a red ring round Scheduled's yellow),
+  // and a tinted ring vanishes around the pale ones (New's cream) anyway.
+  return ' style="--lamp:'+color+';--lamp-ring:rgba(28,42,51,0.22);background-color:'+color+'"';
+}
+
+// An item's status name, for menus, tooltips and the detail panel.
+function itemStatusLabel(row){
+  const st=itemStatus(row);
+  return st ? st.name : (STATUS_LABELS[row.status]||row.status||'');
+}
+
+// Badge for an item's detail-panel header: its status name with its dot, in
+// place of the hub group badge — so the header and the Status field below it
+// never name two different statuses.
+function itemStatusBadge(row){
+  return '<span class="badge badge-cu"><span class="status-menu-dot is-'+esc(row.status)+'"'+itemDotStyle(row)+'></span>'+esc(itemStatusLabel(row))+'</span>';
+}
+
+// Sets an UNLINKED item's status from the thirteen. Linked items are refused —
+// their status is ClickUp's (see the top of this section).
+function setItemStatus(id, name){
+  const row=db.rows.find(r=>r.id===id);
+  if(!isItem(row) || isCuLinked(row)) return;
+  const info=cuStatusInfo(name); if(!info) return;
+  const before=itemStatusLabel(row);
+  if(before===info.name && row.status===info.hub) return;
+  A.logActivity(row,'status',before,info.name);
+  row.itemStatus=info.name;
+  row.status=info.hub;
+  save(); A.render();
+  if(ui.detailId===id) A.openDetail(id);
+}
+
+// Copies ClickUp's statuses onto the linked items. Called right after fresh
+// data arrives (page load, Sync) — never on a timer or tab return, because
+// it ends in save(), and a save from a tab that has been sitting suspended
+// carries that tab's old copy of the board (see THE WRITE GATE in store.js).
+//
+// The activity log records changes in ClickUp's own words ('Ready for
+// Creative → Scheduled'), including moves within one hub group, which
+// row.status alone can't see.
+//
+// Returns true if any row changed, so the caller knows to re-render.
+function applyClickUpStatuses(){
+  if(!isLoaded()) return false; // demo data after a failed load — leave it be
+  let changed=false;
+  for(const row of db.rows){
+    const cu=cuStatusFor(row);
+    if(!cu) continue;
+    if(!cu.known){
+      console.warn('ClickUp status "'+cu.name+'" on task '+row.clickupId+' is not in CU_STATUSES (js/data/constants.js) — item keeps its current hub status.');
+      continue;
+    }
+    if(row.itemStatus===cu.name && row.status===cu.hub) continue;
+    // Before the first apply there's no itemStatus on the row, so the log's
+    // "from" is the label of the hub status it had.
+    if(row.itemStatus!==cu.name) A.logActivity(row,'status',row.itemStatus||row.status,cu.name);
+    row.itemStatus=cu.name;
+    row.status=cu.hub;
+    changed=true;
+  }
+  if(changed) save();
+  return changed;
+}
+
+// The ClickUp task's own URL for an item — same fallback the Subtasks table's
+// ClickUp column uses for rows assigned before clickupUrl was copied over.
+function cuTaskUrl(row){
+  return row.clickupUrl || (row.clickupId ? 'https://app.clickup.com/t/'+row.clickupId : '');
+}
+
+// Dot color for a synced ClickUp task in the rail and manage lists — same rule
+// as the board's dots, falling back to its hub group's colour, else black.
+function cuDotColor(task){
+  const info=cuStatusInfo(task&&task.status);
+  return dotColor(info) || (info ? 'var(--sig-'+info.hub+')' : UNKNOWN_COLOR);
 }
 
 // ── REMOVING A TASK FROM A PROJECT ───────────────────────────────────────────
@@ -421,7 +594,6 @@ async function sendDistDate(row){
 
 function openClickUpManageModal(){
   const allTasks=db.clickupTasks||[];
-  const cuStatusColors={'to do':'#6b7280','in progress':'#d97706','in review':'#2563eb','complete':'#16a34a'};
   // shortName(): first segment of a project name, for the compact "→ project"
   // column. Splits on the first of –, — or " - "; the original split only on
   // en-dash, so real hyphenated names never matched and rendered in full.
@@ -454,7 +626,7 @@ function openClickUpManageModal(){
       buttons='<button class="btn btn-ghost btn-sm mrow-btn mrow-btn-assign" onclick="closeClickUpManageModal();openAssignCuTaskModal(\''+t.id+'\')">Assign</button>';
     }
     return '<div class="mrow">'+
-      '<div class="mrow-dot" style="background:'+(cuStatusColors[t.status]||'#6b7280')+'"></div>'+
+      '<div class="mrow-dot" style="background:'+cuDotColor(t)+'" title="'+esc(cuStatusName(t.status))+'"></div>'+
       '<span class="mrow-name" title="'+esc(t.name)+'">'+esc(t.name)+'</span>'+
       '<span class="mrow-assigned'+(assignedRow?'':' is-unassigned')+'"'+(title?' title="'+esc(title)+'"':'')+'>'+esc(label)+'</span>'+
       buttons+
@@ -492,4 +664,4 @@ function openClickUpManageModal(){
 function closeClickUpManageModal(){ document.getElementById('clickup-manage-overlay').classList.remove('open'); }
 
 // Register on the app bus so other modules + inline handlers can reach these.
-register({ openAssignCuTaskModal, closeAssignCuTaskModal, submitAssignCuTask, openClickUpManageModal, closeClickUpManageModal, detachCuRow, detachCuTaskAll, discardCuTaskData, detachedRowsFor, pushPhaseToClickUp, pushPhaseOnEdit, syncTaskPhase, phaseIndicatorHtml, distEditStart, distEditEnd });
+register({ isItem, isCuLinked, cuStatusFor, cuStatusName, itemStatus, itemDotStyle, statusDotStyle, itemStatusLabel, itemStatusBadge, setItemStatus, applyClickUpStatuses, cuTaskUrl, cuDotColor, openAssignCuTaskModal, closeAssignCuTaskModal, submitAssignCuTask, openClickUpManageModal, closeClickUpManageModal, detachCuRow, detachCuTaskAll, discardCuTaskData, detachedRowsFor, pushPhaseToClickUp, pushPhaseOnEdit, syncTaskPhase, phaseIndicatorHtml, distEditStart, distEditEnd });

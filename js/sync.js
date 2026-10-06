@@ -12,7 +12,7 @@
 // save() here would POST whatever the page loaded at boot back over a sync
 // that just landed. Read-back only.
 
-import { load } from './store.js';
+import { db, load, isLoaded } from './store.js';
 import { A, register } from './bus.js';
 
 // One button runs both syncs side by side. They were separate buttons, but in
@@ -50,6 +50,7 @@ async function syncAll() {
     // Re-read the whole db rather than merging the endpoints' responses:
     // same path as boot, so there's no second code path to keep correct.
     await load();
+    A.applyClickUpStatuses();
     A.render();
     A.renderGmailSidebar();
     A.renderGmailBanner();
@@ -96,4 +97,36 @@ function outcome(cu, gm) {
   return `${cuPart} · ${gmPart}`;
 }
 
-register({ syncAll });
+// The ClickUp half of the sync, run by itself once the page has opened — so the
+// statuses on the board are ClickUp's current ones without anyone having to
+// remember the button. Gmail is left to the button: it's the slow half, and
+// nothing about a page load needs it.
+//
+// Unlike syncAll() this does NOT re-read the whole db. The page loaded it a
+// moment ago and someone may already be editing; a load() now would replace
+// rows in memory underneath an unsaved edit. The endpoint hands back the tasks
+// it wrote instead, and only db.clickupTasks is swapped — rows are then updated
+// in place by applyClickUpStatuses().
+//
+// Deliberately page-load only: not on a timer, and not when a tab comes back
+// into view. A tab woken after days asleep holds days-old rows, and
+// applyClickUpStatuses() ends in save() (see THE WRITE GATE in store.js).
+async function autoSyncClickUp() {
+  if (!isLoaded()) return;   // demo data — nothing real to update
+  try {
+    const json = await post('/api/sync-clickup');
+    if (!Array.isArray(json.tasks)) return;
+    // Tasks the endpoint skipped this time (over its lookup cap, or a failed
+    // lookup) keep the copy this page already has.
+    const kept = new Set(json.keptIds || []);
+    db.clickupTasks = [...json.tasks, ...(db.clickupTasks || []).filter(t => kept.has(t.id))];
+    A.applyClickUpStatuses();
+    A.render();
+    A.renderClickUpSidebar();
+    A.renderCuBanner();
+  } catch (e) {
+    console.error('Automatic ClickUp sync on page load failed:', e);
+  }
+}
+
+register({ syncAll, autoSyncClickUp });

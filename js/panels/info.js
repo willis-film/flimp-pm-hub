@@ -325,7 +325,7 @@ function rail(parent, activeId) {
     <div class="info-rail-row${r.id === activeId ? ' active' : ''}"
          onclick="A.setInfoScope('${parent.id}','${r.id}')"
          role="button" tabindex="0" title="${esc(r.name)}">
-      <span class="info-rail-dot is-${esc(r.status)}"></span>
+      <span class="info-rail-dot is-${esc(r.status)}"${A.itemDotStyle(r)}></span>
       <span class="info-rail-name${isProject ? ' is-project' : ''}">${esc(r.name)}</span>
     </div>`;
 

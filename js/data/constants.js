@@ -35,6 +35,44 @@ export const PHASE_LABELS  = {
 
 export const STATUS_CYCLE  = ['kickoff','production','limbo','done','closed'];
 
+// The ClickUp List's own statuses, in ClickUp's order, each filed under the hub
+// status whose color and sidebar filter it takes. ClickUp is the source of
+// truth for the status of every ClickUp-linked item: the hub only READS it
+// (js/clickup.js applyClickUpStatuses) and never writes a status back. A status
+// decides which team's view a task appears in, so a wrong one from here would
+// put work in front of the wrong people.
+//
+// Keys are matched case-insensitively — the API sends status names lowercased.
+// A status added or renamed in ClickUp and missing here is left alone (the item
+// keeps its last hub status) and logged to the console; add it here to fix.
+//
+// `color` is the dot colour on a linked item, where the dot is the main way the
+// status is read. 'group' means the same colour as the project strip status of
+// the same name (the --sig-* variables in css/main.css), so Kickoff looks like
+// Kickoff at both levels; the rest have colours of their own. A status missing
+// from this list shows a black dot (js/clickup.js UNKNOWN_COLOR).
+export const CU_STATUSES = [
+  { name:'New',                   hub:'kickoff',    color:'#FFECB7' },
+  { name:'Kickoff',               hub:'kickoff',    color:'group' },
+  { name:'Ready for Traffic',     hub:'kickoff',    color:'#6647F0' },
+  { name:'Ready for Creative',    hub:'kickoff',    color:'#ED5F00' },
+  { name:'In Production',         hub:'production', color:'group' },
+  { name:'In Limbo',              hub:'limbo',      color:'group' },
+  { name:'Scheduled',             hub:'production', color:'#FFC53D' },
+  { name:'Ready for PM',          hub:'production', color:'#AB4ABA' },
+  { name:'Distributed',           hub:'done',       color:'#0091FF' },
+  { name:'Complete with Updates', hub:'done',       color:'#12A594' },
+  { name:'Canceled',              hub:'closed',     color:'#E93D82' },
+  { name:'Done',                  hub:'done',       color:'group' },
+  { name:'Closed',                hub:'closed',     color:'group' }
+];
+
+// ClickUp status name (any case) -> its CU_STATUSES entry, or null if unknown.
+export function cuStatusInfo(name){
+  const key=String(name||'').trim().toLowerCase();
+  return CU_STATUSES.find(s=>s.name.toLowerCase()===key)||null;
+}
+
 // The Gmail label Andrew already hand-applies to any thread that contains an
 // invoice, regardless of which project it belongs to. api/sync-gmail-threads.js
 // syncs threads carrying this label even when no project has claimed it, and

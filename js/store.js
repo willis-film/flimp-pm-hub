@@ -272,6 +272,11 @@ export async function load() {
   backfillInfoFields();
 }
 
+// Whether a load() has succeeded this session — i.e. `db` holds the real board
+// rather than the SEED_DB demo clone. For callers that should do nothing at all
+// on demo data, not just have their save() refused.
+export function isLoaded() { return loaded; }
+
 // Resets every row's daily I/O flag the first time the app opens on a new day.
 export function dailyIOReset() {
   // Rule 1, restated at the one call site that fires without anyone asking it

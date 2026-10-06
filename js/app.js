@@ -52,12 +52,16 @@ document.getElementById('money-manage-overlay').addEventListener('click',functio
 export async function init() {
   await load();
   dailyIOReset();
+  // Statuses from the last sync first, so the board opens right; then a fresh
+  // ClickUp pull in the background, which re-renders when it lands.
+  A.applyClickUpStatuses();
   A.render();
   A.renderGmailSidebar();
   A.renderGmailBanner();
   A.renderClickUpSidebar();
   A.renderCuBanner();
   A.renderMoneyBanner();
+  A.autoSyncClickUp();
 }
 
 // Expose for Alpine's x-init and as a manual fallback.

@@ -79,7 +79,7 @@ export const SUBTASK_COLUMNS = {
                  inputs and selects, and a draggable ancestor makes selecting
                  text inside them fight the drag. -->
             <div class="toggle-spacer">${ctx.canReorder ? `<span class="drag-handle" title="Drag to reorder">⠿</span>` : ''}</div>
-            <div class="row-dot is-${task.status}" onclick="A.openStatusMenu('${task.id}',event)" title="Set status"></div>
+            <div class="row-dot is-${task.status}"${A.itemDotStyle(task)} onclick="A.openStatusMenu('${task.id}',event)" title="${A.isCuLinked(task) ? 'ClickUp: ' : ''}${esc(A.itemStatusLabel(task))}"></div>
             <span class="task-name-text" onclick="openDetail('${task.id}')" style="${task.io ? 'font-style:italic;color:var(--text2)' : ''}">${esc(task.name)}</span>
           </div>`
   },

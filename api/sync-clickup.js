@@ -11,6 +11,10 @@
 // if a task drops off this list (reassigned, completed), its already-created
 // row is untouched, it just stops showing up in the "unassigned" review list.
 //
+// Also kept up to date: every task linked to an item on a project, even after
+// it's closed or reassigned off PM+ — the hub shows each linked item's ClickUp
+// status, so that status has to keep arriving. See fetchLinkedIds below.
+//
 // Trigger: on-demand for now — call this URL whenever you want a fresh pull.
 // Layering a schedule on top later (Vercel Cron, or any external cron hitting
 // this same URL) is a one-line addition whenever that's wanted; nothing here
@@ -115,6 +119,55 @@ function toDateOnly(unixMsString) {
   return new Date(Number(unixMsString)).toISOString().slice(0, 10);
 }
 
+// How many linked tasks one sync may look up by id (see fetchLinkedTasks).
+// ClickUp allows about 100 API calls a minute on most plans, and the List
+// fetch above already spends a couple; 50 leaves plenty of room. Anything over
+// the cap keeps its previous clickup_tasks row and is picked up next sync.
+const MAX_DIRECT_FETCHES = 50;
+
+// Live ClickUp-linked items (on a project, not parked) whose hub status isn't
+// Closed yet. Their ClickUp status has to keep arriving even when the List
+// fetch stops returning the task:
+//   - it moved to a closed-type status, which the List endpoint leaves out
+//   - it was reassigned off the PM+ field, so the filter no longer matches
+// Items already Closed in the hub are skipped so this list doesn't grow with
+// every finished project. A Closed task that gets reopened comes back through
+// the List fetch anyway, as long as it's still assigned to me.
+async function fetchLinkedIds(supabase) {
+  const { data, error } = await supabase
+    .from('rows')
+    .select('clickup_id')
+    .not('clickup_id', 'is', null)
+    .not('parent_id', 'is', null)
+    .neq('status', 'closed');
+  if (error) throw error;
+  return [...new Set((data || []).map(r => r.clickup_id).filter(Boolean))];
+}
+
+// Looks up linked tasks one by id, five at a time. Returns the tasks found,
+// plus the ids whose lookup failed for a reason OTHER than "task deleted" —
+// those keep their existing clickup_tasks row rather than losing it to a
+// network blip.
+async function fetchLinkedTasks(token, ids) {
+  const found = [];
+  const failed = [];
+  for (let i = 0; i < ids.length; i += 5) {
+    const batch = ids.slice(i, i + 5);
+    await Promise.all(batch.map(async id => {
+      try {
+        const res = await fetch(`https://api.clickup.com/api/v2/task/${encodeURIComponent(id)}`, { headers: { Authorization: token } });
+        if (res.status === 404) return; // deleted in ClickUp — nothing to keep
+        if (!res.ok) throw new Error(`ClickUp API ${res.status}`);
+        found.push(await res.json());
+      } catch (e) {
+        console.error(`api/sync-clickup: lookup of linked task ${id} failed:`, e);
+        failed.push(id);
+      }
+    }));
+  }
+  return { found, failed };
+}
+
 async function fetchAssignedTasks(token) {
   const filter = JSON.stringify([{ field_id: PM_FIELD_ID, operator: 'ANY', value: [MY_USER_ID] }]);
   const tasks = [];
@@ -199,8 +252,17 @@ export default async function handler(req, res) {
     }
 
     const supabase = getSupabase();
-    const rawTasks = await fetchAssignedTasks(CLICKUP_API_TOKEN);
+    const listTasks = await fetchAssignedTasks(CLICKUP_API_TOKEN);
 
+    // Linked tasks the List fetch didn't return — closed or reassigned (see
+    // fetchLinkedIds). Over the cap, or failed: keep what the table already has.
+    const linkedIds = await fetchLinkedIds(supabase);
+    const listIds = new Set(listTasks.map(t => t.id));
+    const missing = linkedIds.filter(id => !listIds.has(id));
+    const { found, failed } = await fetchLinkedTasks(CLICKUP_API_TOKEN, missing.slice(0, MAX_DIRECT_FETCHES));
+    const keepIds = [...failed, ...missing.slice(MAX_DIRECT_FETCHES)];
+
+    const rawTasks = [...listTasks, ...found];
     const records = rawTasks.map(t => ({
       id: t.id,
       name: t.name,
@@ -219,7 +281,7 @@ export default async function handler(req, res) {
     }
 
     // Full replace-sync: remove anything no longer in the filtered result.
-    const currentIds = records.map(r => r.id);
+    const currentIds = [...records.map(r => r.id), ...keepIds];
     if (currentIds.length > 0) {
       const list = currentIds.map(id => `"${id}"`).join(',');
       const { error: delErr } = await supabase.from('clickup_tasks').delete().not('id', 'in', `(${list})`);
@@ -233,7 +295,26 @@ export default async function handler(req, res) {
       if (delErr) throw delErr;
     }
 
-    return res.status(200).json({ ok: true, synced: records.length });
+    // The tasks just written, in the same shape GET /api/db gives clickupTasks,
+    // so the page can refresh its statuses without re-reading the whole db
+    // (js/sync.js autoSyncClickUp). keptIds rows aren't included — they were
+    // left untouched, so the page keeps its own copies of those.
+    return res.status(200).json({
+      ok: true,
+      synced: records.length,
+      lookedUp: found.length,
+      keptIds: keepIds,
+      tasks: records.map(r => ({
+        id: r.id,
+        name: r.name,
+        status: r.status,
+        due: r.due,
+        productType: r.product_type,
+        productTier: r.product_tier,
+        productStyle: r.product_style,
+        clickupUrl: r.clickup_url
+      }))
+    });
   } catch (err) {
     console.error('api/sync-clickup error:', err);
     return res.status(500).json({ error: err.message || 'Internal error' });

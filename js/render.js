@@ -4,7 +4,7 @@
 
 // DESIGNER_LIST / ANIMATOR_LIST / VO_LIST moved out with the subtask cells
 // they fed — they now live in data/subtask-columns.js.
-import { STATUS_LABELS, PHASE_LABELS, STATUS_CYCLE, ALL_TAGS, AM_LIST, PRODUCT_TYPE_LIST, PRODUCT_STYLE_MAP, PRODUCT_TIER_MAP, CLOSEOUT_ITEMS } from './data/constants.js';
+import { STATUS_LABELS, PHASE_LABELS, STATUS_CYCLE, CU_STATUSES, ALL_TAGS, AM_LIST, PRODUCT_TYPE_LIST, PRODUCT_STYLE_MAP, PRODUCT_TIER_MAP, CLOSEOUT_ITEMS } from './data/constants.js';
 import { esc, fmtDate, daysLeft, fmtNextActivity, tagColor, tagTextColor, tagBorderColor, tagChip, statusBadge, phasePill, tagsHtml, df, fmtRelTime, fmtAbsTime, isProjectRow, gmailThreadUrl } from './utils.js';
 import { SUBTASK_COLUMNS, SUBTASK_COLS } from './data/subtask-columns.js';
 import { db, save } from './store.js';
@@ -742,6 +742,8 @@ function toggleParent(id){
 
 function setStatus(id, value){
   const r=db.rows.find(x=>x.id===id); if(!r)return;
+  // ClickUp owns a linked item's status — see STATUS FROM CLICKUP in clickup.js.
+  if(A.isCuLinked(r)) return;
   const oldStatus=r.status;
   if(oldStatus===value){ r.status=value; save(); render(); return; }
   A.logActivity(r,'status',oldStatus,value);
@@ -847,6 +849,7 @@ function toggleTag(id,tag){
 
 function uf(id,field,value){
   const r=db.rows.find(x=>x.id===id); if(!r)return;
+  if(field==='status' && A.isCuLinked(r)) return; // ClickUp owns it, as in setStatus()
   const old=r[field];
   r[field]=value;
   A.logActivity(r,field,old,value);
@@ -870,7 +873,7 @@ function uf(id,field,value){
                      'zohoLink','estimateLink','dropboxLink'].includes(field));
   if(needsRender){ render(); return; }
   if(ui.detailId===id){
-    document.getElementById('dp-meta').innerHTML=`${statusBadge(r.status)} ${phasePill(r.phase)} ${tagsHtml(r.tags)}`;
+    document.getElementById('dp-meta').innerHTML=`${A.isItem(r)?A.itemStatusBadge(r):statusBadge(r.status)} ${phasePill(r.phase)} ${tagsHtml(r.tags)}`;
   }
 }
 
@@ -888,7 +891,7 @@ function openDetail(id){
   ui.detailId=id;
   const isParent=isProjectRow(row);
   document.getElementById('dp-title').textContent=row.name;
-  document.getElementById('dp-meta').innerHTML=`${statusBadge(row.status)} ${phasePill(row.phase)} ${tagsHtml(row.tags)}`;
+  document.getElementById('dp-meta').innerHTML=`${A.isItem(row)?A.itemStatusBadge(row):statusBadge(row.status)} ${phasePill(row.phase)} ${tagsHtml(row.tags)}`;
 
   const fields=isParent ? `
     ${df('Status',`<select class="fi" onchange="uf('${id}','status',this.value)">${STATUS_CYCLE.map(s=>`<option value="${s}"${row.status===s?' selected':''}>${STATUS_LABELS[s]}</option>`).join('')}</select>`)}
@@ -903,7 +906,9 @@ function openDetail(id){
     ${df('Next Activity',`<input class="fi" type="date" value="${row.nextActivity||''}" onchange="uf('${id}','nextActivity',this.value)" style="width:160px">`)}
     ${df('Branding',`<input type="checkbox"${row.branding?' checked':''} onchange="uf('${id}','branding',this.checked)">`)}
   ` : `
-    ${df('Status',`<select class="fi" onchange="uf('${id}','status',this.value)">${STATUS_CYCLE.map(s=>`<option value="${s}"${row.status===s?' selected':''}>${STATUS_LABELS[s]}</option>`).join('')}</select>`)}
+    ${A.isCuLinked(row)
+      ? df('Status',`<span class="fi-static">${esc(A.itemStatusLabel(row))}</span> <a href="${esc(A.cuTaskUrl(row))}" target="_blank" rel="noopener" class="fi-static-link">Change in ClickUp ↗</a>`)
+      : df('Status',`<select class="fi" onchange="A.setItemStatus('${id}',this.value)">${CU_STATUSES.map(s=>`<option value="${esc(s.name)}"${A.itemStatusLabel(row)===s.name?' selected':''}>${esc(s.name)}</option>`).join('')}</select>`)}
     ${df('Phase',`<select class="fi" onchange="uf('${id}','phase',this.value)"><option value="">None</option>${Object.entries(PHASE_LABELS).map(([k,v])=>`<option value="${k}"${row.phase===k?' selected':''}>${v}</option>`).join('')}</select>`)}
     ${df('Tags',`<div style="display:flex;gap:4px;flex-wrap:wrap;">${ALL_TAGS.map(t=>{const a=(row.tags||[]).includes(t);return `<button data-tag="${esc(t)}" onclick="toggleTag('${id}',this.dataset.tag)" style="font-family:var(--font);font-size: 12px;font-weight:400;padding:3px 9px;border-radius:3px;border:1.5px solid ${a?tagBorderColor(t):'var(--line-2)'};cursor:pointer;color:${a?tagTextColor(t):'var(--ink-3)'};background:${a?tagColor(t):'var(--panel-2)'};transition:all .13s">${esc(t)}</button>`}).join('')}</div>`)}
     ${df('Due Date',`<input class="fi" type="date" value="${row.due||''}" onchange="uf('${id}','due',this.value)" style="width:160px">`)}

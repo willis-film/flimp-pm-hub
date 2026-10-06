@@ -1,7 +1,7 @@
 // modals.js — modal + popup controllers: date picker popup, product-tier
 // cascade, the New/Edit Project modal, and the New/Edit Task modal.
 
-import { PRODUCT_TIER_MAP, PHASE_LABELS, AM_LIST } from '../data/constants.js';
+import { PRODUCT_TIER_MAP, PHASE_LABELS, AM_LIST, CU_STATUSES, cuStatusInfo } from '../data/constants.js';
 import { esc, fmtDate, fmtNextActivity, newId, isProjectRow } from '../utils.js';
 import { db, save } from '../store.js';
 import { A, register } from '../bus.js';
@@ -142,7 +142,16 @@ function openSubtaskModal(defaultParentId,editId){
   sel.value=defaultParentId||'';
   document.getElementById('sm-modal-title').textContent=editId?'Edit Task':'New Task';
   document.getElementById('sm-name').value=row?row.name:'';
-  document.getElementById('sm-status').value=row?row.status:'production';
+  // Tasks pick from the same thirteen statuses as ClickUp (CU_STATUSES), not
+  // the hub's five. A linked item's is ClickUp's to set — shown, not
+  // editable; submitSubtask() keeps the row's own status for those.
+  const smStatus=document.getElementById('sm-status');
+  const smLinked=!!(row && A.isCuLinked(row));
+  smStatus.innerHTML=smLinked
+    ? `<option value="">${esc(A.itemStatusLabel(row))} (set in ClickUp)</option>`
+    : CU_STATUSES.map(s=>`<option value="${esc(s.name)}">${esc(s.name)}</option>`).join('');
+  smStatus.value=smLinked ? '' : (row ? A.itemStatusLabel(row) : 'In Production');
+  smStatus.disabled=smLinked;
   const phaseSel=document.getElementById('sm-phase');
   phaseSel.innerHTML='<option value="">None</option>'+Object.entries(PHASE_LABELS).map(([k,v])=>`<option value="${k}">${esc(v)}</option>`).join('');
   phaseSel.value=row?row.phase||'':'';
@@ -161,9 +170,17 @@ function closeSubtaskModal(){ document.getElementById('subtask-overlay').classLi
 function submitSubtask(){
   const name=document.getElementById('sm-name').value.trim(); if(!name)return;
   const parentId=document.getElementById('sm-parent').value||null;
-  const fields={name,parentId,status:document.getElementById('sm-status').value,phase:document.getElementById('sm-phase').value||null,tags:[],due:document.getElementById('sm-due').value,io:false,branding:false,oeStart:'',am:document.getElementById('sm-am').value,newOrUpdate:document.getElementById('sm-update').value,productType:document.getElementById('sm-type').value,productTier:document.getElementById('sm-tier').value,productStyle:'',zohoLink:'',dropboxLink:'',nextActivity:null,comments:[]};
+  // Thirteen-status name -> its hub group for `status`; the name itself is kept
+  // as itemStatus on tasks. A row saved with no parent is a project, which has
+  // only the group.
+  const stInfo=cuStatusInfo(document.getElementById('sm-status').value)||cuStatusInfo('In Production');
+  const fields={name,parentId,status:stInfo.hub,phase:document.getElementById('sm-phase').value||null,tags:[],due:document.getElementById('sm-due').value,io:false,branding:false,oeStart:'',am:document.getElementById('sm-am').value,newOrUpdate:document.getElementById('sm-update').value,productType:document.getElementById('sm-type').value,productTier:document.getElementById('sm-tier').value,productStyle:'',zohoLink:'',dropboxLink:'',nextActivity:null,comments:[]};
+  if(parentId) fields.itemStatus=stInfo.name;
   if(editingSubtaskId){
     const row=db.rows.find(r=>r.id===editingSubtaskId);
+    if(A.isCuLinked(row)){ fields.status=row.status; delete fields.itemStatus; }
+    else if((row.itemStatus||'')!==(fields.itemStatus||'') || row.status!==fields.status)
+      A.logActivity(row,'status',A.itemStatusLabel(row),fields.itemStatus||fields.status);
     const phaseChanged=(row.phase||'')!==(fields.phase||'');
     Object.assign(row,fields);
     // Third phase-edit surface, after the Subtasks table and the detail panel —
