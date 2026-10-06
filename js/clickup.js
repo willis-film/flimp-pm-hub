@@ -125,11 +125,13 @@ function submitAssignCuTask(){
 }
 
 // ── STATUS FROM CLICKUP ──────────────────────────────────────────────────────
-// For a ClickUp-linked item, ClickUp owns the status. The hub never writes one
-// back: a status decides which team's view the task shows up in, and a wrong
-// one from here would put work in front of the wrong people. So the hub reads
-// it on every sync and on page load, and its own status controls are read-only
-// for these items, pointing to ClickUp instead.
+// For a ClickUp-linked item, ClickUp holds the status. The hub reads it on every
+// sync and on page load. The one place the hub changes it is the item's dot
+// menu, which checks ClickUp live first and only writes if ClickUp is still at
+// the status shown (js/components/strip.js, api/clickup-status.js) — a status
+// decides which team's view the task shows up in, so nothing may be written
+// over a change nobody here has seen. Every other status control is read-only
+// for linked items, pointing to ClickUp instead.
 //
 // Every item (a task row on a project) uses the same thirteen statuses,
 // CU_STATUSES in constants.js — linked or not — so there's one status list for
@@ -280,6 +282,31 @@ function applyClickUpStatuses(){
     changed=true;
   }
   if(changed) save();
+  return changed;
+}
+
+// Whether the hub may change this linked item's status in ClickUp, per the
+// workspace.clickup_status_write switch (api/clickup-status.js, which enforces
+// it again on every write — this only decides what the menu offers).
+function cuWriteAllowed(row){
+  if(!isCuLinked(row)) return false;
+  const setting=String(db.clickupStatusWrite||'').trim().toLowerCase();
+  if(!setting||setting==='off') return false;
+  if(setting==='all') return true;
+  return setting.split(/[\s,]+/).includes(String(row.clickupId).toLowerCase());
+}
+
+// Records a status ClickUp just reported for one task (the dot menu's live
+// check, or the result of a write) and applies it to the board. Returns true
+// if anything on the board changed.
+function noteClickUpStatus(row, status){
+  if(!status||!isCuLinked(row)) return false;
+  if(!db.clickupTasks) db.clickupTasks=[];
+  const task=db.clickupTasks.find(t=>t.id===row.clickupId);
+  if(task) task.status=status;
+  else db.clickupTasks.push({ id:row.clickupId, name:row.name, status, clickupUrl:row.clickupUrl||'' });
+  const changed=applyClickUpStatuses();
+  if(changed) A.render();
   return changed;
 }
 
@@ -664,4 +691,4 @@ function openClickUpManageModal(){
 function closeClickUpManageModal(){ document.getElementById('clickup-manage-overlay').classList.remove('open'); }
 
 // Register on the app bus so other modules + inline handlers can reach these.
-register({ isItem, isCuLinked, cuStatusFor, cuStatusName, itemStatus, itemDotStyle, statusDotStyle, itemStatusLabel, itemStatusBadge, setItemStatus, applyClickUpStatuses, cuTaskUrl, cuDotColor, openAssignCuTaskModal, closeAssignCuTaskModal, submitAssignCuTask, openClickUpManageModal, closeClickUpManageModal, detachCuRow, detachCuTaskAll, discardCuTaskData, detachedRowsFor, pushPhaseToClickUp, pushPhaseOnEdit, syncTaskPhase, phaseIndicatorHtml, distEditStart, distEditEnd });
+register({ isItem, isCuLinked, cuStatusFor, cuStatusName, itemStatus, itemDotStyle, statusDotStyle, itemStatusLabel, itemStatusBadge, setItemStatus, applyClickUpStatuses, cuWriteAllowed, noteClickUpStatus, cuTaskUrl, cuDotColor, openAssignCuTaskModal, closeAssignCuTaskModal, submitAssignCuTask, openClickUpManageModal, closeClickUpManageModal, detachCuRow, detachCuTaskAll, discardCuTaskData, detachedRowsFor, pushPhaseToClickUp, pushPhaseOnEdit, syncTaskPhase, phaseIndicatorHtml, distEditStart, distEditEnd });

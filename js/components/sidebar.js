@@ -93,6 +93,7 @@ function renderMoneyBanner(){
 }
 
 function renderClickUpSidebar(){
+  renderCuWriteToggle();
   const list=document.getElementById('clickup-task-list'); if(!list) return;
   const allTasks=db.clickupTasks||[];
   // A CU task is "assigned" if a LIVE db.rows entry exists with that clickupId.
@@ -115,6 +116,40 @@ function renderClickUpSidebar(){
       : '')+
     '<span class="cu-task-assign" onclick="A.openAssignCuTaskModal(\''+t.id+'\')">Assign</span>'+
   '</div>').join('');
+}
+
+// The switch for status changes from the hub to ClickUp (see
+// api/clickup-status.js). Off takes one click and no questions — stopping
+// should never be the hard part. On asks first, because from then on a dot
+// menu pick moves the task in ClickUp for everyone.
+function renderCuWriteToggle(){
+  const el=document.getElementById('cu-write-toggle'); if(!el) return;
+  const v=String(db.clickupStatusWrite||'').trim().toLowerCase();
+  const on=!!v && v!=='off';
+  const detail=!on ? 'Off — dot menus are view-only'
+    : v==='all' ? 'On for all linked tasks'
+    : 'On for test task'+(v.includes(',')?'s':'')+' only';
+  el.innerHTML='<div class="cu-write'+(on?' is-on':'')+'" role="switch" aria-checked="'+on+'" tabindex="0" onclick="toggleCuWrite()" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleCuWrite()}">'
+    +'<span class="cu-write-switch"><span class="cu-write-knob"></span></span>'
+    +'<span class="cu-write-text"><span class="cu-write-label">Status changes → ClickUp</span>'
+    +'<span class="cu-write-detail">'+esc(detail)+'</span></span></div>';
+}
+
+async function toggleCuWrite(){
+  const v=String(db.clickupStatusWrite||'').trim().toLowerCase();
+  const on=!!v && v!=='off';
+  const next=on?'off':'all';
+  if(next==='all' && !confirm('Turn on status changes to ClickUp?\n\nPicking a status in a linked item\'s dot menu will change that task in ClickUp, for all linked tasks.')) return;
+  try{
+    const res=await fetch('/api/clickup-status',{ method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ write:next }) });
+    const j=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(j.error||('Switch failed ('+res.status+')'));
+    db.clickupStatusWrite=j.write;
+    renderCuWriteToggle();
+  }catch(e){
+    console.error('Status write switch failed:',e);
+    alert('Couldn\'t change the switch: '+(e.message||e)+'\n\nIt\'s unchanged — '+(on?'still on':'still off')+'.');
+  }
 }
 
 function renderGmailSidebar(){
@@ -144,4 +179,4 @@ function saveGmailPrefix(val){
 }
 
 // Register on the app bus so other modules + inline handlers can reach these.
-register({ matchesFilter, setFilter, toggleSidebar, renderGmailBanner, renderCuBanner, renderMoneyBanner, renderClickUpSidebar, renderGmailSidebar, saveGmailPrefix });
+register({ renderCuWriteToggle, toggleCuWrite, matchesFilter, setFilter, toggleSidebar, renderGmailBanner, renderCuBanner, renderMoneyBanner, renderClickUpSidebar, renderGmailSidebar, saveGmailPrefix });

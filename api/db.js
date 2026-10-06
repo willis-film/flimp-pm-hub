@@ -351,6 +351,10 @@ export default async function handler(req, res) {
 
       return res.status(200).json({
         gmailClientPrefix: ws.gmail_client_prefix || '',
+        // Which linked tasks the hub may change the status of — see
+        // api/clickup-status.js. Read-only here: the POST below never writes
+        // it, so only an SQL update changes it.
+        clickupStatusWrite: ws.clickup_status_write || '',
         clickupTasks: (cuTasks || []).map(t => ({
           id: t.id,
           name: t.name,

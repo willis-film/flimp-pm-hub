@@ -293,6 +293,16 @@ body::before {
   width: 100%; font-size: 11.5px; font-weight: 500; color: var(--ink-3);
   background: transparent; border: 1px dashed var(--line-2);
 }
+/* Sidebar switch: status changes from the hub to ClickUp (js/components/sidebar.js). */
+.cu-write { display: flex; align-items: center; gap: 10px; margin: 10px 14px 4px; padding: 8px 10px; border: 1px solid var(--line-2); border-radius: var(--radius-sm); cursor: pointer; }
+.cu-write:hover { border-color: var(--ink-4); }
+.cu-write-switch { width: 28px; height: 16px; border-radius: 8px; background: var(--line-2); position: relative; flex-shrink: 0; transition: background .15s; }
+.cu-write-knob { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(28,42,51,.3); transition: left .15s; }
+.cu-write.is-on .cu-write-switch { background: var(--sig-closed); }
+.cu-write.is-on .cu-write-knob { left: 14px; }
+.cu-write-text { display: flex; flex-direction: column; min-width: 0; }
+.cu-write-label { font-size: 12px; color: var(--ink); }
+.cu-write-detail { font-size: 11px; color: var(--ink-3); }
 .rail-manage:hover { color: var(--signal); border-color: var(--signal); background: var(--signal-tint); }
 
 /* ── CONTENT ─────────────────────────────────────────────────────────────── */
@@ -1187,6 +1197,13 @@ body::before {
 .status-menu-item.is-readonly { cursor: default; color: var(--ink); }
 .status-menu-item.is-readonly:hover { background: none; }
 a.status-menu-item { text-decoration: none; border-top: 1px solid var(--line-2); margin-top: 4px; }
+/* Linked items: live ClickUp check / write-back state (js/components/strip.js). */
+.status-menu-banner { font-size: 11.5px; line-height: 1.35; padding: 6px 10px; margin: 0 0 4px; border-radius: var(--radius-sm); max-width: 230px; }
+.status-menu-banner.is-busy { color: var(--ink-3); }
+.status-menu-banner.is-ok   { background: #E4F3EA; color: #267247; }
+.status-menu-banner.is-warn { background: #FBF1DC; color: #8A6712; }
+.status-menu-banner.is-err  { background: #FBEAEB; color: #A82530; }
+.status-menu-list.is-busy { opacity: .4; pointer-events: none; }
 .status-menu-note { padding: 0 11px 6px 33px; font-size: 11px; color: var(--ink-3); max-width: 220px; line-height: 1.35; }
 .status-menu-dot {
   width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;

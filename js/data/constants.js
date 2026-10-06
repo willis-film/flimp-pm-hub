@@ -37,10 +37,11 @@ export const STATUS_CYCLE  = ['kickoff','production','limbo','done','closed'];
 
 // The ClickUp List's own statuses, in ClickUp's order, each filed under the hub
 // status whose color and sidebar filter it takes. ClickUp is the source of
-// truth for the status of every ClickUp-linked item: the hub only READS it
-// (js/clickup.js applyClickUpStatuses) and never writes a status back. A status
-// decides which team's view a task appears in, so a wrong one from here would
-// put work in front of the wrong people.
+// truth for the status of every ClickUp-linked item: the hub reads it
+// (js/clickup.js applyClickUpStatuses) and writes one back only through the dot
+// menu's checked write (api/clickup-status.js). A status decides which team's
+// view a task appears in, so a wrong one from here would put work in front of
+// the wrong people.
 //
 // Keys are matched case-insensitively — the API sends status names lowercased.
 // A status added or renamed in ClickUp and missing here is left alone (the item
