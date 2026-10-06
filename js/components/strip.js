@@ -29,12 +29,37 @@ function openStatusMenu(id, e){
   placeMenu(menu, e);
 }
 
+let _anchor = null;  // the clicked dot's on-screen box, kept so fitMenu() can re-place the menu when it grows
+
 function placeMenu(menu, e){
   menu.dataset.busy = '';
-  const rect = e.target.getBoundingClientRect();
-  menu.style.top = (rect.bottom + 6) + 'px';
-  menu.style.left = rect.left + 'px';
+  _anchor = e.target.getBoundingClientRect();
   menu.classList.add('open');
+  fitMenu(menu);
+}
+
+// Keeps the menu on screen. Opens below the dot when it fits, above it when
+// that fits instead, and otherwise takes whichever side has more room and
+// scrolls inside itself. Re-run whenever the content changes: a linked item's
+// menu opens small ("Checking ClickUp…") and grows to all thirteen statuses
+// once the check returns, so placing it once at open isn't enough — that's how
+// the list used to run off the bottom of the screen.
+function fitMenu(menu){
+  if (!_anchor) return;
+  const GAP = 6, EDGE = 8;
+  menu.style.maxHeight = '';
+  menu.style.overflowY = '';
+  const h = menu.offsetHeight;
+  const below = window.innerHeight - _anchor.bottom - GAP - EDGE;
+  const above = _anchor.top - GAP - EDGE;
+  let top;
+  if (h <= below) top = _anchor.bottom + GAP;
+  else if (h <= above) top = _anchor.top - GAP - h;
+  else if (below >= above) { top = _anchor.bottom + GAP; menu.style.maxHeight = below + 'px'; menu.style.overflowY = 'auto'; }
+  else { top = EDGE; menu.style.maxHeight = above + 'px'; menu.style.overflowY = 'auto'; }
+  menu.style.top = top + 'px';
+  const left = Math.min(_anchor.left, window.innerWidth - menu.offsetWidth - EDGE);
+  menu.style.left = Math.max(EDGE, left) + 'px';
 }
 
 function itemStatusMenuHtml(row){
@@ -158,6 +183,7 @@ function paintLinked(row, state, from, detail){
     <div class="status-menu-banner is-${kind}">${esc(text)}</div>
     <div class="status-menu-list${busy ? ' is-busy' : ''}">${list}</div>
     ${url ? `<a class="status-menu-item" href="${esc(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${offerChoices ? 'Open in ClickUp' : 'Change in ClickUp'} ↗</a>` : ''}`;
+  fitMenu(menu);
 }
 
 function closeMenu(){
