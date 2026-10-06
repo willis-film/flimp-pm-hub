@@ -335,19 +335,23 @@ function render(){
     const _ap = parent.activePanel||'none';
     const _assignedIds = (parent.gmailLabels||[]);
     const _unread = (db.gmailEmails||[]).filter(e=>_assignedIds.some(lid=>(e.labelIds||[]).includes(lid))&&(e.labelIds||[]).includes('UNREAD')).length;
-    // Same treatment as the Inbox dot: an invoice row auto-filed from a 💰
-    // email (or added by hand) with no vendor typed in yet is a row that isn't
-    // done being entered — flagged here so it isn't forgotten once the panel
-    // is closed.
-    const _needsVendor = (parent.invoices||[]).some(inv=>!inv.vendor);
+    // Same treatment as the Inbox dot, but two states — most incomplete first,
+    // since only one dot fits. Red: a row (auto-filed from a 💰 email, or added
+    // by hand) with no vendor typed in yet, i.e. data entry not finished. Gold:
+    // every row is filled in, but one is still sitting at "Received" — entered,
+    // not yet worked through the rest of the invoice statuses.
+    const _invoices = parent.invoices||[];
+    const _invDot = _invoices.some(inv=>!inv.vendor) ? 'alert'
+                  : _invoices.some(inv=>inv.vendor && inv.status==='received') ? 'warn'
+                  : '';
     const _tools = [
       {id:'subtasks', label:'Subtasks'},
-      {id:'emails',   label:'Inbox', badge:_unread},
+      {id:'emails',   label:'Inbox', badge:_unread?'alert':''},
       {id:'timeline', label:'Timeline'},
       {id:'info',     label:'Info'},
       {id:'templates',label:'Templates'},
       {id:'metrics',  label:'Metrics'},
-      {id:'invoices', label:'Invoices', badge:_needsVendor},
+      {id:'invoices', label:'Invoices', badge:_invDot},
       {id:'distro',   label:'Distro'},
       {id:'closeout', label:'Closeout'},
     ];
@@ -360,7 +364,7 @@ function render(){
       btn.onclick = (()=>{ const _id=parent.id,_t=t.id; return ()=>setPanel(_id,_t); })();
       // Dot is a sibling of the label, not inside it: the label clips with
       // overflow:hidden for its ellipsis, which shaved the dot's ring off.
-      btn.innerHTML = '<span class="tg-btn-label">'+t.label+'</span>'+(t.badge?'<span class="tg-unread"></span>':'');
+      btn.innerHTML = '<span class="tg-btn-label">'+t.label+'</span>'+(t.badge?'<span class="tg-unread is-'+t.badge+'"></span>':'');
       _toolGrid.appendChild(btn);
     });
     gridWrap.appendChild(_toolGrid);

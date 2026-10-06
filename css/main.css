@@ -828,6 +828,9 @@ body::before {
 .tg-btn.active:nth-child(9)   { box-shadow: none; }
 .tg-btn.active .tg-btn-label { color: #fff; font-weight: 600; }
 .tg-unread { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--sig-alert); flex-shrink: 0; margin-left: 4px; box-shadow: 0 0 0 1px rgba(255,255,255,0.7); }
+/* Gold reads as "entered, not finished" against the red "not entered at all" —
+   see the _invDot tones in render.js. */
+.tg-unread.is-warn { background: var(--sig-limbo); }
 
 /* Delete-project button lives in the detail panel, between Comments and
    Activity Log (parents only). Quiet by default, clearly destructive on hover. */
