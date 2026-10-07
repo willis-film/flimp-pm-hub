@@ -192,3 +192,26 @@ export function gmailThreadUrl(threadId) {
     ? `https://mail.google.com/mail/?authuser=${encodeURIComponent(GMAIL_ACCOUNT)}#all/${threadId}`
     : `https://mail.google.com/mail/u/0/#all/${threadId}`;
 }
+
+// ── INVOICE AMOUNTS ──────────────────────────────────────────────────────────
+// Invoice amounts are stored as bare numeric strings ('4500') — that's what the
+// older rows already hold — and shown in the sheet as currency ('$4,500.00').
+// Anything that isn't a number (a note typed into the cell) passes through
+// untouched rather than being blanked or zeroed.
+//
+// Both halves live here because render.js draws the cell and
+// js/panels/invoices.js writes it back on blur.
+export function fmtAmount(v) {
+  const raw = String(v == null ? '' : v).trim();
+  if (!raw) return '';
+  const n = Number(raw.replace(/[$,\s]/g, ''));
+  if (!isFinite(n)) return raw;
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+export function parseAmount(v) {
+  const raw = String(v == null ? '' : v).trim();
+  if (!raw) return '';
+  const n = Number(raw.replace(/[$,\s]/g, ''));
+  return isFinite(n) ? String(n) : raw;
+}

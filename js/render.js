@@ -5,7 +5,7 @@
 // DESIGNER_LIST / ANIMATOR_LIST / VO_LIST moved out with the subtask cells
 // they fed — they now live in data/subtask-columns.js.
 import { STATUS_LABELS, PHASE_LABELS, STATUS_CYCLE, CU_STATUSES, ALL_TAGS, AM_LIST, PRODUCT_TYPE_LIST, PRODUCT_STYLE_MAP, PRODUCT_TIER_MAP, CLOSEOUT_ITEMS } from './data/constants.js';
-import { esc, fmtDate, daysLeft, fmtNextActivity, tagColor, tagTextColor, tagBorderColor, tagChip, statusBadge, phasePill, tagsHtml, df, fmtRelTime, fmtAbsTime, isProjectRow, gmailThreadUrl } from './utils.js';
+import { esc, fmtDate, daysLeft, fmtNextActivity, tagColor, tagTextColor, tagBorderColor, tagChip, statusBadge, phasePill, tagsHtml, df, fmtRelTime, fmtAbsTime, isProjectRow, gmailThreadUrl, fmtAmount } from './utils.js';
 import { SUBTASK_COLUMNS, SUBTASK_COLS } from './data/subtask-columns.js';
 import { db, save } from './store.js';
 import { ui } from './state.js';
@@ -530,7 +530,7 @@ function render(){
       <thead><tr>
         <th style="width:22px"></th>
         <th style="width:200px">Mail</th>
-        <th style="width:90px">Sent</th>
+        <th style="width:118px">Sent</th>
         <th style="width:160px">Vendor</th>
         <th style="width:120px">Invoice #</th>
         <th style="width:90px">Amount</th>
@@ -564,10 +564,10 @@ function render(){
               </a>`;
           })() : '<span class="dash">—</span>'}
         </td>
-        <td><input class="inv-input" type="date" value="${inv.sent||''}" onchange="A.updateInvoice('${parent.id}',${idx},'sent',this.value)" style="width:86px"></td>
+        <td><input class="inv-input inv-date" type="date" value="${inv.sent||''}" onchange="A.updateInvoice('${parent.id}',${idx},'sent',this.value)"></td>
         <td><input class="inv-input" value="${esc(inv.vendor||'')}" placeholder="Vendor" onblur="A.updateInvoice('${parent.id}',${idx},'vendor',this.value)"></td>
         <td><input class="inv-input" value="${esc(inv.number||'')}" placeholder="INV-000" onblur="A.updateInvoice('${parent.id}',${idx},'number',this.value)"></td>
-        <td><input class="inv-input" value="${esc(inv.amount||'')}" placeholder="0.00" onblur="A.updateInvoice('${parent.id}',${idx},'amount',this.value)" style="width:80px"></td>
+        <td><input class="inv-input" value="${esc(fmtAmount(inv.amount))}" placeholder="$0.00" onblur="A.updateInvoiceAmount('${parent.id}',${idx},this)" style="width:80px"></td>
         <td>
           <select class="inv-select" onchange="A.setInvoiceTask('${parent.id}',${idx},this.value)">
             <option value="">—</option>

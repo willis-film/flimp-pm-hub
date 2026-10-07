@@ -3,7 +3,7 @@
 
 import { db, save } from '../store.js';
 import { A, register } from '../bus.js';
-import { esc, newId, isProjectRow, gmailThreadUrl } from '../utils.js';
+import { esc, newId, isProjectRow, gmailThreadUrl, fmtAmount, parseAmount } from '../utils.js';
 import { MONEY_LABEL_NAME } from '../data/constants.js';
 
 function addInvoice(parentId){
@@ -22,6 +22,15 @@ function updateInvoice(parentId, idx, field, value){
   // uf()'s needsRender set, it's the one edit here that needs a full
   // re-render rather than leaving the input's own value as the only trace.
   if(field==='vendor') A.render();
+}
+
+// The Amount cell shows currency but stores the bare number, so "4500",
+// "$4,500" and "4500.00" all land as '4500'. Writing the formatted value back
+// into the input on blur is what makes the $ the cell's default look without a
+// re-render — the same reason updateInvoice leaves the other inputs alone.
+function updateInvoiceAmount(parentId, idx, el){
+  updateInvoice(parentId, idx, 'amount', parseAmount(el.value));
+  el.value = fmtAmount(el.value);
 }
 
 // Drops the legacy `tasks` array (from the old multi-toggle buttons) once a
@@ -144,7 +153,7 @@ function submitAssignMoney(){
 
 // Register on the app bus so other modules + inline handlers can reach these.
 register({
-  addInvoice, updateInvoice, setInvoiceTask, deleteInvoice,
+  addInvoice, updateInvoice, updateInvoiceAmount, setInvoiceTask, deleteInvoice,
   attachMoneyLabelInvoices, unfiledMoneyThreads,
   openMoneyManageModal, closeMoneyManageModal,
   openAssignMoneyModal, closeAssignMoneyModal, submitAssignMoney

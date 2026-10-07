@@ -1286,6 +1286,17 @@ a.status-menu-item { text-decoration: none; border-top: 1px solid var(--line-2);
 .inv-input { background: none; border: none; font-family: var(--font-mono); font-size: 12.5px; color: var(--ink); padding: 0; width: 100%; outline: none; }
 .inv-input::placeholder { color: var(--ink-4); }
 .inv-input:focus { background: var(--signal-tint); border-radius: 3px; padding: 1px 4px; margin: -1px -4px; }
+/* Sent is a real date input, so Chrome draws its own calendar indicator inside
+   the field, hard against the right edge. Below roughly 96px of cell the
+   indicator rides over the tail of the date text and the td's overflow:hidden
+   crops it — hence the wider Sent column in render.js plus the trimmed
+   indicator here, instead of a fixed pixel width on the input. The focus rule
+   is also re-stated: .inv-input's padding/negative-margin version narrows the
+   content box, which is exactly what this field has no room for. */
+.inv-date { width: 100%; min-width: 0; }
+.inv-date::-webkit-calendar-picker-indicator { padding: 0; margin: 0 0 0 4px; opacity: .45; cursor: pointer; }
+.inv-date::-webkit-calendar-picker-indicator:hover { opacity: .85; }
+.inv-date:focus { padding: 0; margin: 0; box-shadow: 0 0 0 4px var(--signal-tint); }
 .inv-select { background: none; border: none; font-family: var(--font-mono); font-size: 12px; color: var(--ink); padding: 0; outline: none; cursor: pointer; }
 .inv-select option { background: var(--panel); }
 
