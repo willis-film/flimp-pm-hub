@@ -502,7 +502,7 @@ function buildEmail() {
         return `<p><strong>Option ${n}: QR Code</strong> (attached to this email)</p>`;
       if (o.id === 'mp4')
         return `<p><strong>Option ${n}: Download the MP4 file</strong></p>` +
-          videoItems.map((it, i, a) => `<p style="${listStyle(i, a)}">${link(it.mp4Link, 'Click here')} to download.</p>`).join('') +
+          videoItems.map((it, i, a) => `<p style="${listStyle(i, a)}">${link(it.mp4Link, 'Click here')} to download the ${esc(it.name)}.</p>`).join('') +
           `<p><em>Please note that by using the MP4 file, you forgo the engagement metrics tracked by the Flimp URL and embed code.</em></p>`;
       if (o.id === 'ai')
         return `<p><strong>Option ${n}: Employee Benefits AI Agent</strong></p>
