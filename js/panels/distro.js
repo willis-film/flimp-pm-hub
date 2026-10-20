@@ -335,12 +335,12 @@ function buildEmail(parent, st) {
     // under a single Final Files heading.
     const items = selected.map((k, i, a) => {
       const af = assetFields(k, st);
-      return `<p style="${listStyle(i, a)}"><strong>${esc(af.productName)}:</strong> ${link(af.download, 'Click here')} to download.</p>`;
+      return `<p style="${listStyle(i, a)}"><strong>${esc(af.productName)}:</strong> ${link(af.download, 'Click here to download')}.</p>`;
     }).join('');
 
     const productList = selected.map(k => esc(assetFields(k, st).productName)).join(', ');
     const key = BOILER.resolutionKey.map(([abbr, name, use]) =>
-      `<strong style="color:#67E74E">${abbr}</strong> - ${esc(name)} - <em>${esc(use)}</em>`
+      `<strong style="color:#000000">${abbr}</strong> - ${esc(name)} - <em>${esc(use)}</em>`
     ).join('<br>');
 
     body = `<p>Hi ${esc(pf.contact || '[Client Contact]')},</p>
@@ -421,10 +421,10 @@ function buildEmail(parent, st) {
       ${guideItems.map(k => {
         const af = assetFields(k, st);
         const keyBlock = BOILER.resolutionKey.map(([abbr, name, use]) =>
-          `<strong style="color:#67E74E">${abbr}</strong> - ${esc(name)} - <em>${esc(use)}</em>`
+          `<strong style="color:#000000">${abbr}</strong> - ${esc(name)} - <em>${esc(use)}</em>`
         ).join('<br>');
         return `${H(`${esc(af.productName)} Final Files`)}
-          <p>${link(af.download, 'Click here')} to download the ${esc(af.productName)}.</p>
+          <p>${link(af.download, `Click here to download the ${af.productName}`)}.</p>
           <p>${keyBlock}</p>`;
       }).join('')}` : '';
 

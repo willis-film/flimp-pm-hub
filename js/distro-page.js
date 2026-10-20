@@ -438,12 +438,12 @@ function buildEmail() {
     // the per-deliverable line (product name + download link) repeats, listed
     // under a single Final Files heading.
     const items = selected.map((it, i, a) =>
-      `<p style="${listStyle(i, a)}"><strong>${esc(it.name)}:</strong> ${link(it.download, 'Click here')} to download.</p>`
+      `<p style="${listStyle(i, a)}"><strong>${esc(it.name)}:</strong> ${link(it.download, 'Click here to download')}.</p>`
     ).join('');
 
     const productList = selected.map(it => esc(it.name)).join(', ');
     const key = BOILER.resolutionKey.map(([abbr, name, use]) =>
-      `<strong style="color:#67E74E">${abbr}</strong> - ${esc(name)} - <em>${esc(use)}</em>`
+      `<strong style="color:#000000">${abbr}</strong> - ${esc(name)} - <em>${esc(use)}</em>`
     ).join('<br>');
 
     body = `<p>Hi ${esc(contact)},</p>
@@ -517,10 +517,10 @@ function buildEmail() {
     // guide deliverable, placed after the video Options.
     const guideSection = guideItems.map(it => {
       const keyBlock = BOILER.resolutionKey.map(([abbr, name, use]) =>
-        `<strong style="color:#67E74E">${abbr}</strong> - ${esc(name)} - <em>${esc(use)}</em>`
+        `<strong style="color:#000000">${abbr}</strong> - ${esc(name)} - <em>${esc(use)}</em>`
       ).join('<br>');
       return `${H(`${esc(it.name)} Final Files`)}
-        <p>${link(it.download, 'Click here')} to download the ${esc(it.name)}.</p>
+        <p>${link(it.download, `Click here to download the ${it.name}`)}.</p>
         <p>${keyBlock}</p>`;
     }).join('');
 
