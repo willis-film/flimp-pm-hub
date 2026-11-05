@@ -52,16 +52,13 @@ const APPLIES = {
   ap:      ['Presentation Video', 'Video', 'Library Videos'],
   renewal: ['Presentation Video', 'Video', 'Library Videos'],
   // Anything with a hosted page the client can look at and we can measure.
-  preview: ['Presentation Video', 'Video', 'Library Videos', 'Microsite',
-            'Microsite - Single Page', 'Microsite - Multi Page',
+  preview: ['Presentation Video', 'Video', 'Library Videos', 'Microsite - Single Page', 'Microsite - Multi Page',
             'Flimp Decisions', 'Flimp Connect', 'Flimp Canvas',
             'Web Development', 'AI Chatbot Agent'],
-  report:  ['Presentation Video', 'Video', 'Library Videos', 'Microsite',
-            'Microsite - Single Page', 'Microsite - Multi Page',
+  report:  ['Presentation Video', 'Video', 'Library Videos', 'Microsite - Single Page', 'Microsite - Multi Page',
             'Flimp Decisions', 'Flimp Connect', 'Flimp Canvas',
             'Web Development', 'AI Chatbot Agent'],
-  disturl: ['Presentation Video', 'Video', 'Library Videos', 'Microsite',
-            'Microsite - Single Page', 'Microsite - Multi Page',
+  disturl: ['Presentation Video', 'Video', 'Library Videos', 'Microsite - Single Page', 'Microsite - Multi Page',
             'Flimp Decisions', 'Flimp Connect', 'Flimp Canvas',
             'Web Development', 'AI Chatbot Agent'],
   // "Final Files" is the heading the Distro wizard puts over a guide's
@@ -144,8 +141,22 @@ const GROUPS = [
       field: 'reviewStudioLink' },
     { key: 'preview',  label: 'Preview',   cell: 'Preview',
       field: 'previewLink' },
+    // TWO PLACES HOLD THIS ONE LINK. The Distro wizard's reporting field
+    // pre-fills from the item's reportingLink (assetFields' `report`), so the
+    // wizard's `reportLink` and the row's `reportingLink` are the SAME link —
+    // unlike Dist. URL and Final Files below, which are genuinely different
+    // links from the item's own and therefore get no fallback. The wizard
+    // never writes back, so a link typed only there left the row empty and
+    // every distributed item read as a gap: 30 of 52 flags were false.
+    //
+    // Resolution order is buildEmail()'s own — distro.js's reportUrl() reads
+    // `st.fields[k.id]?.reportLink || assetFields(k, st).report` — so the cell
+    // and the email that went to the client can never disagree about which
+    // link exists. Editing still writes the row (`field` below), which
+    // promotes a wizard-only link onto the item.
     { key: 'report',   label: 'Reporting', cell: 'Report',
       field: 'reportingLink',
+      read: (r, st) => st.fields[r.id]?.reportLink || r.reportingLink || '',
       requiredOnce: isDistributed, dueNote: 'Due once distributed' },
   ]},
   { label: 'As sent to client', cols: [
