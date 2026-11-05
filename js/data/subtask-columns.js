@@ -159,6 +159,23 @@ export const SUBTASK_COLUMNS = {
     }
   },
 
+  // Synced from ClickUp's 'Zoho Link+' (see applyClickUpLinks in clickup.js),
+  // so this cell is READ-ONLY — a sync would overwrite anything typed here.
+  // The chain glyph is the same mark the Links panel uses for "there is a link
+  // here": the column header already names the field, so the cell doesn't
+  // repeat it. Type a missing one in the Links panel.
+  zoho: {
+    label: 'Zoho',
+    thAttr: 'style="width:52px"',
+    tdAttr: 'style="text-align:center"',
+    cell: task => {
+      const v = task.zohoLink || '';
+      if (!v) return '<span class="dash">—</span>';
+      const href = (v.startsWith('http') ? '' : 'https://') + esc(v);
+      return `<a class="link-glyph" href="${href}" target="_blank" rel="noopener" title="${esc(v)}">Zoho</a>`;
+    }
+  },
+
   update: {
     label: 'New/Update',
     thAttr: 'class="th-update"',
@@ -383,7 +400,7 @@ export const SUBTASK_COLUMNS = {
 //   'io' — the daily in/out checkbox. Went unused; restore it after 'name'.
 
 export const SUBTASK_COLS = [
-  'name', 'tags', 'cu', 'days', 'due', 'phase', 'stage', 'nexttick',
+  'name', 'tags', 'cu', 'zoho', 'days', 'due', 'phase', 'stage', 'nexttick',
   'update', 'type', 'tier', 'style', 'review', 'dropbox',
   'designer', 'animator', 'vo', 'distdate', 'touched', 'act'
 ];

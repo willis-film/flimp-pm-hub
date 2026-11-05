@@ -133,6 +133,24 @@ html { color-scheme: light; }
   font-feature-settings: "tnum" 1;
 }
 
+/* THE LINK GLYPH — "there is a link here", with no word. Used by the Links
+   panel's filled cells and by the subtasks sheet's Zoho column; both sit under
+   a header that already names the field, so the mark alone carries it.
+   A mask rather than an <img> or inline SVG, so the colour comes from CSS and
+   one definition serves every use. */
+:root {
+  --lk-chain: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>');
+}
+.link-glyph, .lk-c.has .lk-a {
+  display: inline-block; width: 15px; height: 15px; font-size: 0;
+  vertical-align: middle; text-decoration: none; cursor: pointer;
+  background: var(--signal);
+  -webkit-mask: var(--lk-chain) center / 15px 15px no-repeat;
+          mask: var(--lk-chain) center / 15px 15px no-repeat;
+  transition: background .13s;
+}
+.link-glyph:hover { background: var(--ink); }
+
 body {
   font-family: var(--font);
   color: var(--ink);
@@ -2896,7 +2914,9 @@ select.info-in { cursor: pointer; padding-right: 4px; }
 .lk-none { font-size: 12.5px; color: var(--ink-3); padding: 10px 0 2px; }
 
 /* ── PROJECT ROW ─────────────────────────────────────────────────────────── */
-.lk-proj { display: grid; grid-template-columns: repeat(7, 1fr); gap: 7px; }
+/* Column count tracks PROJECT_FIELDS in js/panels/links.js — auto-fit rather
+   than a fixed count, so dropping or adding a tile needs no change here. */
+.lk-proj { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 7px; }
 .lk-pcell {
   border: 1px solid var(--line); border-radius: var(--radius);
   background: var(--panel-2); padding: 7px 9px 8px; min-width: 0;
@@ -2957,9 +2977,7 @@ a.lk-pv.has:hover { text-decoration: underline; }
    makes a wall of text to read past. A SET cell shows a link glyph and shuts
    up; an EMPTY cell shows the word, because then the word IS the information —
    which link is missing. A healthy row goes quiet and every word is a hole. */
-.lk-wrap {
-  --lk-chain: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>');
-}
+
 /* vertical-align:middle on both states puts the glyph box and the word box on
    the same centre; without it the 15px glyph hangs below the text baseline. */
 .lk-c { display: inline-flex; align-items: center; position: relative; vertical-align: middle; line-height: 1; }
@@ -2967,13 +2985,8 @@ a.lk-pv.has:hover { text-decoration: underline; }
 
 /* SET — glyph only. font-size:0 hides the word without removing it, so the
    tooltip and screen readers still get it. */
-.lk-c.has .lk-a {
-  display: inline-block; width: 15px; height: 15px; font-size: 0;
-  background: var(--signal);
-  -webkit-mask: var(--lk-chain) center / 15px 15px no-repeat;
-          mask: var(--lk-chain) center / 15px 15px no-repeat;
-}
-.lk-c.has .lk-a:hover { background: var(--ink); }
+/* The glyph itself is .link-glyph, defined with the shared tokens near the
+   top of this file — the Links panel and the subtasks sheet share one mark. */
 
 /* EMPTY — the word, in the strip's own empty treatment. Deliberately heavier
    than .lk-na below: telling a hole from a non-hole is the whole job of the
@@ -2984,13 +2997,6 @@ a.lk-pv.has:hover { text-decoration: underline; }
 /* Missing AND the item is already done or distributed — a real gap. */
 .lk-c.gap .lk-a { font-size: 12.5px; color: var(--sig-production); font-weight: 600; border-bottom: 1px solid var(--sig-production); padding-bottom: 1px; }
 
-/* A sent link that disagrees with the item's own field. */
-.lk-c.differs::after { content: ''; position: absolute; top: -3px; right: -6px; width: 5px; height: 5px; border-radius: 50%; background: var(--sig-limbo); }
-
-/* The pencil belongs to the CELL, not the row — thirteen pencils at once was
-   what made this noisy. Absolute, so in-flow width never pushes the glyph off
-   its column centre. */
-.lk-ed { position: absolute; left: 100%; margin-left: 5px; color: var(--ink-4); font-size: 10px; opacity: 0; transition: opacity .13s; cursor: pointer; }
 .lk-c:hover .lk-ed, .lk-pcell:hover .lk-ed { opacity: 1; }
 .lk-ed:hover { color: var(--signal); }
 .lk-na { display: inline-block; vertical-align: middle; line-height: 1; color: var(--ink-4); font-size: 12.5px; opacity: .7; }

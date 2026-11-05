@@ -51,6 +51,7 @@ async function syncAll() {
     // same path as boot, so there's no second code path to keep correct.
     await load();
     A.applyClickUpStatuses();
+    A.applyClickUpLinks();
     A.render();
     A.renderGmailSidebar();
     A.renderGmailBanner();
@@ -121,6 +122,7 @@ async function autoSyncClickUp() {
     const kept = new Set(json.keptIds || []);
     db.clickupTasks = [...json.tasks, ...(db.clickupTasks || []).filter(t => kept.has(t.id))];
     A.applyClickUpStatuses();
+    A.applyClickUpLinks();
     A.render();
     A.renderClickUpSidebar();
     A.renderCuBanner();

@@ -363,6 +363,7 @@ export default async function handler(req, res) {
           productType: t.product_type,
           productTier: t.product_tier,
           productStyle: t.product_style,
+          zohoLink: t.zoho_link,
           clickupUrl: t.clickup_url
         })),
         gmailLabelDefs:    ws.gmail_label_defs || [],

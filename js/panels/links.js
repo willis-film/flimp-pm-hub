@@ -149,13 +149,22 @@ const GROUPS = [
       requiredOnce: isDistributed, dueNote: 'Due once distributed' },
   ]},
   { label: 'As sent to client', cols: [
+    // Like the distribution URL below: the Final Files link the client is sent
+    // is NOT the item's Dropbox link, so it neither falls back to it nor is
+    // compared against it. Empty here means nothing was sent, not "look in
+    // Dropbox instead".
     { key: 'files',    label: 'Final Files', cell: 'Files',
-      read: (r, st) => st.fields[r.id]?.download ?? r.dropboxLink ?? '',
-      differs: (r, st) => st.fields[r.id]?.download && st.fields[r.id].download !== r.dropboxLink,
+      read: (r, st) => st.fields[r.id]?.download || '',
       note: 'Sent under the "Final Files" heading — edit in Distro' },
+    // The distribution URL and the item's preview link are two DIFFERENT links
+    // — a preview is ours to look at, a distribution URL is what the client is
+    // sent — so they are never equal and must never stand in for each other.
+    // No fallback to previewLink: an item with nothing in the wizard has no
+    // distribution URL, and saying otherwise would show a filled cell for a
+    // link that was never sent. No `differs` either: comparing two links that
+    // are supposed to differ would mark every distributed item.
     { key: 'disturl',  label: 'Dist. URL',   cell: 'URL',
-      read: (r, st) => st.fields[r.id]?.distUrl ?? r.previewLink ?? '',
-      differs: (r, st) => st.fields[r.id]?.distUrl && st.fields[r.id].distUrl !== r.previewLink,
+      read: (r, st) => st.fields[r.id]?.distUrl || '',
       note: 'What actually went out — edit in Distro' },
     { key: 'embed',    label: 'Embed',       cell: 'Embed',
       read: (r, st) => st.fields[r.id]?.embedCode ?? '',
@@ -172,7 +181,6 @@ const PROJECT_FIELDS = [
   { label: 'Zoho',        field: 'zohoLink',     src: 'strip' },
   { label: 'Dropbox',     field: 'dropboxLink',  src: 'strip' },
   { label: 'Estimate',    field: 'estimateLink', src: 'strip · info' },
-  { label: 'HubSpot deal',field: 'hubspotLink',  src: 'info' },
   { label: 'Invoice ref', field: 'invoiceRef',   src: 'info' },
   { label: 'AI agent',    distro: 'aiLink',      src: 'distro' },
   { label: 'AI report',   distro: 'aiReport',    src: 'distro' },
@@ -186,10 +194,7 @@ function cellState(row, col, st) {
 
   const val = (col.read ? col.read(row, st) : row[col.field]) || '';
   if (val) {
-    return {
-      kind: 'has', val,
-      differs: !!(col.differs && col.differs(row, st)),
-    };
+    return { kind: 'has', val };
   }
   // Empty. A gap only once the thing that requires it has happened.
   if (col.requiredOnce && col.requiredOnce(row)) return { kind: 'gap' };
@@ -222,7 +227,7 @@ function cellHtml(row, col, st) {
   if (s.kind === 'has') {
     const href = (s.val.startsWith('http') ? '' : 'https://') + esc(s.val);
     const tip = col.note ? `${esc(s.val)} — ${esc(col.note)}` : esc(s.val);
-    return `<span class="lk-c has${s.differs ? ' differs' : ''}">
+    return `<span class="lk-c has">
       <a class="lk-a" href="${href}" target="_blank" rel="noopener" title="${tip}">${col.cell}</a>
       ${input}${edit}</span>`;
   }
@@ -303,12 +308,6 @@ function alerts(parent, kids, st) {
   if (noZoho.length) out.push({ html:
     `<strong>${noZoho.length} item${noZoho.length > 1 ? 's have' : ' has'} no Zoho Project Item link</strong> — ${noZoho.map(name).join(', ')}.` });
 
-  kids.forEach(k => {
-    const sent = st.fields[k.id]?.distUrl;
-    if (sent && k.previewLink && sent !== k.previewLink) out.push({ html:
-      `<strong>${name(k)} was sent a distribution URL that isn't its preview link</strong> — <code>${esc(sent)}</code> went out, Info still says <code>${esc(k.previewLink)}</code>. One of the two is stale.` });
-  });
-
   return out.map(a => `<div class="lk-alert${a.crit ? ' crit' : ''}">
     <span class="lk-alert-sig">!</span><span>${a.html}</span></div>`).join('');
 }
@@ -378,7 +377,6 @@ function linksPanelHtml(parent) {
         <span class="lk-key-i"><span class="lk-c has"><span class="lk-a">Set</span></span> set &mdash; click to open</span>
         <span class="lk-key-i"><span class="lk-c none"><span class="lk-a">Dropbox</span></span> empty &mdash; click to paste</span>
         <span class="lk-key-i"><span class="lk-c gap"><span class="lk-a">Report</span></span> missing on an item that is already done or distributed</span>
-        <span class="lk-key-i"><span class="lk-c has differs"><span class="lk-a">URL</span></span> sent link differs from the item's own</span>
         <span class="lk-key-i"><span class="lk-na">&ndash;</span> does not apply, or not due yet</span>
       </div>
       ${alerts(parent, kids, st)}

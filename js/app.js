@@ -56,6 +56,7 @@ export async function init() {
   // Statuses from the last sync first, so the board opens right; then a fresh
   // ClickUp pull in the background, which re-renders when it lands.
   A.applyClickUpStatuses();
+  A.applyClickUpLinks();
   A.render();
   A.renderGmailSidebar();
   A.renderGmailBanner();

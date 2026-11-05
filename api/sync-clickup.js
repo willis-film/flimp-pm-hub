@@ -38,6 +38,11 @@ const MY_USER_ID = '30042982';
 const FIELD_NAME_PRODUCT_TYPE = 'Product Type';
 const FIELD_NAME_PRODUCT_TIER = 'Product Tier';
 const FIELD_NAME_PRODUCT_STYLE = 'Product Style';
+const FIELD_NAME_ZOHO_LINK = 'Zoho Link';
+// ClickUp's 'Zoho Link+' — a `url` field, so customFieldValue() returns it
+// through its plain-string branch with no special handling. Carried into
+// clickup_tasks so the hub can SEED an item's own zohoLink from it; the hub
+// never writes back (see applyClickUpLinks in js/clickup.js).
 
 // The live field names carry trailing markers — 'Product Type*+',
 // 'Product Tier*+', 'Product Style*+' — where the workspace uses '*' and '+'
@@ -213,7 +218,7 @@ export default async function handler(req, res) {
         fieldNamesSeen: [...new Set(
           debugTasks.flatMap(t => (t.custom_fields || []).map(f => f.name))
         )].sort(),
-        lookingFor: [FIELD_NAME_PRODUCT_TYPE, FIELD_NAME_PRODUCT_TIER, FIELD_NAME_PRODUCT_STYLE],
+        lookingFor: [FIELD_NAME_PRODUCT_TYPE, FIELD_NAME_PRODUCT_TIER, FIELD_NAME_PRODUCT_STYLE, FIELD_NAME_ZOHO_LINK],
         // The option NAMES ClickUp offers for the three target fields. Matching
         // the field is only half the job: the app's dropdowns only display a
         // value that also exists in Supabase's product_types / product_options,
@@ -245,7 +250,8 @@ export default async function handler(req, res) {
           resolved: {
             product_type:  customFieldValue(t, FIELD_NAME_PRODUCT_TYPE),
             product_tier:  customFieldValue(t, FIELD_NAME_PRODUCT_TIER),
-            product_style: customFieldValue(t, FIELD_NAME_PRODUCT_STYLE)
+            product_style: customFieldValue(t, FIELD_NAME_PRODUCT_STYLE),
+            zoho_link:     customFieldValue(t, FIELD_NAME_ZOHO_LINK)
           }
         }))
       });
@@ -271,6 +277,7 @@ export default async function handler(req, res) {
       product_type: customFieldValue(t, FIELD_NAME_PRODUCT_TYPE),
       product_tier: customFieldValue(t, FIELD_NAME_PRODUCT_TIER),
       product_style: customFieldValue(t, FIELD_NAME_PRODUCT_STYLE),
+      zoho_link: customFieldValue(t, FIELD_NAME_ZOHO_LINK),
       clickup_url: t.url,
       synced_at: new Date().toISOString()
     }));
@@ -312,6 +319,7 @@ export default async function handler(req, res) {
         productType: r.product_type,
         productTier: r.product_tier,
         productStyle: r.product_style,
+        zohoLink: r.zoho_link,
         clickupUrl: r.clickup_url
       }))
     });

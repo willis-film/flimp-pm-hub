@@ -111,7 +111,8 @@ function submitAssignCuTask(){
     productType:cuTask.productType||'',
     productTier:cuTask.productTier||'',
     productStyle:cuTask.productStyle||'',
-    zohoLink:'',
+    // Seeded from ClickUp's 'Zoho Link+' when the task carries one.
+    zohoLink:cuTask.zohoLink||'',
     dropboxLink:'',
     nextActivity:null,
     designer:'',
@@ -279,6 +280,30 @@ function applyClickUpStatuses(){
     if(row.itemStatus!==cu.name) A.logActivity(row,'status',row.itemStatus||row.status,cu.name);
     row.itemStatus=cu.name;
     row.status=cu.hub;
+    changed=true;
+  }
+  if(changed) save();
+  return changed;
+}
+
+// ── ZOHO LINK FROM CLICKUP ───────────────────────────────────────────────────
+// ClickUp's 'Zoho Link+' is the Project Item's CRM record, and it is set once
+// and never changes — so the hub SEEDS its own zohoLink from it and then
+// leaves it alone. Fill-if-empty, not overwrite: for a link that never moves
+// the two are the same thing in practice, and this way a link typed by hand
+// can't be wiped by a sync that happens to come back blank.
+//
+// A separate pass from applyClickUpStatuses(), not a branch inside it: that
+// loop skips any row whose ClickUp status it doesn't recognise, and a row with
+// an odd status should still get its link.
+function applyClickUpLinks(){
+  if(!isLoaded()) return false; // demo data after a failed load — leave it be
+  let changed=false;
+  for(const row of db.rows){
+    if(!isCuLinked(row) || row.zohoLink) continue;
+    const task=(db.clickupTasks||[]).find(t=>t.id===row.clickupId);
+    if(!task || !task.zohoLink) continue;
+    row.zohoLink=task.zohoLink;
     changed=true;
   }
   if(changed) save();
@@ -691,4 +716,4 @@ function openClickUpManageModal(){
 function closeClickUpManageModal(){ document.getElementById('clickup-manage-overlay').classList.remove('open'); }
 
 // Register on the app bus so other modules + inline handlers can reach these.
-register({ isItem, isCuLinked, cuStatusFor, cuStatusName, itemStatus, itemDotStyle, statusDotStyle, itemStatusLabel, itemStatusBadge, setItemStatus, applyClickUpStatuses, cuWriteAllowed, noteClickUpStatus, cuTaskUrl, cuDotColor, openAssignCuTaskModal, closeAssignCuTaskModal, submitAssignCuTask, openClickUpManageModal, closeClickUpManageModal, detachCuRow, detachCuTaskAll, discardCuTaskData, detachedRowsFor, pushPhaseToClickUp, pushPhaseOnEdit, syncTaskPhase, phaseIndicatorHtml, distEditStart, distEditEnd });
+register({ isItem, isCuLinked, cuStatusFor, cuStatusName, itemStatus, itemDotStyle, statusDotStyle, itemStatusLabel, itemStatusBadge, setItemStatus, applyClickUpStatuses, applyClickUpLinks, cuWriteAllowed, noteClickUpStatus, cuTaskUrl, cuDotColor, openAssignCuTaskModal, closeAssignCuTaskModal, submitAssignCuTask, openClickUpManageModal, closeClickUpManageModal, detachCuRow, detachCuTaskAll, discardCuTaskData, detachedRowsFor, pushPhaseToClickUp, pushPhaseOnEdit, syncTaskPhase, phaseIndicatorHtml, distEditStart, distEditEnd });
