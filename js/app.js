@@ -21,7 +21,8 @@ import './panels/subtasks.js';
 import './panels/emails.js';
 import './panels/invoices.js';
 import './panels/closeout.js';
-import './panels/metrics.js';
+import './panels/metrics.js';   // activity log helpers (no panel of its own)
+import './panels/links.js';
 import './panels/timeline.js';
 import './panels/info.js';
 import './panels/templates.js';

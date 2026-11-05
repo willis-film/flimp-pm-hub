@@ -344,13 +344,17 @@ function render(){
     const _invDot = _invoices.some(inv=>!inv.vendor) ? 'alert'
                   : _invoices.some(inv=>inv.vendor && inv.status==='received') ? 'warn'
                   : '';
+    // Links badge — red when any item is already done or distributed and still
+    // missing a link that state makes required. Same push idiom as the Inbox
+    // and Invoices dots: the grid tells you to look, the panel tells you why.
+    const _linkDot = A.linksGapCount && A.linksGapCount(parent) ? 'alert' : '';
     const _tools = [
       {id:'subtasks', label:'Subtasks'},
       {id:'emails',   label:'Inbox', badge:_unread?'alert':''},
       {id:'timeline', label:'Timeline'},
       {id:'info',     label:'Info'},
       {id:'templates',label:'Templates'},
-      {id:'metrics',  label:'Metrics'},
+      {id:'links',    label:'Links', badge:_linkDot},
       {id:'invoices', label:'Invoices', badge:_invDot},
       {id:'distro',   label:'Distro'},
       {id:'closeout', label:'Closeout'},
@@ -666,21 +670,14 @@ function render(){
     if (activePanel === 'templates') tplWrap.innerHTML = A.templatesPanelHtml(parent);
     block.appendChild(tplWrap);
 
-    // ── STUB PANELS ────────────────────────────────────────────────────────
-    const _stubDefs=[
-      { id:'metrics',   label:'Metrics',      body:'Activity log, days spent per phase, and project health summary.' },
-    ];
-    _stubDefs.forEach(s=>{
-      const w=document.createElement('div');
-      w.className='closeout-wrap'+(activePanel!==s.id?' hidden':'');
-      w.id=s.id+'-stub-'+parent.id;
-      w.innerHTML='<div style="padding:34px 20px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center">'+
-        '<div style="font-family:var(--font-display);font-size:20px;font-weight:600;color:var(--ink);letter-spacing:0.2px">'+s.label+'</div>'+
-        '<div style="font-size:13px;color:var(--ink-3);max-width:440px;line-height:1.7">'+s.body+'</div>'+
-        '<div style="font-family:var(--font-mono);font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-4);border:1px solid var(--line-2);border-radius:20px;padding:3px 11px;margin-top:6px">Coming soon</div>'+
-        '</div>';
-      block.appendChild(w);
-    });
+    // ── LINKS PANEL ────────────────────────────────────────────────────────
+    // Every URL for the project and its items in one grid. Body is built by
+    // js/panels/links.js; this mounts it.
+    const linkWrap = document.createElement('div');
+    linkWrap.className = 'links-wrap' + (activePanel !== 'links' ? ' hidden' : '');
+    linkWrap.id = 'links-' + parent.id;
+    if (activePanel === 'links') linkWrap.innerHTML = A.linksPanelHtml(parent);
+    block.appendChild(linkWrap);
 
     wrap.appendChild(block);
     }); // end groupParents.forEach

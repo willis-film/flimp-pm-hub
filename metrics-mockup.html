@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Metrics Panel — Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/main.css">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   METRICS PANEL — mockup styles (.mx-*)
+   Drops into css/main.css as-is. Only existing tokens, so it inherits the
+   console look and the signal-code colours rather than introducing a second
+   palette.
+
+   HEIGHT BUDGET. The Info panel measures 558px at project scope and 754px at
+   item scope. This panel is capped at the item-scope figure, which is why the
+   four bands are SWITCHED rather than stacked: all four at once ran past
+   1500px, and a panel you have to scroll is not a snapshot.
+
+   The lamp row and the alert strip sit OUTSIDE the switch and are always
+   visible. They are the snapshot; the bands are the detail behind it. An alert
+   hidden on a tab you are not looking at is an alert that does not work.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Page chrome for the mockup only — not part of the panel. */
+body { background: var(--bg); padding: 22px 20px 50px; }
+.mock-shell { max-width: 1660px; margin: 0 auto; }
+.mock-note {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.4px;
+  text-transform: uppercase; color: var(--ink-4); margin-bottom: 10px;
+  display: flex; justify-content: space-between;
+}
+.mock-strip {
+  background: var(--panel); border: 1px solid var(--line-2);
+  border-radius: var(--radius) var(--radius) 0 0; border-bottom: none;
+  display: flex; align-items: stretch; overflow: hidden;
+}
+.mock-tab { width: var(--spine-w); background: var(--sig-production); flex-shrink: 0; }
+.mock-strip-body { flex: 1; padding: 12px 16px 10px; }
+.mock-strip-name { font-family: var(--font-display); font-size: 15px; font-weight: 600; color: var(--ink); }
+.mock-strip-meta { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-3); margin-top: 3px; }
+.mock-grid {
+  margin-left: var(--spine-off); margin-right: 1px;
+  border: 1px solid var(--line-2); border-bottom: none;
+  display: grid; grid-template-columns: repeat(3, 1fr);
+}
+.mock-gbtn {
+  background: var(--panel); padding: 6px 0;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.8px;
+  color: var(--ink-3); text-align: center;
+  border-right: 1px solid var(--line); border-bottom: 1px solid var(--line);
+}
+.mock-gbtn:nth-child(3n) { border-right: none; }
+.mock-gbtn.on { background: var(--signal-tint); color: var(--signal-deep); font-weight: 600; }
+
+/* ── THE PANEL ───────────────────────────────────────────────────────────── */
+/* Box geometry copied from the shared panel rule (.info-wrap et al). */
+.mx-wrap {
+  margin-left: var(--spine-off); margin-right: 1px;
+  border: 1px solid var(--line-2); border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  background: var(--panel);
+  box-shadow: inset 0 6px 7px -6px rgba(28,42,51,0.18);
+}
+/* Same two-column shape as the Info panel. The rail costs no vertical height —
+   it is sized by the surface beside it — so it is free in this budget. */
+.mx-layout { display: grid; grid-template-columns: 168px minmax(0, 1fr); }
+
+.mx-rail { border-right: 1px solid var(--line); padding: 12px 0 12px 12px; }
+.mx-rail-row {
+  display: flex; align-items: center; gap: 7px; padding: 4px 10px 4px 0;
+  cursor: pointer; border-radius: 4px 0 0 4px;
+}
+.mx-rail-row.active { background: var(--signal-tint); }
+.mx-rail-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.mx-rail-name { font-size: 11px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mx-rail-name.is-project { font-weight: 600; color: var(--ink); }
+.mx-rail-rule { height: 1px; background: var(--line); margin: 8px 12px 8px 0; }
+.mx-rail-cap {
+  font-family: var(--font-mono); font-size: 8.5px; letter-spacing: 1.4px;
+  text-transform: uppercase; color: var(--ink-4); margin-bottom: 4px; padding-right: 12px;
+}
+
+/* Padding matches .info-surface exactly, so the two panels sit on one grid. */
+.mx-surface { padding: 14px 20px 18px; min-width: 0; }
+.mx-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 11px; }
+.mx-head-name { font-family: var(--font-display); font-size: 15px; font-weight: 600; color: var(--ink); }
+.mx-head-asof { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-4); letter-spacing: 0.4px; }
+
+/* ── LAMP ROW — always visible ────────────────────────────────────────────
+   Six readings, not one composite score. A single number would hide which of
+   the six is the one that is wrong, and this app reads by lamp everywhere. */
+.mx-lamps { display: grid; grid-template-columns: repeat(6, 1fr); gap: 7px; margin-bottom: 12px; }
+.mx-lamp {
+  background: var(--panel-2); border: 1px solid var(--line);
+  border-left: 2.5px solid var(--line-2); border-radius: 4px; padding: 7px 9px 8px;
+}
+.mx-lamp-k {
+  font-family: var(--font-mono); font-size: 8px; letter-spacing: 1.2px;
+  text-transform: uppercase; color: var(--ink-3); margin-bottom: 4px;
+}
+.mx-lamp-v {
+  font-family: var(--font-display); font-size: 17px; font-weight: 600;
+  color: var(--ink); line-height: 1; letter-spacing: -0.2px;
+}
+.mx-lamp-s { font-size: 9.5px; color: var(--ink-3); margin-top: 4px; line-height: 1.35; }
+/* Lamp states reuse the timeline-health palette, so "behind" is the same
+   colour here as it is on the Timeline strip. */
+.mx-lamp.bad  { border-left-color: var(--sig-production); background: rgba(195,47,56,0.045); }
+.mx-lamp.bad  .mx-lamp-v { color: var(--sig-production); }
+.mx-lamp.warn { border-left-color: var(--sig-limbo); background: rgba(201,154,46,0.055); }
+.mx-lamp.warn .mx-lamp-v { color: #8A6410; }
+.mx-lamp.good { border-left-color: var(--sig-closed); }
+.mx-lamp.good .mx-lamp-v { color: var(--sig-closed); }
+.mx-lamp.soft { border-left-color: var(--line-2); }
+.mx-lamp.soft .mx-lamp-v { color: var(--ink-2); }
+
+/* ── BAND SWITCH ──────────────────────────────────────────────────────────
+   One band at a time, the same bargain the tool grid above already makes. */
+.mx-seg { display: flex; gap: 0; border-bottom: 1px solid var(--line); margin-bottom: 11px; }
+.mx-seg-b {
+  appearance: none; background: none; border: none; cursor: pointer;
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 1.3px;
+  text-transform: uppercase; color: var(--ink-3);
+  padding: 5px 13px 6px; border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.mx-seg-b:hover { color: var(--ink-2); }
+.mx-seg-b.on { color: var(--signal-deep); border-bottom-color: var(--signal); font-weight: 600; }
+.mx-seg-aside {
+  margin-left: auto; align-self: center;
+  font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-4); letter-spacing: 0.4px;
+}
+
+/* A fixed floor, so switching bands never makes the panel jump height as you
+   click across them. Set to the TALLEST band's natural height at full width
+   (Money, 241px) — any higher and the three shorter bands render a block of
+   dead space under their last row. Re-measure if a band gains a row. */
+.mx-band { display: none; min-height: 244px; }
+.mx-band.on { display: block; }
+
+.mx-cols { display: grid; gap: 10px; }
+.mx-cols-2 { grid-template-columns: 1fr 1fr; }
+.mx-cols-3 { grid-template-columns: repeat(3, 1fr); }
+.mx-cols-4 { grid-template-columns: repeat(4, 1fr); }
+.mx-rows { display: grid; gap: 10px; }
+
+/* A tile is one labelled reading. */
+.mx-tile { background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 9px 10px 10px; }
+.mx-tile-k {
+  font-family: var(--font-mono); font-size: 8px; letter-spacing: 1.2px;
+  text-transform: uppercase; color: var(--ink-3); margin-bottom: 5px;
+}
+.mx-tile-v { font-family: var(--font-display); font-size: 15px; font-weight: 600; color: var(--ink); line-height: 1; }
+.mx-tile-v.neg { color: var(--sig-production); }
+.mx-tile-s { font-size: 9.5px; color: var(--ink-3); margin-top: 5px; line-height: 1.45; }
+
+/* ── ALERT STRIP — always visible, outside the band switch ────────────────
+   Not metrics. Assertions the record can make on its own: a number says
+   something is off, these say what to go and do. */
+.mx-alerts { margin-top: 11px; border-top: 1px solid var(--line); padding-top: 9px; display: flex; flex-direction: column; gap: 5px; }
+.mx-alert {
+  display: flex; gap: 7px; align-items: baseline;
+  font-size: 10.5px; line-height: 1.45; color: var(--ink-2);
+  background: rgba(201,154,46,0.09); border: 1px solid rgba(201,154,46,0.3);
+  border-radius: 4px; padding: 5px 9px;
+}
+.mx-alert.crit { background: var(--oxblood-tint); border-color: rgba(168,50,58,0.3); }
+.mx-alert-sig { font-weight: 700; color: var(--sig-limbo); flex-shrink: 0; }
+.mx-alert.crit .mx-alert-sig { color: var(--oxblood); }
+.mx-alert-more {
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.6px;
+  color: var(--ink-4); cursor: pointer; padding-left: 2px;
+}
+
+/* Stacked distribution bar — drift spread, status spread. */
+.mx-dist { display: flex; height: 8px; border-radius: 3px; overflow: hidden; border: 1px solid var(--line-2); }
+.mx-dist span { display: block; }
+.mx-key { display: flex; flex-wrap: wrap; gap: 3px 11px; margin-top: 7px; }
+.mx-key-i { display: flex; align-items: center; gap: 4px; font-size: 9.5px; color: var(--ink-2); }
+.mx-key-sw { width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; }
+.mx-key-n { font-family: var(--font-mono); color: var(--ink-3); }
+
+/* Ranked list with inline bars — margin by item, vendor load, completeness. */
+.mx-rank { display: flex; flex-direction: column; gap: 5px; }
+.mx-rank-r { display: grid; grid-template-columns: minmax(0,1fr) 46px; gap: 8px; align-items: center; }
+.mx-rank-l { font-size: 10.5px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mx-rank-n { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink); text-align: right; }
+.mx-rank-n.neg { color: var(--sig-production); font-weight: 600; }
+.mx-bar-wrap { height: 4px; background: var(--panel-3); border-radius: 2px; overflow: hidden; margin-top: 3px; }
+.mx-bar { height: 100%; background: var(--signal); border-radius: 2px; }
+.mx-bar.lo   { background: var(--sig-limbo); }
+.mx-bar.crit { background: var(--sig-production); }
+.mx-bar.ok   { background: var(--sig-closed); }
+
+/* Chip row — product mix, phases. */
+.mx-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.mx-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10px; color: var(--ink-2);
+  background: var(--panel); border: 1px solid var(--line-2);
+  border-radius: 11px; padding: 2px 8px;
+}
+.mx-chip-n { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-3); }
+.mx-chip.hot { border-color: rgba(195,47,56,0.35); background: rgba(195,47,56,0.05); color: var(--sig-production); }
+.mx-chip.hot .mx-chip-n { color: var(--sig-production); }
+
+/* Activity sparkline — bars, because the series is counts per week. */
+.mx-spark { display: flex; align-items: flex-end; gap: 3px; height: 30px; }
+.mx-spark i { flex: 1; background: var(--signal-soft); border-radius: 1.5px 1.5px 0 0; display: block; min-height: 2px; }
+.mx-spark i.dim { background: var(--line-2); }
+.mx-spark-ax {
+  display: flex; justify-content: space-between; margin-top: 4px;
+  font-family: var(--font-mono); font-size: 8px; color: var(--ink-4); letter-spacing: 0.5px;
+}
+.mx-pair { display: flex; align-items: baseline; gap: 6px; }
+.mx-pair-of { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-4); }
+
+@media (max-width: 1000px) {
+  .mx-lamps { grid-template-columns: repeat(3, 1fr); }
+  .mx-cols-4, .mx-cols-3 { grid-template-columns: 1fr 1fr; }
+  .mx-layout { grid-template-columns: 1fr; }
+  .mx-rail { border-right: none; border-bottom: 1px solid var(--line); padding-left: 14px; }
+  .mx-band { min-height: 0; }
+}
+</style>
+</head>
+<body>
+<div class="mock-shell">
+
+<div class="mock-note">
+  <span>Mockup · Metrics panel</span>
+  <span id="mock-h">measuring…</span>
+</div>
+
+<!-- ── CONTEXT: strip + tool grid (simplified, indicative only) ──────────── -->
+<div class="mock-strip">
+  <div class="mock-tab"></div>
+  <div class="mock-strip-body">
+    <div class="mock-strip-name">Grange Insurance – HSA Seed Campaign 2026</div>
+    <div class="mock-strip-meta">In Production · AM Julie · due Apr 30 · OE opens Jan 15 · 7 items</div>
+  </div>
+</div>
+<div class="mock-grid">
+  <div class="mock-gbtn">Subtasks</div><div class="mock-gbtn">Inbox</div><div class="mock-gbtn">Timeline</div>
+  <div class="mock-gbtn">Info</div><div class="mock-gbtn">Templates</div><div class="mock-gbtn on">Metrics</div>
+  <div class="mock-gbtn">Invoices</div><div class="mock-gbtn">Distro</div><div class="mock-gbtn">Closeout</div>
+</div>
+
+<!-- ── THE PANEL ─────────────────────────────────────────────────────────── -->
+<div class="mx-wrap" id="mx-wrap">
+<div class="mx-layout">
+
+  <div class="mx-rail">
+    <div class="mx-rail-row active">
+      <span class="mx-rail-dot" style="background:var(--sig-production)"></span>
+      <span class="mx-rail-name is-project">Grange Insurance – HSA Seed Campaign 2026</span>
+    </div>
+    <div class="mx-rail-rule"></div>
+    <div class="mx-rail-cap">Items</div>
+    <div class="mx-rail-row"><span class="mx-rail-dot" style="background:var(--sig-production)"></span><span class="mx-rail-name">HSA – Main Video</span></div>
+    <div class="mx-rail-row"><span class="mx-rail-dot" style="background:var(--sig-limbo)"></span><span class="mx-rail-name">HSA – Microsite Update</span></div>
+    <div class="mx-rail-row"><span class="mx-rail-dot" style="background:var(--sig-kickoff)"></span><span class="mx-rail-name">HSA – Companion Piece</span></div>
+    <div class="mx-rail-row"><span class="mx-rail-dot" style="background:var(--sig-production)"></span><span class="mx-rail-name">HSA – Benefit Guide</span></div>
+    <div class="mx-rail-row"><span class="mx-rail-dot" style="background:var(--sig-done)"></span><span class="mx-rail-name">HSA – Digital Postcard</span></div>
+    <div class="mx-rail-row"><span class="mx-rail-dot" style="background:var(--sig-production)"></span><span class="mx-rail-name">HSA – BAAG (Spanish)</span></div>
+    <div class="mx-rail-row"><span class="mx-rail-dot" style="background:var(--sig-kickoff)"></span><span class="mx-rail-name">HSA – Rates Sheet</span></div>
+  </div>
+
+  <div class="mx-surface">
+
+    <div class="mx-head">
+      <div class="mx-head-name">Grange Insurance – HSA Seed Campaign 2026</div>
+      <div class="mx-head-asof">as of Nov 4, 2026 · 4:12 pm</div>
+    </div>
+
+    <!-- ── LAMPS (always visible) ────────────────────────────────────────── -->
+    <div class="mx-lamps">
+      <div class="mx-lamp bad"><div class="mx-lamp-k">Schedule</div><div class="mx-lamp-v">9d</div><div class="mx-lamp-s">behind · worst is<br>Microsite Update</div></div>
+      <div class="mx-lamp bad"><div class="mx-lamp-k">Dates</div><div class="mx-lamp-v">2</div><div class="mx-lamp-s">overdue<br>1 more due this week</div></div>
+      <div class="mx-lamp warn"><div class="mx-lamp-k">Momentum</div><div class="mx-lamp-v">3</div><div class="mx-lamp-s">untouched 10d+<br>1 item in limbo</div></div>
+      <div class="mx-lamp warn"><div class="mx-lamp-k">Margin</div><div class="mx-lamp-v">41.2%</div><div class="mx-lamp-s">under the 45% band<br>2 items uncosted</div></div>
+      <div class="mx-lamp warn"><div class="mx-lamp-k">Readiness</div><div class="mx-lamp-v">68%</div><div class="mx-lamp-s">records complete<br>links are the gap</div></div>
+      <div class="mx-lamp soft"><div class="mx-lamp-k">Confidence</div><div class="mx-lamp-v">4/7</div><div class="mx-lamp-s">items positioned<br>5/7 costed</div></div>
+    </div>
+
+    <!-- ── BAND SWITCH ───────────────────────────────────────────────────── -->
+    <div class="mx-seg">
+      <button class="mx-seg-b on" data-band="sched">Schedule</button>
+      <button class="mx-seg-b" data-band="money">Money</button>
+      <button class="mx-seg-b" data-band="shape">Shape</button>
+      <button class="mx-seg-b" data-band="record">Record</button>
+      <span class="mx-seg-aside" id="mx-aside">plan pasted 23 days ago</span>
+    </div>
+
+    <!-- ── BAND: SCHEDULE ────────────────────────────────────────────────── -->
+    <div class="mx-band on" id="band-sched">
+      <div class="mx-rows">
+        <div class="mx-cols mx-cols-2">
+          <div class="mx-tile">
+            <div class="mx-tile-k">Drift against plan</div>
+            <div class="mx-dist">
+              <span style="width:14.3%;background:var(--sig-closed)"></span>
+              <span style="width:28.6%;background:var(--line-2)"></span>
+              <span style="width:14.3%;background:var(--sig-limbo)"></span>
+              <span style="width:28.6%;background:var(--sig-production)"></span>
+              <span style="width:14.2%;background:var(--panel-3)"></span>
+            </div>
+            <div class="mx-key">
+              <span class="mx-key-i"><span class="mx-key-sw" style="background:var(--sig-closed)"></span>Ahead <span class="mx-key-n">1</span></span>
+              <span class="mx-key-i"><span class="mx-key-sw" style="background:var(--line-2)"></span>On track <span class="mx-key-n">2</span></span>
+              <span class="mx-key-i"><span class="mx-key-sw" style="background:var(--sig-limbo)"></span>Slipping <span class="mx-key-n">1</span></span>
+              <span class="mx-key-i"><span class="mx-key-sw" style="background:var(--sig-production)"></span>Behind <span class="mx-key-n">2</span></span>
+              <span class="mx-key-i"><span class="mx-key-sw" style="background:var(--panel-3)"></span>No position <span class="mx-key-n">1</span></span>
+            </div>
+          </div>
+          <div class="mx-tile">
+            <div class="mx-tile-k">Remaining plan density</div>
+            <div class="mx-tile-v">1.8&times;</div>
+            <div class="mx-tile-s">11 plan tasks left across 5 weeks — against 1.2 tasks/week for the stretch already done.</div>
+          </div>
+        </div>
+        <div class="mx-cols mx-cols-3">
+          <div class="mx-tile"><div class="mx-tile-k">OE runway</div><div class="mx-tile-v">41 days</div><div class="mx-tile-s">opens Jan 15 · closes Jan 31</div></div>
+          <div class="mx-tile"><div class="mx-tile-k">Next hard date</div><div class="mx-tile-v">Nov 12</div><div class="mx-tile-s">Main Video distribution — 8 days</div></div>
+          <div class="mx-tile"><div class="mx-tile-k">Date churn</div><div class="mx-tile-v">14</div><div class="mx-tile-s">due / dist. moves logged — 6 on Microsite Update</div></div>
+        </div>
+        <div class="mx-cols mx-cols-2">
+          <div class="mx-tile"><div class="mx-tile-k">Longest wait on client</div><div class="mx-tile-v">19 days</div><div class="mx-tile-s">Microsite Update, In Review – W/Client since Oct 16</div></div>
+          <div class="mx-tile"><div class="mx-tile-k">Plan coverage</div><div class="mx-tile-v">6 of 7</div><div class="mx-tile-s">items matched to a deliverable in the pasted plan — Rates Sheet is unmatched</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── BAND: MONEY ───────────────────────────────────────────────────── -->
+    <div class="mx-band" id="band-money">
+      <div class="mx-rows">
+        <div class="mx-cols mx-cols-4">
+          <div class="mx-tile"><div class="mx-tile-k">Revenue</div><div class="mx-tile-v">$44,700</div><div class="mx-tile-s">line items agree</div></div>
+          <div class="mx-tile"><div class="mx-tile-k">Vendor cost</div><div class="mx-tile-v">$26,300</div><div class="mx-tile-s">across 5 costed items</div></div>
+          <div class="mx-tile"><div class="mx-tile-k">Gross profit</div><div class="mx-tile-v">$18,400</div><div class="mx-tile-s">before 2 uncosted items</div></div>
+          <div class="mx-tile"><div class="mx-tile-k">Margin</div><div class="mx-tile-v">41.2%</div><div class="mx-tile-s">target band 45–55%</div></div>
+        </div>
+        <div class="mx-cols mx-cols-2">
+          <div class="mx-tile">
+            <div class="mx-tile-k">Margin by item</div>
+            <div class="mx-rank">
+              <div><div class="mx-rank-r"><span class="mx-rank-l">Digital Postcard</span><span class="mx-rank-n">61%</span></div><div class="mx-bar-wrap"><div class="mx-bar ok" style="width:61%"></div></div></div>
+              <div><div class="mx-rank-r"><span class="mx-rank-l">Benefit Guide</span><span class="mx-rank-n">52%</span></div><div class="mx-bar-wrap"><div class="mx-bar ok" style="width:52%"></div></div></div>
+              <div><div class="mx-rank-r"><span class="mx-rank-l">Main Video</span><span class="mx-rank-n">44%</span></div><div class="mx-bar-wrap"><div class="mx-bar" style="width:44%"></div></div></div>
+              <div><div class="mx-rank-r"><span class="mx-rank-l">Microsite Update</span><span class="mx-rank-n">18%</span></div><div class="mx-bar-wrap"><div class="mx-bar lo" style="width:18%"></div></div></div>
+              <div><div class="mx-rank-r"><span class="mx-rank-l">BAAG (Spanish)</span><span class="mx-rank-n neg">&minus;9%</span></div><div class="mx-bar-wrap"><div class="mx-bar crit" style="width:9%"></div></div></div>
+            </div>
+          </div>
+          <div class="mx-rows">
+            <div class="mx-tile">
+              <div class="mx-tile-k">Invoiced against budgeted cost</div>
+              <div class="mx-pair"><span class="mx-tile-v">$11,850</span><span class="mx-pair-of">of $26,300</span></div>
+              <div class="mx-bar-wrap" style="margin-top:7px"><div class="mx-bar" style="width:45%"></div></div>
+              <div class="mx-tile-s">$14,450 not yet invoiced to you — 45% billed against 62% of the plan elapsed.</div>
+            </div>
+            <div class="mx-tile">
+              <div class="mx-tile-k">Outstanding invoices</div>
+              <div class="mx-tile-v">$4,500</div>
+              <div class="mx-tile-s">2 still at Received · oldest sent 38 days ago (Hernan Sofiro, INV-2026-114)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── BAND: SHAPE ───────────────────────────────────────────────────── -->
+    <div class="mx-band" id="band-shape">
+      <div class="mx-rows">
+        <div class="mx-cols mx-cols-2">
+          <div class="mx-tile">
+            <div class="mx-tile-k">Where the work sits — phase</div>
+            <div class="mx-chips">
+              <span class="mx-chip">Client Content <span class="mx-chip-n">1</span></span>
+              <span class="mx-chip">Design/Animation <span class="mx-chip-n">2</span></span>
+              <span class="mx-chip">In Review – W/Client <span class="mx-chip-n">2</span></span>
+              <span class="mx-chip">Proofing <span class="mx-chip-n">1</span></span>
+              <span class="mx-chip hot">AM Attention <span class="mx-chip-n">1</span></span>
+            </div>
+            <div class="mx-tile-s">Centre of gravity: In Review. Two items waiting on the client 11 and 19 days.</div>
+          </div>
+          <div class="mx-tile">
+            <div class="mx-tile-k">Status spread</div>
+            <div class="mx-dist">
+              <span style="width:28.6%;background:var(--sig-kickoff)"></span>
+              <span style="width:42.8%;background:var(--sig-production)"></span>
+              <span style="width:14.3%;background:var(--sig-limbo)"></span>
+              <span style="width:14.3%;background:var(--sig-done)"></span>
+            </div>
+            <div class="mx-key">
+              <span class="mx-key-i"><span class="mx-key-sw" style="background:var(--sig-kickoff)"></span>Kickoff <span class="mx-key-n">2</span></span>
+              <span class="mx-key-i"><span class="mx-key-sw" style="background:var(--sig-production)"></span>Production <span class="mx-key-n">3</span></span>
+              <span class="mx-key-i"><span class="mx-key-sw" style="background:var(--sig-limbo)"></span>Limbo <span class="mx-key-n">1</span></span>
+              <span class="mx-key-i"><span class="mx-key-sw" style="background:var(--sig-done)"></span>Done <span class="mx-key-n">1</span></span>
+            </div>
+            <div class="mx-tile-s">3 of 7 items carry no ClickUp link, so their status is whatever the hub last held.</div>
+          </div>
+        </div>
+        <div class="mx-cols mx-cols-3">
+          <div class="mx-tile">
+            <div class="mx-tile-k">Deliverable mix</div>
+            <div class="mx-chips">
+              <span class="mx-chip">Video <span class="mx-chip-n">1</span></span>
+              <span class="mx-chip">Microsite <span class="mx-chip-n">1</span></span>
+              <span class="mx-chip">Companion <span class="mx-chip-n">3</span></span>
+              <span class="mx-chip">Benefit Guide <span class="mx-chip-n">1</span></span>
+              <span class="mx-chip">Print &amp; Mail <span class="mx-chip-n">1</span></span>
+            </div>
+            <div class="mx-tile-s">3 new · 4 update · 2 languages</div>
+          </div>
+          <div class="mx-tile">
+            <div class="mx-tile-k">Vendor load</div>
+            <div class="mx-rank">
+              <div class="mx-rank-r"><span class="mx-rank-l">Colby Dolan — design</span><span class="mx-rank-n">4</span></div>
+              <div class="mx-rank-r"><span class="mx-rank-l">Ryan Gibo — animation</span><span class="mx-rank-n">3</span></div>
+              <div class="mx-rank-r"><span class="mx-rank-l">Bill DeWees — VO</span><span class="mx-rank-n">2</span></div>
+              <div class="mx-rank-r"><span class="mx-rank-l">Hernan Sofiro — design</span><span class="mx-rank-n">1</span></div>
+            </div>
+            <div class="mx-tile-s">4 of 7 items sit with one designer.</div>
+          </div>
+          <div class="mx-tile">
+            <div class="mx-tile-k">Rounds of edits</div>
+            <div class="mx-tile-v">9</div>
+            <div class="mx-tile-s">1.3 per item · max 4 on Microsite Update, where the tier includes 2</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── BAND: RECORD ──────────────────────────────────────────────────── -->
+    <div class="mx-band" id="band-record">
+      <div class="mx-rows">
+        <div class="mx-cols mx-cols-3">
+          <div class="mx-tile">
+            <div class="mx-tile-k">Record completeness</div>
+            <div class="mx-rank">
+              <div><div class="mx-rank-r"><span class="mx-rank-l">Classification</span><span class="mx-rank-n">86%</span></div><div class="mx-bar-wrap"><div class="mx-bar ok" style="width:86%"></div></div></div>
+              <div><div class="mx-rank-r"><span class="mx-rank-l">Dates</span><span class="mx-rank-n">71%</span></div><div class="mx-bar-wrap"><div class="mx-bar" style="width:71%"></div></div></div>
+              <div><div class="mx-rank-r"><span class="mx-rank-l">Vendors &amp; costs</span><span class="mx-rank-n">64%</span></div><div class="mx-bar-wrap"><div class="mx-bar lo" style="width:64%"></div></div></div>
+              <div><div class="mx-rank-r"><span class="mx-rank-l">Links</span><span class="mx-rank-n">48%</span></div><div class="mx-bar-wrap"><div class="mx-bar crit" style="width:48%"></div></div></div>
+            </div>
+          </div>
+          <div class="mx-tile">
+            <div class="mx-tile-k">Activity — changes per week</div>
+            <div class="mx-spark">
+              <i style="height:38%"></i><i style="height:72%"></i><i style="height:55%"></i><i style="height:100%"></i>
+              <i style="height:61%"></i><i style="height:44%"></i><i style="height:22%"></i><i class="dim" style="height:14%"></i>
+            </div>
+            <div class="mx-spark-ax"><span>Sep 15</span><span>this week</span></div>
+            <div class="mx-tile-s">Tailing off three weeks. Most-changed field: Due Date.</div>
+          </div>
+          <div class="mx-tile">
+            <div class="mx-tile-k">Set-up &amp; closeout</div>
+            <div class="mx-rank">
+              <div class="mx-rank-r"><span class="mx-rank-l">Project artifacts present</span><span class="mx-rank-n">5/7</span></div>
+              <div class="mx-rank-r"><span class="mx-rank-l">Closeout checklist</span><span class="mx-rank-n">3/14</span></div>
+              <div class="mx-rank-r"><span class="mx-rank-l">Client silence</span><span class="mx-rank-n">6d</span></div>
+              <div class="mx-rank-r"><span class="mx-rank-l">Threads needing reply</span><span class="mx-rank-n">2</span></div>
+            </div>
+            <div class="mx-tile-s">Missing: estimate link, HubSpot deal.</div>
+          </div>
+        </div>
+        <div class="mx-cols mx-cols-2">
+          <div class="mx-tile"><div class="mx-tile-k">Stale items</div><div class="mx-tile-v">3</div><div class="mx-tile-s">no logged change in 10 days — Microsite Update (14d), Rates Sheet (12d), BAAG (11d)</div></div>
+          <div class="mx-tile"><div class="mx-tile-k">Status regressions</div><div class="mx-tile-v">2</div><div class="mx-tile-s">moves backwards through the cycle · 19 days spent in Limbo this project</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── ALERTS (always visible) ───────────────────────────────────────── -->
+    <div class="mx-alerts">
+      <div class="mx-alert crit"><span class="mx-alert-sig">!</span><span><strong>Rates Sheet distributes Jan 22, after OE opens</strong> — 7 days inside the enrollment window.</span></div>
+      <div class="mx-alert"><span class="mx-alert-sig">!</span><span><strong>Digital Postcard is marked Done with no reporting permalink.</strong> Distributed Oct 28.</span></div>
+      <div class="mx-alert-more">+ 3 more &middot; show all</div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+</div>
+<script>
+// Band switching. In the real panel this would be a stored key on the row,
+// the same way activePanel is, so the chosen band survives a re-render.
+document.querySelectorAll('.mx-seg-b').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.mx-seg-b').forEach(x => x.classList.remove('on'));
+    document.querySelectorAll('.mx-band').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+    document.getElementById('band-' + b.dataset.band).classList.add('on');
+    document.getElementById('mx-aside').textContent = {
+      sched:  'plan pasted 23 days ago',
+      money:  'revenue entered · costs rolled up',
+      shape:  '7 items · 3 new, 4 update',
+      record: 'last change 2 days ago'
+    }[b.dataset.band];
+    report();
+  });
+});
+// Live height readout, so the budget is checkable rather than asserted.
+function report() {
+  const h = Math.round(document.getElementById('mx-wrap').getBoundingClientRect().height);
+  const el = document.getElementById('mock-h');
+  el.textContent = 'panel height ' + h + 'px · info tab 558–754px';
+  el.style.color = h > 754 ? 'var(--oxblood)' : 'var(--ink-4)';
+}
+report();
+</script>
+</body>
+</html>

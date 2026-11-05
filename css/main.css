@@ -881,7 +881,7 @@ body::before {
    · The left border stays. The panel is inset from the block, so its left edge
      is now a real exposed edge rather than a seam against the strip. */
 
-.subtask-wrap, .inv-wrap, .email-wrap, .closeout-wrap, .info-wrap, .timeline-wrap, .distro-wrap, .tpl-wrap {
+.subtask-wrap, .inv-wrap, .email-wrap, .closeout-wrap, .info-wrap, .timeline-wrap, .distro-wrap, .tpl-wrap, .links-wrap {
   margin-left: var(--spine-off);
   /* .fps carries a 1px border on BOTH sides; the panel only indents past the
      left one. Without this, the panel overhangs the strip's right edge by that
@@ -900,7 +900,7 @@ body::before {
      inset also survives this element being a scroll container. */
   box-shadow: inset 0 6px 7px -6px rgba(28,42,51,0.18);
 }
-.subtask-wrap.hidden, .inv-wrap.hidden, .email-wrap.hidden, .closeout-wrap.hidden, .info-wrap.hidden, .timeline-wrap.hidden, .distro-wrap.hidden, .tpl-wrap.hidden { display: none; }
+.subtask-wrap.hidden, .inv-wrap.hidden, .email-wrap.hidden, .closeout-wrap.hidden, .info-wrap.hidden, .timeline-wrap.hidden, .distro-wrap.hidden, .tpl-wrap.hidden, .links-wrap.hidden { display: none; }
 
 .sheet, .inv-sheet, .email-sheet { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; }
 
@@ -2872,3 +2872,136 @@ select.info-in { cursor: pointer; padding-right: 4px; }
 }
 .tp-fieldval { font-size: 13px; color: var(--ink); line-height: 1.5; word-break: break-word; }
 .tp-fieldnote { font-size: 11px; color: var(--ink-4); margin-top: 3px; line-height: 1.45; }
+
+
+/* ═══ LINKS PANEL ══════════════════════════════════════════════════════════
+   Every URL for a project and its items in one grid. See js/panels/links.js
+   for why the panel exists and what each state means. */
+
+.lk-wrap { padding: 14px 20px 18px; }
+
+.lk-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+.lk-head-name { font-family: var(--font-display); font-size: 15px; font-weight: 600; color: var(--ink); letter-spacing: 0.2px; }
+.lk-head-count { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.6px; color: var(--ink-3); }
+
+.lk-sec-k {
+  font-family: var(--font-mono); font-size: 8px; letter-spacing: 1.4px;
+  text-transform: uppercase; color: var(--ink-4); margin-bottom: 7px;
+}
+.lk-sec-items { display: flex; justify-content: space-between; align-items: baseline; margin-top: 16px; }
+.lk-sec-hint { text-transform: none; letter-spacing: 0.4px; font-size: 8.5px; color: var(--ink-4); }
+.lk-none { font-size: 12px; color: var(--ink-3); padding: 10px 0 2px; }
+
+/* ── PROJECT ROW ─────────────────────────────────────────────────────────── */
+.lk-proj { display: grid; grid-template-columns: repeat(7, 1fr); gap: 7px; }
+.lk-pcell {
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--panel-2); padding: 7px 9px 8px; min-width: 0;
+}
+.lk-pcell.empty { background: none; border-style: dashed; border-color: var(--line-2); }
+.lk-pk {
+  font-family: var(--font-mono); font-size: 8px; letter-spacing: 1.2px;
+  text-transform: uppercase; color: var(--ink-3); margin-bottom: 5px;
+  display: flex; justify-content: space-between; align-items: center; gap: 6px;
+}
+.lk-src { font-size: 7.5px; letter-spacing: 0.6px; color: var(--ink-4); text-transform: none; white-space: nowrap; }
+.lk-pv {
+  display: block; font-family: var(--font-mono); font-size: 11px; color: var(--signal-deep);
+  text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+a.lk-pv.has:hover { text-decoration: underline; }
+.lk-pv.none .lk-a { color: var(--ink-3); border-bottom: 1px dotted var(--ink-4); padding-bottom: 1px; cursor: pointer; font-size: 11px; }
+.lk-pv.none .lk-a:hover { color: var(--signal); border-bottom-color: var(--signal); }
+
+/* ── ITEM GRID ───────────────────────────────────────────────────────────── */
+.lk-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
+/* table-layout:fixed derives every column width from the FIRST row, and the
+   first row here is the group-spanner with colspan — so the widths live on the
+   colgroup, never on the header cells. Setting them on .lk-th-name does
+   nothing and the item names silently truncate. */
+.lk-col-name { width: 300px; }
+.lk-table th {
+  font-family: var(--font-mono); font-size: 8px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--ink-3); font-weight: 500;
+  text-align: center; padding: 0 0 7px; border-bottom: 1px solid var(--line);
+  vertical-align: bottom;
+}
+.lk-table th.lk-th-name { text-align: left; }
+.lk-table th.lk-th-grp { color: var(--ink-4); letter-spacing: 1.4px; padding-bottom: 4px; border-bottom: none; }
+.lk-table td { padding: 0; height: 32px; text-align: center; border-bottom: 1px solid var(--line-soft); }
+.lk-table tbody tr:last-child td { border-bottom: none; }
+.lk-table tbody tr:hover td { background: var(--panel-2); }
+.lk-sep { border-left: 1px solid var(--line); }
+
+.lk-name { display: flex; align-items: center; gap: 7px; padding-right: 10px; text-align: left; }
+/* Fallback colour: itemDotStyle() overrides it inline, but an item with no
+   known ClickUp status returns nothing and the dot would render invisible. */
+.lk-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; background: var(--ink-4); }
+.lk-nm { font-size: 12px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── CLOSEOUT ARTIFACTS ──────────────────────────────────────────────────────
+   As-produced and Renewal storyboards are produced AT closeout, so an
+   unfinished item is not missing them: they stay silent (the .lk-na dash,
+   "due at closeout" on the tooltip) until the item is done, then go straight
+   to .gap, skipping the grey .none state entirely. Same shape as Reporting —
+   empty is only a gap once the thing that makes it required has happened.
+
+   THREE STATES — the strip's logic with the strip's word dropped.
+   stripLinkField() repeats the label in every field because the strip has NO
+   header row: there, the word is the only thing naming the field. A table
+   names it once, at the top of the column, so repeating it down every row just
+   makes a wall of text to read past. A SET cell shows a link glyph and shuts
+   up; an EMPTY cell shows the word, because then the word IS the information —
+   which link is missing. A healthy row goes quiet and every word is a hole. */
+.lk-wrap {
+  --lk-chain: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>');
+}
+/* vertical-align:middle on both states puts the glyph box and the word box on
+   the same centre; without it the 15px glyph hangs below the text baseline. */
+.lk-c { display: inline-flex; align-items: center; position: relative; vertical-align: middle; line-height: 1; }
+.lk-c .lk-a { text-decoration: none; cursor: pointer; transition: background .13s, color .13s, border-color .13s; }
+
+/* SET — glyph only. font-size:0 hides the word without removing it, so the
+   tooltip and screen readers still get it. */
+.lk-c.has .lk-a {
+  display: inline-block; width: 15px; height: 15px; font-size: 0;
+  background: var(--signal);
+  -webkit-mask: var(--lk-chain) center / 15px 15px no-repeat;
+          mask: var(--lk-chain) center / 15px 15px no-repeat;
+}
+.lk-c.has .lk-a:hover { background: var(--ink); }
+
+/* EMPTY — the word, in the strip's own empty treatment. Deliberately heavier
+   than .lk-na below: telling a hole from a non-hole is the whole job of the
+   grid, and at the same grey the two marks read as one. */
+.lk-c.none .lk-a { font-size: 11px; color: var(--ink-3); border-bottom: 1px dotted var(--ink-4); padding-bottom: 1px; }
+.lk-c.none .lk-a:hover { color: var(--signal); border-bottom-color: var(--signal); }
+
+/* Missing AND the item is already done or distributed — a real gap. */
+.lk-c.gap .lk-a { font-size: 11px; color: var(--sig-production); font-weight: 600; border-bottom: 1px solid var(--sig-production); padding-bottom: 1px; }
+
+/* A sent link that disagrees with the item's own field. */
+.lk-c.differs::after { content: ''; position: absolute; top: -3px; right: -6px; width: 5px; height: 5px; border-radius: 50%; background: var(--sig-limbo); }
+
+/* The pencil belongs to the CELL, not the row — thirteen pencils at once was
+   what made this noisy. Absolute, so in-flow width never pushes the glyph off
+   its column centre. */
+.lk-ed { position: absolute; left: 100%; margin-left: 5px; color: var(--ink-4); font-size: 10px; opacity: 0; transition: opacity .13s; cursor: pointer; }
+.lk-c:hover .lk-ed, .lk-pcell:hover .lk-ed { opacity: 1; }
+.lk-ed:hover { color: var(--signal); }
+.lk-na { display: inline-block; vertical-align: middle; line-height: 1; color: var(--ink-4); font-size: 11px; opacity: .7; }
+
+/* ── LEGEND + ALERTS ─────────────────────────────────────────────────────── */
+.lk-foot { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 9px; }
+.lk-key { display: flex; flex-wrap: wrap; gap: 5px 16px; margin-bottom: 8px; }
+.lk-key-i { display: flex; align-items: center; gap: 6px; font-size: 9.5px; color: var(--ink-3); }
+.lk-alert {
+  display: flex; gap: 7px; align-items: baseline;
+  background: var(--signal-tint); border: 1px solid var(--line-2);
+  border-radius: var(--radius); padding: 6px 10px; margin-top: 5px;
+  font-size: 11px; color: var(--ink-2); line-height: 1.5;
+}
+.lk-alert.crit { background: var(--oxblood-tint); border-color: rgba(168,50,58,0.3); }
+.lk-alert-sig { font-weight: 700; color: var(--sig-limbo); flex-shrink: 0; }
+.lk-alert.crit .lk-alert-sig { color: var(--oxblood); }
+.lk-alert code { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); }

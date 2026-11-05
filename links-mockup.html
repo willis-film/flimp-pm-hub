@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Links Panel — Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/main.css">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   LINKS PANEL — mockup styles (.lk-*)
+
+   WHY THIS PANEL EXISTS. Nine link fields are edited in seven different
+   places: the strip (zoho / dropbox / estimate), the detail modal (zoho /
+   estimate again), the subtask sheet's review + dropbox columns, Info's item
+   scope (five fields), Info's project scope (hubspot / estimate / invoiceRef),
+   the ClickUp sync (clickupUrl, read-only, in no form at all) and the Distro
+   wizard's own per-send store. `dropboxLink` alone is editable from four of
+   those. There has never been one place that shows them all.
+
+   NO SCOPE RAIL, unlike Info and the Metrics mockup. The entire value here is
+   seeing every item at once — a rail that showed one item's links at a time
+   would rebuild the exact problem the panel exists to solve.
+
+   THREE CELL STATES, not two. "Empty" and "does not apply" are different
+   facts: a Benefit Guide has no storyboard and will never have a Boords link,
+   so drawing an empty slot there would report a gap that is not a gap. Same
+   reasoning as Info's "No styles for this product type" well.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+body { background: var(--bg); padding: 22px 20px 50px; }
+.mock-shell { max-width: 1660px; margin: 0 auto; }
+.mock-note {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.4px;
+  text-transform: uppercase; color: var(--ink-4); margin-bottom: 10px;
+  display: flex; justify-content: space-between;
+}
+.mock-strip {
+  background: var(--panel); border: 1px solid var(--line-2);
+  border-radius: var(--radius) var(--radius) 0 0; border-bottom: none;
+  display: flex; align-items: stretch; overflow: hidden;
+}
+.mock-tab { width: var(--spine-w); background: var(--sig-production); flex-shrink: 0; }
+.mock-strip-body { flex: 1; padding: 12px 16px 10px; }
+.mock-strip-name { font-family: var(--font-display); font-size: 15px; font-weight: 600; color: var(--ink); }
+.mock-strip-meta { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-3); margin-top: 3px; }
+.mock-grid {
+  margin-left: var(--spine-off); margin-right: 1px;
+  border: 1px solid var(--line-2); border-bottom: none;
+  display: grid; grid-template-columns: repeat(3, 1fr);
+}
+.mock-gbtn {
+  background: var(--panel); padding: 6px 0;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.8px;
+  color: var(--ink-3); text-align: center;
+  border-right: 1px solid var(--line); border-bottom: 1px solid var(--line);
+}
+.mock-gbtn:nth-child(3n) { border-right: none; }
+.mock-gbtn.on { background: var(--signal-tint); color: var(--signal-deep); font-weight: 600; }
+
+/* ── THE PANEL ───────────────────────────────────────────────────────────── */
+.lk-wrap {
+  margin-left: var(--spine-off); margin-right: 1px;
+  border: 1px solid var(--line-2); border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  background: var(--panel);
+  box-shadow: inset 0 6px 7px -6px rgba(28,42,51,0.18);
+  padding: 14px 20px 18px;
+}
+.lk-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+.lk-head-name { font-family: var(--font-display); font-size: 15px; font-weight: 600; color: var(--ink); }
+.lk-head-count { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-4); letter-spacing: 0.4px; }
+
+.lk-gh {
+  font-family: var(--font-mono); font-size: 8px; letter-spacing: 1.4px;
+  text-transform: uppercase; color: var(--ink-3);
+  padding-bottom: 5px; margin-bottom: 9px; border-bottom: 1px solid var(--line);
+  display: flex; justify-content: space-between; align-items: baseline;
+}
+.lk-gh-aside { letter-spacing: 0.4px; text-transform: none; color: var(--ink-4); font-size: 9.5px; }
+
+/* ── PROJECT ROW ──────────────────────────────────────────────────────────
+   The project's own five, which are NOT the same five an item carries — so
+   they get their own row rather than being forced into the item grid as
+   columns that would be "does not apply" on every single line. */
+.lk-proj { display: grid; grid-template-columns: repeat(7, 1fr); gap: 7px; margin-bottom: 16px; }
+.lk-pcell {
+  background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: 4px; padding: 7px 9px 8px; min-width: 0;
+}
+.lk-pcell.empty { background: none; border-style: dashed; border-color: var(--line-2); }
+.lk-pk {
+  font-family: var(--font-mono); font-size: 8px; letter-spacing: 1.2px;
+  text-transform: uppercase; color: var(--ink-3); margin-bottom: 5px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.lk-src { font-size: 7.5px; letter-spacing: 0.6px; color: var(--ink-4); text-transform: none; }
+.lk-pv {
+  display: flex; align-items: center; gap: 5px;
+  font-family: var(--font-mono); font-size: 11px; color: var(--signal-deep);
+  text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.lk-pv.has:hover { text-decoration: underline; }
+.lk-pv.none .lk-a {
+  color: var(--ink-3); border-bottom: 1px dotted var(--ink-4);
+  padding-bottom: 1px; cursor: pointer; font-size: 11px;
+}
+.lk-pv.none .lk-a:hover { color: var(--signal); border-bottom-color: var(--signal); }
+
+/* ── ITEM GRID ───────────────────────────────────────────────────────────── */
+.lk-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
+.lk-table th {
+  font-family: var(--font-mono); font-size: 8px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--ink-3); font-weight: 500;
+  text-align: center; padding: 0 0 7px; border-bottom: 1px solid var(--line);
+  vertical-align: bottom;
+}
+.lk-table th.lk-th-name { text-align: left; }
+/* COLUMN WIDTHS LIVE ON THE <colgroup>, NOT THE <th>. With table-layout:fixed
+   the browser derives column widths from the FIRST row, and this table's first
+   row is the "as sent to client" spanner — so a width on the second row's <th>
+   is parsed, applied to nothing, and silently ignored. The name column needs
+   300px (at 230 the item names truncated to "HSA – Microste…", which defeats
+   the grid); every link column only ever holds a 24px chip, so they share
+   what is left. */
+.lk-col-name { width: 300px; }
+.lk-table td {
+  padding: 0; height: 32px; text-align: center;
+  border-bottom: 1px solid var(--line-soft);
+}
+.lk-table tr:last-child td { border-bottom: none; }
+.lk-table tr:hover td { background: var(--panel-well); }
+
+/* The distro group is a different KIND of link — what the client was actually
+   sent, which may not be what the item's own field says. Separated by a rule
+   rather than a colour, so it reads as a second region of one table. */
+.lk-sep { border-left: 1px solid var(--line-2) !important; }
+.lk-grp {
+  font-family: var(--font-mono); font-size: 7.5px; letter-spacing: 1.3px;
+  text-transform: uppercase; color: var(--ink-4); font-weight: 500;
+  text-align: center; padding: 0 0 4px;
+}
+
+.lk-name { display: flex; align-items: center; gap: 7px; padding-right: 10px; text-align: left; }
+.lk-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.lk-nm { font-size: 11.5px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lk-ty { font-family: var(--font-mono); font-size: 8.5px; color: var(--ink-4); flex-shrink: 0; }
+
+/* CLOSEOUT ARTIFACTS — As-produced and Renewal storyboards are produced AT
+   closeout, so an unfinished item is not missing them. They stay silent (the
+   .lk-na dash, with "due at closeout" on the tooltip) until the item is done,
+   then go straight to .gap, skipping the grey .none state entirely: once the
+   item is closed, an absent closeout artifact is a real hole, not an empty
+   slot. Same shape as the Reporting rule — empty is only a gap once the thing
+   that makes it required has happened (there, distribution).
+
+/* THREE STATES — the word appears only when it is telling you something.
+   A SET cell has nothing to say: the column header already names the field,
+   so it shows a link glyph and shuts up. An EMPTY cell shows the word,
+   because now the word IS the information — which link is missing. The
+   result inverts the noise: a healthy row is quiet, and every word on
+   screen is a hole. Empty keeps the strip's .fps-empty treatment exactly —
+   grey text under a dotted underline, click to paste. */
+#lk-wrap {
+  --lk-chain: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>');
+}
+/* vertical-align:middle on both states puts the glyph box and the word box on
+   the same centre; without it the 15px glyph hangs below the text baseline.
+   The pencil is absolute: in the flow it widened only the filled cells, which
+   pushed every glyph ~6px left of its column centre. */
+.lk-c { display: inline-flex; align-items: center; position: relative; vertical-align: middle; line-height: 1; }
+.lk-c .lk-a { text-decoration: none; cursor: pointer; transition: background .13s, color .13s, border-color .13s; }
+
+/* SET — glyph only. font-size:0 hides the word without removing it, so the
+   tooltip and screen readers still get it. */
+.lk-c.has .lk-a {
+  display: inline-block; width: 15px; height: 15px; font-size: 0;
+  background: var(--signal);
+  -webkit-mask: var(--lk-chain) center / 15px 15px no-repeat;
+          mask: var(--lk-chain) center / 15px 15px no-repeat;
+}
+.lk-c.has .lk-a:hover { background: var(--ink); }
+
+/* EMPTY — the word, in the strip's own empty treatment. */
+.lk-c.none .lk-a {
+  font-size: 11px; color: var(--ink-3);
+  border-bottom: 1px dotted var(--ink-4); padding-bottom: 1px;
+}
+.lk-c.none .lk-a:hover { color: var(--signal); border-bottom-color: var(--signal); }
+
+/* Missing AND the item is distributed — a real gap, not just an empty slot. */
+.lk-c.gap .lk-a {
+  font-size: 11px; color: var(--sig-production); font-weight: 600;
+  border-bottom: 1px solid var(--sig-production); padding-bottom: 1px;
+}
+
+/* A sent link that disagrees with the item's own field. */
+.lk-c.differs::after {
+  content: ''; position: absolute; top: -3px; right: -6px;
+  width: 5px; height: 5px; border-radius: 50%; background: var(--sig-limbo);
+}
+
+/* One pencil, on the cell you are pointing at — not thirteen on row hover. */
+.lk-ed { position: absolute; left: 100%; margin-left: 5px; color: var(--ink-4); font-size: 10px; opacity: 0; transition: opacity .13s; }
+.lk-c:hover .lk-ed, .lk-pcell:hover .lk-ed { opacity: 1; }
+.lk-ed:hover { color: var(--signal); }
+.lk-na { display: inline-block; vertical-align: middle; line-height: 1; color: var(--ink-4); font-size: 11px; opacity: .7; }
+
+/* ── LEGEND + ALERTS ─────────────────────────────────────────────────────── */
+.lk-foot { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 9px; }
+.lk-key { display: flex; flex-wrap: wrap; gap: 5px 16px; margin-bottom: 8px; }
+.lk-key-i { display: flex; align-items: center; gap: 6px; font-size: 9.5px; color: var(--ink-3); }
+.lk-alert {
+  display: flex; gap: 7px; align-items: baseline;
+  font-size: 10.5px; line-height: 1.45; color: var(--ink-2);
+  background: rgba(201,154,46,0.09); border: 1px solid rgba(201,154,46,0.3);
+  border-radius: 4px; padding: 5px 9px; margin-top: 5px;
+}
+.lk-alert.crit { background: var(--oxblood-tint); border-color: rgba(168,50,58,0.3); }
+.lk-alert-sig { font-weight: 700; color: var(--sig-limbo); flex-shrink: 0; }
+.lk-alert.crit .lk-alert-sig { color: var(--oxblood); }
+
+@media (max-width: 1100px) {
+  .lk-proj { grid-template-columns: repeat(2, 1fr); }
+  .lk-wrap { overflow-x: auto; }
+  .lk-table { min-width: 980px; }
+}
+</style>
+</head>
+<body>
+<div class="mock-shell">
+
+<div class="mock-note">
+  <span>Mockup · Links panel</span>
+  <span id="mock-h">measuring…</span>
+</div>
+
+<div class="mock-strip">
+  <div class="mock-tab"></div>
+  <div class="mock-strip-body">
+    <div class="mock-strip-name">Grange Insurance – HSA Seed Campaign 2026</div>
+    <div class="mock-strip-meta">In Production · AM Julie · due Apr 30 · OE opens Jan 15 · 7 items</div>
+  </div>
+</div>
+<div class="mock-grid">
+  <div class="mock-gbtn">Subtasks</div><div class="mock-gbtn">Inbox</div><div class="mock-gbtn">Timeline</div>
+  <div class="mock-gbtn">Info</div><div class="mock-gbtn">Templates</div><div class="mock-gbtn on">Links</div>
+  <div class="mock-gbtn">Invoices</div><div class="mock-gbtn">Distro</div><div class="mock-gbtn">Closeout</div>
+</div>
+
+<div class="lk-wrap" id="lk-wrap">
+
+  <div class="lk-head">
+    <div class="lk-head-name">Grange Insurance – HSA Seed Campaign 2026</div>
+    <div class="lk-head-count">29 of 50 applicable links filled · 3 gaps on finished items</div>
+  </div>
+
+  <!-- ── PROJECT LINKS ─────────────────────────────────────────────────── -->
+  <div class="lk-gh">
+    <span>Project</span>
+    <span class="lk-gh-aside">edited today on the strip, the detail modal and Info — three forms, one record</span>
+  </div>
+  <div class="lk-proj">
+    <div class="lk-pcell">
+      <div class="lk-pk"><span>Zoho</span><span class="lk-src">strip</span></div>
+      <a class="lk-pv has" href="#" title="crm.zoho.com/grange">crm.zoho.com/grange</a>
+    </div>
+    <div class="lk-pcell">
+      <div class="lk-pk"><span>Dropbox</span><span class="lk-src">strip</span></div>
+      <a class="lk-pv has" href="#" title="dropbox.com/grange-hsa-2026">dropbox.com/grange-hsa…</a>
+    </div>
+    <div class="lk-pcell">
+      <div class="lk-pk"><span>Estimate</span><span class="lk-src">strip · info</span></div>
+      <a class="lk-pv has" href="#" title="Estimate">EST-2026-0441</a>
+    </div>
+    <div class="lk-pcell empty">
+      <div class="lk-pk"><span>HubSpot deal</span><span class="lk-src">info</span></div>
+      <span class="lk-pv none"><span class="lk-a">not set</span></span>
+    </div>
+    <div class="lk-pcell empty">
+      <div class="lk-pk"><span>Invoice ref</span><span class="lk-src">info</span></div>
+      <span class="lk-pv none"><span class="lk-a">not set</span></span>
+    </div>
+    <div class="lk-pcell">
+      <div class="lk-pk"><span>AI agent</span><span class="lk-src">distro</span></div>
+      <a class="lk-pv has" href="#" title="flimp.live/grange-hsa-chatbot — stored only in the Distro wizard">flimp.live/…-chatbot</a>
+    </div>
+    <div class="lk-pcell empty">
+      <div class="lk-pk"><span>AI report</span><span class="lk-src">distro</span></div>
+      <span class="lk-pv none"><span class="lk-a">not set</span></span>
+    </div>
+  </div>
+
+  <!-- ── ITEM LINKS ────────────────────────────────────────────────────── -->
+  <div class="lk-gh">
+    <span>Items</span>
+    <span class="lk-gh-aside">click any slot to paste · ClickUp is synced and read-only · every item is a Zoho Project Item</span>
+  </div>
+  <table class="lk-table">
+    <colgroup>
+      <col class="lk-col-name">
+      <col span="3">
+      <col span="3">
+      <col span="3">
+      <col span="3">
+    </colgroup>
+    <thead>
+      <tr><td></td><td class="lk-grp" colspan="3">Systems</td><td class="lk-grp lk-sep" colspan="3">Storyboards</td><td class="lk-grp lk-sep" colspan="3">Delivery</td><td class="lk-grp lk-sep" colspan="3">As sent to client</td></tr>
+      <tr><th class="lk-th-name">Item</th><th>ClickUp</th><th>Zoho</th><th>Dropbox</th><th class="lk-sep">Working</th><th>As-produced</th><th>Renewal</th><th class="lk-sep">Review</th><th>Preview</th><th>Reporting</th><th class="lk-sep">Final Files</th><th>Dist. URL</th><th>Embed</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><div class="lk-name"><span class="lk-dot" style="background:var(--sig-done)"></span><span class="lk-nm">HSA – Main Video</span><span class="lk-ty">VID</span></div></td><td><span class="lk-c has"><a class="lk-a" href="#" title="app.clickup.com/t/868hya1cv">ClickUp</a><span class="lk-ed">&#9998;</span></span></td><td><span class="lk-c has"><a class="lk-a" href="#" title="crm.zoho.com/projectitem/88214">Zoho</a><span class="lk-ed">&#9998;</span></span></td><td><span class="lk-c has"><a class="lk-a" href="#" title="dropbox.com/grange-main">Dropbox</a><span class="lk-ed">&#9998;</span></span></td><td class="lk-sep"><span class="lk-c has"><a class="lk-a" href="#" title="boords.com/grange-hsa">Boords</a><span class="lk-ed">&#9998;</span></span></td><td><span class="lk-c gap"><span class="lk-a" title="Item is DONE with no as-produced storyboard in Boords &mdash; a closeout artifact">AP</span></span></td><td><span class="lk-c gap"><span class="lk-a" title="Item is DONE with no renewal Boords in Zoho &mdash; a closeout artifact">Renewal</span></span></td><td class="lk-sep"><span class="lk-c has"><a class="lk-a" href="#" title="reviewstudio.com/&hellip;">Review</a><span class="lk-ed">&#9998;</span></span></td><td><span class="lk-c has"><a class="lk-a" href="#" title="flimp.live/grange-hsa">Preview</a><span class="lk-ed">&#9998;</span></span></td><td><span class="lk-c has"><a class="lk-a" href="#" title="flimp.cloud/report/&hellip;">Report</a><span class="lk-ed">&#9998;</span></span></td><td class="lk-sep"><span class="lk-na">&ndash;</span></td><td><span class="lk-c has differs"><a class="lk-a" href="#" title="Sent: flimp.live/grange-hsa-v2 &mdash; the item&#39;s preview link is flimp.live/grange-hsa">URL</a><span class="lk-ed">&#9998;</span></span></td><td><span class="lk-c has"><a class="lk-a" href="#" title="&lt;iframe&hellip;&gt; &mdash; stored only in the Distro wizard">Embed</a><span class="lk-ed">&#9998;</span></span></td>
+      </tr>
+      <tr>
+        <td><div class="lk-name"><span class="lk-dot" style="background:var(--sig-limbo)"></span><span class="lk-nm">HSA – Microsite Update</span><span class="lk-ty">MS</span></div></td><td><span class="lk-c has"><a class="lk-a" href="#" title="app.clickup.com/t/868hya3ex">ClickUp</a><span class="lk-ed">&#9998;</span></span></td><td><span class="lk-c has"><a class="lk-a" href="#" title="crm.zoho.com/projectitem/88215">Zoho</a><span class="lk-ed">&#9998;</span></span></td><td><span class="lk-c has"><a class="lk-a" href="#" title="dropbox.com/grange-microsite">Dropbox</a><span class="lk-ed">&#9998;</span></span></td><td class="lk-sep"><span class="lk-na">&ndash;</span></td><td><span class="lk-na">&ndash;</span></td><td><span class="lk-na">&ndash;</span></td><td class="lk-sep"><span class="lk-c none"><span class="lk-a" title="No ReviewStudio link">Review</span></span></td><td><span class="lk-c has"><a class="lk-a" href="#" title="flimp.live/grange-hub">Preview</a><span class="lk-ed">&#9998;</span></span></td><td><span class="lk-c none"><span class="lk-a" title="No reporting permalink">Report</span></span></td><td class="lk-sep"><span class="lk-na">&ndash;</span></td><td><span class="lk-c none"><span class="lk-a">URL</span></span></td><td><span class="lk-na">&ndash;</span></td>
+      </tr>
+      <tr>
+        <td><div class="lk-name"><span class="lk-dot" style="background:var(--sig-done)"></span><span class="lk-nm">HSA – Digital Postcard</span><span class="lk-ty">MS</span></div></td><td><span class="lk-c has"><a class="lk-a" href="#" title="app.clickup.com/t/868hya9kd">ClickUp</a><span class="lk-ed">&#9998;</span></span></td><td><span class="lk-c has"><a class="lk-a" href="#" title="crm.zoho.com/projectitem/88216">Zoho</a><span class="lk-ed">&#9998;</span></span></td><td><span class="lk-c has"><a class="lk-a" href="#" title="dropbox.com/grange-postcard">Dropbox</a><span class="lk-ed">&#9998;</span></span></td><td class="lk-sep"><span class="lk-na">&ndash;</span></td><td><span class="lk-na">&ndash;</span></td><td><span class="lk-na">&ndash;</span></td><td class="lk-sep"><span class="lk-na">&ndash;</span></td><td><span class="lk-c has"><a class="lk-a" href="#" title="flimp.live/grange-postcard">Preview</a><span class="lk-ed">&#9998;</span></span></td><td><span class="lk-c gap"><span class="lk-a" title="DISTRIBUTED Oct 28 with no reporting permalink">Report</span></span></td><td class="lk-sep"><span class="lk-na">&ndash;</span></td><td><span class="lk-c has"><a class="lk-a" href="#" title="flimp.live/grange-postcard">URL</a><span class="lk-ed">&#9998;</span></span></td><td><span class="lk-na">&ndash;</span></td>
+      </tr>
+      <tr>
+        <td><div class="lk-name"><span class="lk-dot" style="background:var(--sig-production)"></span><span class="lk-nm">HSA – Benefit Guide</span><span class="lk-ty">BG</span></div></td><td><span class="lk-c has"><a class="lk-a" href="#" title="app.clickup.com/t/868hya5gz">ClickUp</a><span class="lk-ed">&#9998;</span></span></td><td><span class="lk-c has"><a class="lk-a" href="#" title="crm.zoho.com/projectitem/88217">Zoho</a><span class="lk-ed">&#9998;</span></span></td><td><span class="lk-c has"><a class="lk-a" href="#" title="dropbox.com/grange-guide">Dropbox</a><span class="lk-ed">&#9998;</span></span></td><td class="lk-sep"><span class="lk-na">&ndash;</span></td><td><span class="lk-na">&ndash;</span></td><td><span class="lk-na">&ndash;</span></td><td class="lk-sep"><span class="lk-c has"><a class="lk-a" href="#" title="reviewstudio.com/&hellip;">Review</a><span class="lk-ed">&#9998;</span></span></td><td><span class="lk-na">&ndash;</span></td><td><span class="lk-na">&ndash;</span></td><td class="lk-sep"><span class="lk-c has"><a class="lk-a" href="#" title="dropbox.com/grange-guide/final &mdash; sent under the &quot;Final Files&quot; heading">Files</a><span class="lk-ed">&#9998;</span></span></td><td><span class="lk-na">&ndash;</span></td><td><span class="lk-na">&ndash;</span></td>
+      </tr>
+      <tr>
+        <td><div class="lk-name"><span class="lk-dot" style="background:var(--sig-kickoff)"></span><span class="lk-nm">HSA – Companion Piece</span><span class="lk-ty">CP</span></div></td><td><span class="lk-c has"><a class="lk-a" href="#" title="app.clickup.com/t/868hya2dw">ClickUp</a><span class="lk-ed">&#9998;</span></span></td><td><span class="lk-c none"><span class="lk-a" title="No Zoho Project Item link">Zoho</span></span></td><td><span class="lk-c has"><a class="lk-a" href="#" title="dropbox.com/grange-baag">Dropbox</a><span class="lk-ed">&#9998;</span></span></td><td class="lk-sep"><span class="lk-na">&ndash;</span></td><td><span class="lk-na">&ndash;</span></td><td><span class="lk-na">&ndash;</span></td><td class="lk-sep"><span class="lk-c none"><span class="lk-a">Review</span></span></td><td><span class="lk-na">&ndash;</span></td><td><span class="lk-na">&ndash;</span></td><td class="lk-sep"><span class="lk-c none"><span class="lk-a" title="No Final Files link">Files</span></span></td><td><span class="lk-na">&ndash;</span></td><td><span class="lk-na">&ndash;</span></td>
+      </tr>
+      <tr>
+        <td><div class="lk-name"><span class="lk-dot" style="background:var(--sig-production)"></span><span class="lk-nm">HSA – BAAG (Spanish)</span><span class="lk-ty">CP</span></div></td><td><span class="lk-c none"><span class="lk-a" title="Not linked to a ClickUp task">ClickUp</span></span></td><td><span class="lk-c none"><span class="lk-a" title="No Zoho Project Item link">Zoho</span></span></td><td><span class="lk-c none"><span class="lk-a">Dropbox</span></span></td><td class="lk-sep"><span class="lk-na">&ndash;</span></td><td><span class="lk-na">&ndash;</span></td><td><span class="lk-na">&ndash;</span></td><td class="lk-sep"><span class="lk-c none"><span class="lk-a">Review</span></span></td><td><span class="lk-na">&ndash;</span></td><td><span class="lk-na">&ndash;</span></td><td class="lk-sep"><span class="lk-c none"><span class="lk-a" title="No Final Files link">Files</span></span></td><td><span class="lk-na">&ndash;</span></td><td><span class="lk-na">&ndash;</span></td>
+      </tr>
+      <tr>
+        <td><div class="lk-name"><span class="lk-dot" style="background:var(--sig-kickoff)"></span><span class="lk-nm">HSA – Rates Sheet</span><span class="lk-ty">CP</span></div></td><td><span class="lk-c none"><span class="lk-a" title="Not linked to a ClickUp task">ClickUp</span></span></td><td><span class="lk-c none"><span class="lk-a" title="No Zoho Project Item link">Zoho</span></span></td><td><span class="lk-c none"><span class="lk-a">Dropbox</span></span></td><td class="lk-sep"><span class="lk-na">&ndash;</span></td><td><span class="lk-na">&ndash;</span></td><td><span class="lk-na">&ndash;</span></td><td class="lk-sep"><span class="lk-na">&ndash;</span></td><td><span class="lk-na">&ndash;</span></td><td><span class="lk-na">&ndash;</span></td><td class="lk-sep"><span class="lk-c none"><span class="lk-a" title="No Final Files link">Files</span></span></td><td><span class="lk-na">&ndash;</span></td><td><span class="lk-na">&ndash;</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="lk-foot">
+    <div class="lk-key">
+      <span class="lk-key-i"><span class="lk-c has"><span class="lk-a">Dropbox</span></span> set — click to open</span>
+      <span class="lk-key-i"><span class="lk-c none"><span class="lk-a">Dropbox</span></span> empty — click to paste</span>
+      <span class="lk-key-i"><span class="lk-c gap"><span class="lk-a">Report</span></span> missing on an item that is already done or distributed</span>
+      <span class="lk-key-i"><span class="lk-c has differs"><span class="lk-a">URL</span></span> sent link differs from the item's own</span>
+      <span class="lk-key-i"><span class="lk-na">&ndash;</span> does not apply to this product type</span>
+    </div>
+    <div class="lk-alert crit">
+      <span class="lk-alert-sig">!</span>
+      <span><strong>Digital Postcard distributed Oct 28 with no reporting permalink.</strong> The client has no metrics link and closeout can't record one.</span>
+    </div>
+    <div class="lk-alert crit">
+      <span class="lk-alert-sig">!</span>
+      <span><strong>Main Video closed without its closeout storyboards</strong> &mdash; no as-produced Boords and no renewal Boords in Zoho. Both are checkboxes in Closeout today, so nothing records the link.</span>
+    </div>
+    <div class="lk-alert">
+      <span class="lk-alert-sig">!</span>
+      <span><strong>3 items have no Zoho Project Item link</strong> — Companion Piece, BAAG (Spanish) and Rates Sheet. The field exists on every item and is editable in the detail modal, but appears in no panel.</span>
+    </div>
+    <div class="lk-alert">
+      <span class="lk-alert-sig">!</span>
+      <span><strong>Main Video was sent a distribution URL that isn't its preview link</strong> — <code>…/grange-hsa-v2</code> went out, Info still says <code>…/grange-hsa</code>. One of the two is stale.</span>
+    </div>
+  </div>
+
+</div>
+</div>
+<script>
+const h = Math.round(document.getElementById('lk-wrap').getBoundingClientRect().height);
+const el = document.getElementById('mock-h');
+el.textContent = 'panel height ' + h + 'px · info tab 558–754px';
+el.style.color = h > 754 ? 'var(--oxblood)' : 'var(--ink-4)';
+</script>
+</body>
+</html>
